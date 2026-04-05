@@ -1017,13 +1017,15 @@ function createUploadedFileItem(file) {
 }
 
 function createFileIconPreview(file) {
+  const iconType = getFileIconType(file.name || file.path || "archivo");
   const wrapper = document.createElement("div");
-  wrapper.className = "uploaded-file-icon";
+  wrapper.className = `uploaded-file-icon type-${iconType.type}`;
   wrapper.setAttribute("aria-hidden", "true");
+  wrapper.title = `${iconType.label}: ${file.name || "archivo"}`;
 
   const glyph = document.createElement("span");
   glyph.className = "uploaded-file-icon-glyph";
-  glyph.textContent = "DOC";
+  glyph.textContent = iconType.glyph;
 
   const ext = document.createElement("span");
   ext.className = "uploaded-file-icon-ext";
@@ -1043,6 +1045,32 @@ function getFileExtensionLabel(name) {
     .replace(/[^a-z0-9]/gi, "")
     .slice(0, 4)
     .toUpperCase() || "FILE";
+}
+
+function getFileIconType(name) {
+  const ext = getFileExtensionLabel(name).toLowerCase();
+
+  if (ext === "pdf") {
+    return { type: "pdf", glyph: "PDF", label: "Documento PDF" };
+  }
+
+  if (["doc", "docx", "odt", "rtf"].includes(ext)) {
+    return { type: "word", glyph: "W", label: "Documento de texto" };
+  }
+
+  if (["xls", "xlsx", "csv", "ods"].includes(ext)) {
+    return { type: "excel", glyph: "X", label: "Hoja de calculo" };
+  }
+
+  if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) {
+    return { type: "zip", glyph: "ZIP", label: "Archivo comprimido" };
+  }
+
+  if (["txt", "md", "log", "tex"].includes(ext)) {
+    return { type: "text", glyph: "TXT", label: "Archivo de texto" };
+  }
+
+  return { type: "text", glyph: "DOC", label: "Archivo" };
 }
 
 function pulseRibbonTab(target) {
