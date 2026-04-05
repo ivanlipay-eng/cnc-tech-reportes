@@ -89,11 +89,6 @@ function initializeBrandLogo() {
   const configuredLogo = normalizeBaseUrl(appConfig.brandLogoUrl || "");
   if (configuredLogo) {
     brandLogo.src = configuredLogo;
-    return;
-  }
-
-  if (apiBaseUrl) {
-    brandLogo.src = buildBackendUrl("/brand/cnc-logo.png");
   }
 }
 
