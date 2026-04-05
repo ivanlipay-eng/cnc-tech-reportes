@@ -140,6 +140,7 @@ form.addEventListener("submit", async (event) => {
     state.lastAssistantMessageId = null;
     state.userMessageCount = 0;
     messages.innerHTML = "";
+    clearPdfViewer("Pulsa Compilar PDF para generar y ver el reporte");
     renderUploadedFiles(data.uploadedFiles || []);
     renderRequestedImages();
     renderMeta(data);
@@ -894,8 +895,7 @@ function renderMeta(session) {
     setRequestedImageStatus("Cuando el bot pida una imagen, aparecera aqui para subirla");
   }
   if (!pdfLoadedOnce) {
-    reportPdfFrame.removeAttribute("src");
-    pdfStatus.textContent = "Pulsa Compilar PDF para generar y ver el reporte";
+    clearPdfViewer("Pulsa Compilar PDF para generar y ver el reporte");
   } else {
     pdfStatus.textContent = "Pulsa Compilar PDF para ver los cambios recientes";
   }
@@ -1464,11 +1464,15 @@ function isImageLikeFile(file) {
     || IMAGE_EXTENSION_REGEX.test(String(file?.name || ""));
 }
 
+function clearPdfViewer(message) {
+  reportPdfFrame.src = "about:blank";
+  pdfStatus.textContent = message;
+  pdfLoadedOnce = false;
+}
+
 function refreshPdfViewer(force = false) {
   if (!state.session) {
-    reportPdfFrame.removeAttribute("src");
-    pdfStatus.textContent = "Sin sesion activa";
-    pdfLoadedOnce = false;
+    clearPdfViewer("Sin sesion activa");
     return;
   }
 
