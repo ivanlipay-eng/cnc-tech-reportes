@@ -118,7 +118,7 @@ function setActiveRibbonPanel(target) {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  setStatus("Creando sesion...");
+  setStatus("Creando proyecto...");
 
   try {
     const response = await fetch(buildApiUrl("/sessions"), {
@@ -132,7 +132,7 @@ form.addEventListener("submit", async (event) => {
 
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data.error || "No se pudo crear la sesion.");
+      throw new Error(data.error || "No se pudo crear el proyecto.");
     }
 
     state.session = data;
@@ -142,7 +142,7 @@ form.addEventListener("submit", async (event) => {
     state.lastAssistantMessageId = null;
     state.userMessageCount = 0;
     messages.innerHTML = "";
-    clearPdfViewer("Compila el PDF y luego pulsa Ver PDF para abrirlo");
+    clearPdfViewer("Cargando PDF inicial del proyecto...");
     renderUploadedFiles(data.uploadedFiles || []);
     renderRequestedImages();
     renderMeta(data);
@@ -158,12 +158,20 @@ form.addEventListener("submit", async (event) => {
     sendButton.disabled = false;
     compileButton.disabled = false;
     syncImagesButton.disabled = false;
+    setPdfViewButtonEnabled(true);
+    try {
+      await refreshPdfViewer(true);
+    } catch (error) {
+      clearPdfViewer("El PDF inicial no estuvo disponible todavia");
+    }
     chatInput.focus();
-    setStatus("Sesion lista");
+    setStatus("Proyecto listo");
     setThinking(false);
-    pdfStatus.textContent = "Compila el PDF y luego pulsa Ver PDF para abrirlo";
+    if (!pdfLoadedOnce) {
+      pdfStatus.textContent = "El PDF inicial no estuvo disponible todavia";
+    }
   } catch (error) {
-    setStatus("No se pudo crear la sesion.", true);
+    setStatus("No se pudo crear el proyecto.", true);
     setThinking(false);
   }
 });
@@ -395,7 +403,7 @@ function connectEvents(sessionId) {
   };
 }
 
-compileButton.addEventListener("click", async () => {
+async function compileCurrentReport(openViewer = false) {
   if (!state.session) {
     return;
   }
@@ -405,9 +413,9 @@ compileButton.addEventListener("click", async () => {
   syncImagesButton.disabled = true;
   chatInput.disabled = true;
   sendButton.disabled = true;
-  state.activeMode = "compile";
-  setStatus("Compilando PDF...");
-  pdfStatus.textContent = "Compilando con Contexto...";
+  state.activeMode = openViewer ? "compile-and-open" : "compile";
+  setStatus(openViewer ? "Compilando y abriendo PDF..." : "Compilando PDF...");
+  pdfStatus.textContent = openViewer ? "Compilando y cargando PDF..." : "Compilando con Contexto...";
   setThinking(true, "compilando");
 
   try {
@@ -422,11 +430,16 @@ compileButton.addEventListener("click", async () => {
       throw new Error(data.error || "No se pudo compilar el PDF.");
     }
 
-    pdfStatus.textContent = "PDF compilado. Pulsa Ver PDF para abrirlo";
+    if (openViewer) {
+      await refreshPdfViewer(true);
+      pdfStatus.textContent = "PDF compilado y abierto";
+    } else {
+      pdfStatus.textContent = "PDF compilado";
+    }
     setStatus("Listo");
   } catch (error) {
-    pdfStatus.textContent = "No se pudo actualizar el PDF";
-    setStatus("No se pudo compilar el PDF.", true);
+    pdfStatus.textContent = openViewer ? "No se pudo compilar ni abrir el PDF" : "No se pudo actualizar el PDF";
+    setStatus(openViewer ? "No se pudo compilar ni abrir el PDF." : "No se pudo compilar el PDF.", true);
   } finally {
     compileButton.disabled = false;
     setPdfViewButtonEnabled(Boolean(state.session));
@@ -437,38 +450,14 @@ compileButton.addEventListener("click", async () => {
     setThinking(false);
     chatInput.focus();
   }
+}
+
+compileButton.addEventListener("click", async () => {
+  await compileCurrentReport(false);
 });
 
 viewPdfButton.addEventListener("click", async () => {
-  if (!state.session || viewPdfButton.disabled) {
-    return;
-  }
-
-  viewPdfButton.disabled = true;
-  compileButton.disabled = true;
-  syncImagesButton.disabled = true;
-  chatInput.disabled = true;
-  sendButton.disabled = true;
-  state.activeMode = "view-pdf";
-  setStatus("Abriendo PDF...");
-  setThinking(true, "cargando PDF");
-
-  try {
-    await refreshPdfViewer(true);
-    setStatus("Listo");
-  } catch (error) {
-    pdfStatus.textContent = "No se pudo abrir el PDF";
-    setStatus("No se pudo abrir el PDF.", true);
-  } finally {
-    setPdfViewButtonEnabled(Boolean(state.session));
-    compileButton.disabled = false;
-    syncImagesButton.disabled = false;
-    chatInput.disabled = false;
-    sendButton.disabled = false;
-    state.activeMode = null;
-    setThinking(false);
-    chatInput.focus();
-  }
+  await compileCurrentReport(true);
 });
 
 syncImagesButton.addEventListener("click", async () => {
@@ -932,9 +921,9 @@ function renderMeta(session) {
     setRequestedImageStatus("Cuando el bot pida una imagen, aparecera aqui para subirla");
   }
   if (!pdfLoadedOnce) {
-    clearPdfViewer("Compila el PDF y luego pulsa Ver PDF para abrirlo");
+    clearPdfViewer("Al crear el proyecto se intentara abrir el PDF automaticamente");
   } else {
-    pdfStatus.textContent = "PDF listo. Pulsa Ver PDF para recargarlo";
+    pdfStatus.textContent = "PDF listo. Pulsa Compilar PDF para actualizarlo";
   }
 }
 
