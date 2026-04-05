@@ -29,6 +29,7 @@ const CORS_ALLOWED_ORIGINS = String(process.env.CORS_ALLOWED_ORIGINS || "*")
 const CODEX_COMMAND = resolveCodexCommand();
 
 const sessions = new Map();
+let participantRegistryCache = null;
 
 class CodexSession extends EventEmitter {
   constructor({ id, name, workspacePath }) {
@@ -50,6 +51,9 @@ class CodexSession extends EventEmitter {
     this.closed = false;
     this.uploadedFiles = [];
     this.imageAssignments = [];
+    this.participantProfile = null;
+    this.quickFields = buildDefaultQuickFields();
+    this.currentTurnMeta = { visible: true, mode: "chat" };
   }
 
   async start(customDeveloperInstructions = "") {
@@ -115,12 +119,14 @@ class CodexSession extends EventEmitter {
       status: this.status,
       busy: this.busy,
       uploadedFiles: this.uploadedFiles,
+      participantProfile: this.participantProfile,
+      quickFields: this.quickFields,
       openingQuestion: "Quien eres?",
       history: includeHistory ? this.history : undefined,
     };
   }
 
-  async sendUserMessage(text) {
+  async sendUserMessage(text, options = {}) {
     if (this.closed) {
       throw new Error("La sesion ya esta cerrada.");
     }
@@ -136,6 +142,12 @@ class CodexSession extends EventEmitter {
       throw new Error("El mensaje no puede estar vacio.");
     }
 
+    const turnMeta = {
+      visible: options.visible !== false,
+      mode: String(options.mode || "chat"),
+    };
+    this.currentTurnMeta = turnMeta;
+
     this.busy = true;
     this.status = "running";
     this.currentAssistantItemId = null;
@@ -146,6 +158,8 @@ class CodexSession extends EventEmitter {
       role: "user",
       text: content,
       createdAt: new Date().toISOString(),
+      internal: !turnMeta.visible,
+      interactionMode: turnMeta.mode,
     };
     this.#emitEvent("chat-message", userMessage);
     this.#emitEvent("status", { status: this.status, busy: this.busy });
@@ -227,6 +241,20 @@ class CodexSession extends EventEmitter {
     return existing;
   }
 
+  setParticipantProfile(profile) {
+    this.participantProfile = profile;
+    this.#emitEvent("session-updated", this.snapshot(false));
+  }
+
+  mergeQuickFields(partialFields = {}) {
+    this.quickFields = {
+      ...this.quickFields,
+      ...sanitizeQuickFields(partialFields),
+    };
+    this.#emitEvent("session-updated", this.snapshot(false));
+    return this.quickFields;
+  }
+
   async #sendRequest(method, params) {
     const id = this.requestId++;
     const payload = JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n";
@@ -300,6 +328,8 @@ class CodexSession extends EventEmitter {
         text: this.currentAssistantText,
         createdAt: new Date().toISOString(),
         streaming: true,
+        internal: !this.currentTurnMeta.visible,
+        interactionMode: this.currentTurnMeta.mode,
       };
       this.#emitEvent("chat-message", assistantMessage);
       return;
@@ -315,6 +345,8 @@ class CodexSession extends EventEmitter {
         id: params.itemId,
         delta: params.delta || "",
         text: this.currentAssistantText,
+        internal: !this.currentTurnMeta.visible,
+        interactionMode: this.currentTurnMeta.mode,
       });
       return;
     }
@@ -325,6 +357,8 @@ class CodexSession extends EventEmitter {
       this.#emitEvent("assistant-complete", {
         id: params.item.id,
         text: this.currentAssistantText,
+        internal: !this.currentTurnMeta.visible,
+        interactionMode: this.currentTurnMeta.mode,
       });
       return;
     }
@@ -337,8 +371,11 @@ class CodexSession extends EventEmitter {
         status: params.turn?.status || "completed",
         assistantItemId: this.currentAssistantItemId,
         assistantText: this.currentAssistantText,
+        internal: !this.currentTurnMeta.visible,
+        interactionMode: this.currentTurnMeta.mode,
       };
       this.currentTurnId = null;
+      this.currentTurnMeta = { visible: true, mode: "chat" };
       this.#emitEvent("status", { status: this.status, busy: this.busy });
       this.#emitEvent("turn-complete", payload);
       return;
@@ -347,6 +384,7 @@ class CodexSession extends EventEmitter {
     if (method === "error") {
       this.busy = false;
       this.status = "error";
+      this.currentTurnMeta = { visible: true, mode: "chat" };
       this.#emitEvent("status", { status: this.status, busy: this.busy });
       this.#emitEvent("session-error", {
         turnId: this.currentTurnId,
@@ -458,6 +496,226 @@ function aliasesForName(fullName) {
   return Array.from(aliases);
 }
 
+function normalizeSearchText(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function formatDateForInput(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getCurrentWeekRange(referenceDate = new Date()) {
+  const date = new Date(referenceDate);
+  const day = date.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const monday = new Date(date);
+  monday.setDate(date.getDate() + mondayOffset);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { monday, sunday };
+}
+
+function buildDefaultQuickFields() {
+  const { monday, sunday } = getCurrentWeekRange();
+  return {
+    periodStart: formatDateForInput(monday),
+    periodEnd: formatDateForInput(sunday),
+    secondaryActivity: "",
+    hoursRemote: "",
+    hoursOnsite: "",
+    modality: "",
+    risks: "",
+    blockers: "",
+    nextSteps: "",
+    resourcesNeeded: "",
+    references: "",
+    progressPercent: "",
+  };
+}
+
+function sanitizeQuickFields(fields = {}) {
+  const currentDefaults = buildDefaultQuickFields();
+  return Object.fromEntries(
+    Object.keys(currentDefaults).map((key) => [key, String(fields[key] ?? currentDefaults[key] ?? "").trim()])
+  );
+}
+
+function parseMarkdownSections(markdown) {
+  const sections = new Map();
+  let currentTitle = "intro";
+  let buffer = [];
+
+  const flush = () => {
+    sections.set(currentTitle, buffer.join("\n").trim());
+    buffer = [];
+  };
+
+  for (const line of String(markdown || "").split(/\r?\n/)) {
+    const heading = line.match(/^##\s+(.+)$/);
+    if (heading) {
+      flush();
+      currentTitle = heading[1].trim().toLowerCase();
+      continue;
+    }
+    buffer.push(line);
+  }
+
+  flush();
+  return sections;
+}
+
+function extractBulletItems(markdownSection, limit = 5) {
+  return String(markdownSection || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("- "))
+    .map((line) => line.replace(/^-\s+/, "").trim())
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function extractFirstParagraph(markdownSection) {
+  const normalized = String(markdownSection || "")
+    .split(/\r?\n\s*\r?\n/)
+    .map((part) => part.replace(/\r?\n/g, " ").trim())
+    .find(Boolean);
+  return normalized || "";
+}
+
+function cleanupTexInline(text) {
+  return String(text || "")
+    .replace(/\\textbf\{([^}]*)\}/g, "$1")
+    .replace(/\\cncmeta\{[^}]*\}\{([^}]*)\}/g, "$1")
+    .replace(/\\item/g, "")
+    .replace(/\\[a-zA-Z*]+\{([^}]*)\}/g, "$1")
+    .replace(/\\[a-zA-Z*]+/g, "")
+    .replace(/[{}]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function inferAreaFromText(text) {
+  const normalized = normalizeSearchText(text);
+  if (normalized.includes("electronica") || normalized.includes("pcb tech")) {
+    return "Electronica";
+  }
+  if (normalized.includes("mecanica")) {
+    return "Mecanica";
+  }
+  if (normalized.includes("programacion") || normalized.includes("software")) {
+    return "Programacion";
+  }
+  if (normalized.includes("administrativa") || normalized.includes("auditoria") || normalized.includes("auditora")) {
+    return "Administrativa / Auditoria";
+  }
+  return "";
+}
+
+async function getParticipantRegistry() {
+  if (!participantRegistryCache) {
+    participantRegistryCache = await buildParticipantRegistry();
+  }
+  return participantRegistryCache;
+}
+
+function scoreParticipantAliasMatch(input, alias) {
+  const normalizedInput = normalizeSearchText(input);
+  const normalizedAlias = normalizeSearchText(alias);
+  if (!normalizedInput || !normalizedAlias) {
+    return 0;
+  }
+  if (normalizedInput === normalizedAlias) {
+    return 100 + normalizedAlias.length;
+  }
+  if ((` ${normalizedInput} `).includes(` ${normalizedAlias} `)) {
+    return 80 + normalizedAlias.length;
+  }
+  if (normalizedAlias.split(" ").length > 1 && normalizedAlias.includes(normalizedInput) && normalizedInput.length >= 4) {
+    return 60 + normalizedInput.length;
+  }
+  return 0;
+}
+
+async function findParticipantMatch(input) {
+  const registry = await getParticipantRegistry();
+  let bestMatch = null;
+
+  for (const participant of registry) {
+    for (const alias of participant.aliases || []) {
+      const score = scoreParticipantAliasMatch(input, alias);
+      if (!score) {
+        continue;
+      }
+      if (!bestMatch || score > bestMatch.score) {
+        bestMatch = { participant, score };
+      }
+    }
+  }
+
+  return bestMatch?.participant || null;
+}
+
+function extractTaskSummary(taskTex) {
+  const objectiveMatch = String(taskTex || "").match(/\\section\*\{Objetivo principal de la semana\}([\s\S]*?)\\section\*/i);
+  const taskMatch = String(taskTex || "").match(/\\cncmeta\{Tarea\}\{([^}]*)\}/i);
+  return {
+    currentFocus: cleanupTexInline(objectiveMatch?.[1] || ""),
+    taskSummary: cleanupTexInline(taskMatch?.[1] || ""),
+  };
+}
+
+async function buildParticipantProfile(participant) {
+  const contextMarkdown = participant.contextMd ? await fs.readFile(participant.contextMd, "utf8").catch(() => "") : "";
+  const taskTexContent = participant.taskTex ? await fs.readFile(participant.taskTex, "utf8").catch(() => "") : "";
+  const sections = parseMarkdownSections(contextMarkdown);
+  const roleSummary = extractFirstParagraph(sections.get("rol dentro del ecosistema") || sections.get("naturaleza de su trabajo"));
+  const skillHighlights = extractBulletItems(sections.get("nivel tecnico asumido"), 5);
+  const workStyle = extractFirstParagraph(sections.get("como asignarle tareas a nicole") || sections.get("como debe auditar nadia") || sections.get("regla para ia o coordinacion"));
+  const availabilityNotes = extractFirstParagraph(sections.get("disponibilidad horaria registrada"));
+  const taskData = extractTaskSummary(taskTexContent);
+  const area = inferAreaFromText(`${roleSummary}\n${contextMarkdown}`) || participant.area || "";
+
+  return {
+    name: participant.name,
+    aliases: participant.aliases,
+    schedule: participant.schedule,
+    area,
+    roleSummary,
+    skillHighlights,
+    workStyle,
+    availabilityNotes,
+    currentFocus: taskData.currentFocus,
+    taskSummary: taskData.taskSummary,
+    contextTex: participant.contextTex,
+    taskTex: participant.taskTex,
+  };
+}
+
+async function maybeResolveParticipantProfile(session, inputText) {
+  if (session.participantProfile) {
+    return session.participantProfile;
+  }
+
+  const participant = await findParticipantMatch(inputText);
+  if (!participant) {
+    return null;
+  }
+
+  const profile = await buildParticipantProfile(participant);
+  session.setParticipantProfile(profile);
+  return profile;
+}
+
 function slugFromName(fullName) {
   return String(fullName || "")
     .normalize("NFKD")
@@ -515,15 +773,20 @@ async function buildParticipantRegistry() {
 
     const contextTex = matchedFiles.find((fileName) => fileName.endsWith(".tex") && fileName.startsWith("contexto_"));
     const contextPdf = matchedFiles.find((fileName) => fileName.endsWith(".pdf") && fileName.startsWith("contexto_"));
+    const contextMd = matchedFiles.find((fileName) => fileName.endsWith(".md") && fileName.startsWith("contexto_"));
     const taskTex = matchedFiles.find((fileName) => fileName.endsWith(".tex") && fileName.startsWith("tarea_"));
     const taskPdf = matchedFiles.find((fileName) => fileName.endsWith(".pdf") && fileName.startsWith("tarea_"));
+    const taskMd = matchedFiles.find((fileName) => fileName.endsWith(".md") && fileName.startsWith("tarea_"));
 
     return {
       ...participant,
       aliases: aliasesForName(participant.name),
       slug,
+      area: inferAreaFromText([contextMd, contextTex, taskTex].filter(Boolean).join(" ")),
+      contextMd: contextMd ? path.join(PARTICIPANT_CONTEXT_DIR, contextMd) : null,
       contextTex: contextTex ? path.join(PARTICIPANT_CONTEXT_DIR, contextTex) : null,
       contextPdf: contextPdf ? path.join(PARTICIPANT_CONTEXT_DIR, contextPdf) : null,
+      taskMd: taskMd ? path.join(PARTICIPANT_CONTEXT_DIR, taskMd) : null,
       taskTex: taskTex ? path.join(PARTICIPANT_CONTEXT_DIR, taskTex) : null,
       taskPdf: taskPdf ? path.join(PARTICIPANT_CONTEXT_DIR, taskPdf) : null,
     };
@@ -540,6 +803,7 @@ function escapeLatex(value) {
 
 async function ensureParticipantIndex() {
   const participants = await buildParticipantRegistry();
+  participantRegistryCache = participants;
 
   const body = participants
     .map((participant) => {
@@ -690,11 +954,19 @@ function buildReportBotInstructions(sessionWorkspacePath, reportProjectPath) {
     `2. ${path.join(REPORT_TEMPLATE_DIR, "reporte_cnc_tech_formativo.tex")}`,
     `3. ${PARTICIPANT_INDEX_TEX}`,
     "Luego, cuando el usuario diga quien es o se identifique, debes buscar a esa persona en el indice y leer su TEX asociado y su PDF asociado si existen.",
+    "La primera respuesta del usuario a 'Quien eres?' solo debe usarse para identificarlo en el contexto; desde ahi debes recuperar nombre, area, trabajo actual, disponibilidad y habilidades desde los archivos de contexto ya registrados.",
+    "No debes volver a preguntar el area si ya puede inferirse de ese contexto; solo pide confirmacion de nombre y area manualmente si la identificacion falla.",
     `Tambien puedes consultar material en: ${PARTICIPANT_CONTEXT_DIR}`,
     `Y el PDF de horarios en: ${path.join(SCHEDULE_CONTEXT_DIR, "horarios_participantes.pdf")}`,
     "El estilo de conversacion debe ser ping pong, con preguntas cortas y utiles, no en rondas numeradas.",
     "La unica constante de arranque es identificar primero a la persona; una forma valida y simple de hacerlo es preguntar: 'Quien eres?'.",
     "Despues de identificarla, ve directo al avance principal de la semana y adapta las preguntas a lo que esa persona realmente hizo.",
+    "El avance principal debe entenderse con al menos dos rondas: primero una pregunta general abierta y luego una pregunta mas extensa, especifica y tecnica que puede incluir varias subpreguntas relacionadas.",
+    "La actividad secundaria no debe preguntarse al inicio. Primero debes entender bien la actividad principal.",
+    "Una vez entendida la actividad principal, puedes proponer opciones de actividad secundaria generadas desde ese entendimiento, pero la persona siempre puede responder libremente por chat.",
+    "El resumen corto no se pregunta directamente; debe salir del entendimiento total acumulado.",
+    "El periodo del reporte normalmente llega desde el panel rapido de la interfaz, no desde el chat. No lo preguntes al inicio salvo que falte por completo.",
+    "Horas, modalidad, riesgos, bloqueos, recursos, referencias, porcentaje de avance y proximos pasos suelen completarse al final, ya sea desde el panel rapido o con preguntas personalizadas si todavia faltan.",
     "No repitas siempre la misma secuencia ni el mismo orden de preguntas.",
     "Si la persona responde poco, propone un resumen tentativo abierto a correcciones para ayudar a reconstruir el avance real.",
     "Si la persona se dispersa o responde demasiado, resume lo entendido y valida antes de seguir.",
@@ -773,9 +1045,89 @@ function buildReportBotInstructions(sessionWorkspacePath, reportProjectPath) {
     "Combina preguntas rapidas y preguntas abiertas con criterio para recopilar la mayor cantidad de informacion util con el menor esfuerzo para la persona.",
     "No pongas dentro de ese bloque rutas de esta PC, nombres de archivos locales, planes internos, pensamientos, ni frases como que estas buscando o leyendo contexto.",
     "Dentro de ese bloque solo deben aparecer respuestas normales para el usuario sobre el reporte, preguntas concretas, confirmaciones breves o bloqueos redactados de forma simple.",
+    "Cuando la interfaz te envie datos del panel rapido, usalos para actualizar el TEX y evita re-preguntar esos mismos campos salvo que esten vacios, ambiguos o contradigan claramente lo ya entendido.",
   ];
 
   return lines.join("\n");
+}
+
+function buildParticipantProfileSummary(profile) {
+  if (!profile) {
+    return "";
+  }
+
+  const lines = [
+    `Participante identificado: ${profile.name}`,
+    profile.area ? `Area inferida desde contexto: ${profile.area}` : "",
+    profile.schedule ? `Disponibilidad registrada: ${profile.schedule}` : "",
+    profile.roleSummary ? `Rol actual: ${profile.roleSummary}` : "",
+    profile.currentFocus ? `Foco actual conocido: ${profile.currentFocus}` : "",
+    profile.taskSummary ? `Tarea o eje recomendado: ${profile.taskSummary}` : "",
+    ...(profile.skillHighlights || []).map((item) => `- ${item}`),
+  ].filter(Boolean);
+
+  return lines.join("\n");
+}
+
+function buildQuickFieldsSummary(session) {
+  const quickFields = sanitizeQuickFields(session.quickFields);
+  const labels = {
+    periodStart: "Fecha de inicio",
+    periodEnd: "Fecha de fin",
+    secondaryActivity: "Actividad secundaria",
+    hoursRemote: "Horas remotas",
+    hoursOnsite: "Horas presenciales",
+    modality: "Modalidad",
+    risks: "Riesgos",
+    blockers: "Bloqueos",
+    nextSteps: "Proximos pasos",
+    resourcesNeeded: "Necesidades o recursos",
+    references: "Referencias",
+    progressPercent: "Porcentaje de avance",
+  };
+
+  return Object.entries(quickFields)
+    .filter(([, value]) => String(value || "").trim())
+    .map(([key, value]) => `- ${labels[key] || key}: ${value}`)
+    .join("\n");
+}
+
+function buildQuickFieldsApplyMessage(session) {
+  const summary = buildQuickFieldsSummary(session);
+  const participantSummary = buildParticipantProfileSummary(session.participantProfile);
+
+  return [
+    "Actualiza el reporte usando los datos estructurados enviados desde el panel rapido de la interfaz.",
+    `Trabaja sobre este archivo TEX: ${session.reportTexPath}`,
+    participantSummary ? `Datos confirmados del participante:\n${participantSummary}` : "",
+    summary ? `Datos del panel rapido:\n${summary}` : "No se recibieron datos utiles desde el panel rapido.",
+    "Usa estos datos solo para actualizar campos y secciones realmente correspondientes dentro del TEX.",
+    "No conviertas esto en una nueva entrevista; solo ajusta el contenido del reporte con cambios conservadores y coherentes.",
+    "Si algun campo esta vacio, no lo inventes.",
+    "Si actividad secundaria o referencias llegan desde el panel, integralas sin volver a preguntarlas.",
+    "La respuesta visible debe ir dentro del bloque --respuesta de pagina-- ... --finalice-- y limitarse a confirmar brevemente que el panel fue aplicado.",
+  ].filter(Boolean).join("\n");
+}
+
+function buildSecondaryActivitySuggestionMessage(session) {
+  const participantSummary = buildParticipantProfileSummary(session.participantProfile);
+  const quickFieldsSummary = buildQuickFieldsSummary(session);
+
+  return [
+    "Con base en la conversacion acumulada y en el estado actual del reporte, genera entre 3 y 5 opciones posibles de actividad secundaria.",
+    participantSummary ? `Contexto del participante:\n${participantSummary}` : "",
+    quickFieldsSummary ? `Datos rapidos actuales:\n${quickFieldsSummary}` : "",
+    "Las opciones deben nacer del entendimiento de la actividad principal ya conversada, no ser genericas.",
+    "La persona debe poder ignorar esas opciones y responder libremente despues.",
+    "Devuelve la respuesta visible solo con este formato:",
+    "--respuesta de pagina--",
+    "Elige una actividad secundaria sugerida o escribe una propia.",
+    "[[respuestas_rapidas]]",
+    "Opcion 1",
+    "Opcion 2",
+    "[[/respuestas_rapidas]]",
+    "--finalice--",
+  ].filter(Boolean).join("\n");
 }
 
 function buildCompileRequestMessage(session) {
@@ -1380,7 +1732,46 @@ async function handleApi(request, response) {
   if (request.method === "POST" && segments[3] === "messages") {
     const body = await readRequestBody(request);
     try {
+      await maybeResolveParticipantProfile(session, body.message);
       const result = await session.sendUserMessage(body.message);
+      json(response, 200, { ok: true, result });
+    } catch (error) {
+      json(response, 409, { error: error.message });
+    }
+    return;
+  }
+
+  if (request.method === "POST" && segments[3] === "quick-fields") {
+    const body = await readRequestBody(request);
+    const quickFields = session.mergeQuickFields(body || {});
+    json(response, 200, { ok: true, quickFields, snapshot: session.snapshot(false) });
+    return;
+  }
+
+  if (request.method === "POST" && segments[3] === "quick-fields-apply") {
+    const body = await readRequestBody(request);
+    if (body && typeof body === "object") {
+      session.mergeQuickFields(body);
+    }
+
+    try {
+      const result = await session.sendUserMessage(buildQuickFieldsApplyMessage(session), {
+        visible: false,
+        mode: "quick-fields-apply",
+      });
+      json(response, 200, { ok: true, result, quickFields: session.quickFields });
+    } catch (error) {
+      json(response, 409, { error: error.message });
+    }
+    return;
+  }
+
+  if (request.method === "POST" && segments[3] === "secondary-activity-suggestions") {
+    try {
+      const result = await session.sendUserMessage(buildSecondaryActivitySuggestionMessage(session), {
+        visible: false,
+        mode: "secondary-suggestions",
+      });
       json(response, 200, { ok: true, result });
     } catch (error) {
       json(response, 409, { error: error.message });

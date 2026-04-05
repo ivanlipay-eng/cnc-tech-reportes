@@ -6,6 +6,9 @@ const state = {
   reconnectTimer: null,
   lastAssistantMessageId: null,
   userMessageCount: 0,
+  participantProfile: null,
+  quickFields: null,
+  secondarySuggestions: [],
 };
 
 const appConfig = window.CNC_TECH_CONFIG || {};
@@ -20,6 +23,24 @@ const downloadZipLink = document.getElementById("download-zip");
 const compileButton = document.getElementById("compile-report");
 const viewPdfButton = document.getElementById("view-pdf");
 const syncImagesButton = document.getElementById("sync-images");
+const quickPeriodStartInput = document.getElementById("quick-period-start");
+const quickPeriodEndInput = document.getElementById("quick-period-end");
+const quickWeekCurrentButton = document.getElementById("quick-week-current");
+const quickWeekPreviousButton = document.getElementById("quick-week-previous");
+const quickSecondaryActivityInput = document.getElementById("quick-secondary-activity");
+const suggestSecondaryActivityButton = document.getElementById("suggest-secondary-activity");
+const quickSecondarySuggestions = document.getElementById("quick-secondary-suggestions");
+const quickHoursRemoteInput = document.getElementById("quick-hours-remote");
+const quickHoursOnsiteInput = document.getElementById("quick-hours-onsite");
+const quickModalityInput = document.getElementById("quick-modality");
+const quickProgressPercentInput = document.getElementById("quick-progress-percent");
+const quickRisksInput = document.getElementById("quick-risks");
+const quickBlockersInput = document.getElementById("quick-blockers");
+const quickResourcesInput = document.getElementById("quick-resources");
+const quickNextStepsInput = document.getElementById("quick-next-steps");
+const quickReferencesInput = document.getElementById("quick-references");
+const applyQuickFieldsButton = document.getElementById("apply-quick-fields");
+const quickPanelStatus = document.getElementById("quick-panel-status");
 const uploadTrigger = document.getElementById("upload-files-trigger");
 const uploadInput = document.getElementById("upload-files");
 const uploadStatus = document.getElementById("upload-status");
@@ -50,6 +71,7 @@ let pdfLoadedOnce = false;
 let currentPdfObjectUrl = null;
 let dragDepth = 0;
 let inlineImageSequence = 0;
+let quickFieldSaveTimer = null;
 const PAGE_RESPONSE_START = "--respuesta de pagina--";
 const PAGE_RESPONSE_END = "--finalice--";
 const QUICK_REPLIES_START = "[[respuestas_rapidas]]";
@@ -63,6 +85,24 @@ const WINDOWS_PATH_REGEX = /[A-Za-z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n
 initializeRibbon();
 initializeBrandLogo();
 loadAppVersion();
+initializeQuickPanel();
+
+function buildEmptyQuickFields() {
+  return {
+    periodStart: "",
+    periodEnd: "",
+    secondaryActivity: "",
+    hoursRemote: "",
+    hoursOnsite: "",
+    modality: "",
+    risks: "",
+    blockers: "",
+    nextSteps: "",
+    resourcesNeeded: "",
+    references: "",
+    progressPercent: "",
+  };
+}
 
 function normalizeBaseUrl(value) {
   const text = String(value || "").trim();
@@ -97,6 +137,66 @@ function initializeBrandLogo() {
 function initializeRibbon() {
   ribbonTabs.forEach((tab) => {
     tab.addEventListener("click", () => setActiveRibbonPanel(tab.dataset.toolbarTarget || ""));
+  });
+}
+
+function initializeQuickPanel() {
+  const quickInputs = [
+    quickPeriodStartInput,
+    quickPeriodEndInput,
+    quickSecondaryActivityInput,
+    quickHoursRemoteInput,
+    quickHoursOnsiteInput,
+    quickModalityInput,
+    quickProgressPercentInput,
+    quickRisksInput,
+    quickBlockersInput,
+    quickResourcesInput,
+    quickNextStepsInput,
+    quickReferencesInput,
+  ].filter(Boolean);
+
+  for (const input of quickInputs) {
+    input.addEventListener("input", () => scheduleQuickFieldsSave());
+    input.addEventListener("change", () => scheduleQuickFieldsSave());
+  }
+
+  quickPeriodStartInput?.addEventListener("change", () => {
+    if (!quickPeriodStartInput.value) {
+      return;
+    }
+
+    if (!quickPeriodEndInput.value || quickPeriodEndInput.value < quickPeriodStartInput.value) {
+      const endDate = new Date(`${quickPeriodStartInput.value}T00:00:00`);
+      endDate.setDate(endDate.getDate() + 6);
+      quickPeriodEndInput.value = formatDateInput(endDate);
+    }
+    scheduleQuickFieldsSave();
+  });
+
+  quickWeekCurrentButton?.addEventListener("click", () => {
+    applyWeekRange(0);
+  });
+
+  quickWeekPreviousButton?.addEventListener("click", () => {
+    applyWeekRange(-7);
+  });
+
+  suggestSecondaryActivityButton?.addEventListener("click", async () => {
+    await requestSecondaryActivitySuggestions();
+  });
+
+  quickSecondarySuggestions?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-secondary-option]");
+    if (!button) {
+      return;
+    }
+    quickSecondaryActivityInput.value = button.dataset.secondaryOption || "";
+    scheduleQuickFieldsSave();
+  });
+
+  applyQuickFieldsButton?.addEventListener("click", async () => {
+    await applyQuickFieldsToReport();
   });
 }
 
@@ -135,9 +235,10 @@ form.addEventListener("submit", async (event) => {
       throw new Error(data.error || "No se pudo crear el proyecto.");
     }
 
-    state.session = data;
+    hydrateSessionState(data);
     state.assistantNodes.clear();
     stateRequestedImages.clear();
+    state.secondarySuggestions = [];
     pdfLoadedOnce = false;
     state.lastAssistantMessageId = null;
     state.userMessageCount = 0;
@@ -573,19 +674,28 @@ downloadZipLink.addEventListener("click", async (event) => {
 function handleServerEvent(event) {
   switch (event.type) {
     case "snapshot":
+      hydrateSessionState(event.payload);
       renderMeta(event.payload);
       renderUploadedFiles(event.payload.uploadedFiles || []);
       restoreHistory(event.payload.history || []);
       break;
     case "session-ready":
+      hydrateSessionState(event.payload);
       renderMeta(event.payload);
       renderUploadedFiles(event.payload.uploadedFiles || []);
       setStatus("Sesion lista");
+      break;
+    case "session-updated":
+      hydrateSessionState(event.payload);
+      renderMeta(event.payload);
       break;
     case "file-uploaded":
       addUploadedFile(event.payload);
       break;
     case "chat-message":
+      if (event.payload.internal) {
+        break;
+      }
       if (event.payload.role === "user" && isInternalCompilePrompt(event.payload.text || "")) {
         break;
       }
@@ -601,16 +711,19 @@ function handleServerEvent(event) {
       }
       break;
     case "assistant-delta":
-      if (state.activeMode !== "compile" && state.activeMode !== "download" && state.activeMode !== "sync-images") {
+      if (!event.payload.internal && state.activeMode !== "compile" && state.activeMode !== "download" && state.activeMode !== "sync-images") {
         updateAssistantMessage(event.payload);
       }
       break;
     case "assistant-complete":
-      if (state.activeMode !== "compile" && state.activeMode !== "download" && state.activeMode !== "sync-images") {
+      if (!event.payload.internal && state.activeMode !== "compile" && state.activeMode !== "download" && state.activeMode !== "sync-images") {
         setThinking(true, "pensando");
       }
       break;
     case "turn-complete":
+      if (event.payload?.internal) {
+        break;
+      }
       if (state.activeMode !== "compile" && state.activeMode !== "download" && state.activeMode !== "sync-images") {
         if (event.payload?.assistantText) {
           updateAssistantMessage(
@@ -670,6 +783,9 @@ function restoreHistory(history) {
 
   for (const event of history) {
     if (event.type === "chat-message") {
+      if (event.payload.internal) {
+        continue;
+      }
       if (event.payload.role === "user" && isInternalCompilePrompt(event.payload.text || "")) {
         continue;
       }
@@ -684,6 +800,9 @@ function restoreHistory(history) {
       }
     }
     if (event.type === "turn-complete" && event.payload?.assistantText) {
+      if (event.payload.internal) {
+        continue;
+      }
       collectRequestedImages(event.payload.assistantText || "");
       updateAssistantMessage(
         {
@@ -697,7 +816,7 @@ function restoreHistory(history) {
 }
 
 function appendMessage(message) {
-  if (message.role === "system") {
+  if (message.role === "system" || message.internal) {
     return;
   }
 
@@ -895,11 +1014,26 @@ function updateMessageContent(article, message) {
 }
 
 function renderMeta(session) {
+  state.participantProfile = session.participantProfile || state.participantProfile;
+  state.quickFields = { ...buildEmptyQuickFields(), ...(session.quickFields || state.quickFields || {}) };
+  populateQuickPanel(state.quickFields);
   sessionMeta.classList.remove("empty");
+  const participantSummary = state.participantProfile
+    ? `
+    <strong>Participante:</strong> ${escapeHtml(state.participantProfile.name || "No identificado")}<br />
+    <strong>Area:</strong> ${escapeHtml(state.participantProfile.area || "Pendiente")}<br />
+    <strong>Disponibilidad:</strong> ${escapeHtml(state.participantProfile.schedule || "Pendiente")}<br />
+    <strong>Rol actual:</strong> ${escapeHtml(state.participantProfile.roleSummary || state.participantProfile.taskSummary || "Pendiente")}
+  `
+    : `
+    <strong>Participante:</strong> Pendiente de identificar<br />
+    <strong>Area:</strong> Se autocompletara desde el contexto al responder "Quien eres?"
+  `;
   sessionMeta.innerHTML = `
     <strong>Proyecto:</strong> ${escapeHtml(session.name || "Sesion activa")}<br />
     <strong>Estructura:</strong> reporte, imagenes, archivos y export listas<br />
-    <strong>Pregunta inicial:</strong> ${escapeHtml(session.openingQuestion || "Quien eres?")}
+    <strong>Pregunta inicial:</strong> ${escapeHtml(session.openingQuestion || "Quien eres?")}<br />
+    ${participantSummary}
   `;
   downloadZipLink.href = buildApiUrl(`/sessions/${session.id}/download`);
   downloadZipLink.classList.remove("disabled");
@@ -911,6 +1045,7 @@ function renderMeta(session) {
   compileButton.disabled = false;
   setPdfViewButtonEnabled(true);
   syncImagesButton.disabled = false;
+  setQuickPanelEnabled(true);
   requestedImageSelect.disabled = stateRequestedImages.size === 0;
   requestedImageInput.disabled = stateRequestedImages.size === 0;
   requestedImageTrigger.disabled = stateRequestedImages.size === 0;
@@ -920,6 +1055,7 @@ function renderMeta(session) {
   if (stateRequestedImages.size === 0) {
     setRequestedImageStatus("Cuando el bot pida una imagen, aparecera aqui para subirla");
   }
+  setQuickPanelStatus("Panel rapido listo para completar datos de cierre");
   if (!pdfLoadedOnce) {
     clearPdfViewer("Al crear el proyecto se intentara abrir el PDF automaticamente");
   } else {
@@ -1142,6 +1278,218 @@ function setUploadStatus(text, isError = false) {
 function setRequestedImageStatus(text, isError = false) {
   requestedImageStatus.textContent = text;
   requestedImageStatus.classList.toggle("error", Boolean(isError));
+}
+
+function setQuickPanelStatus(text, isError = false) {
+  if (!quickPanelStatus) {
+    return;
+  }
+  quickPanelStatus.textContent = text;
+  quickPanelStatus.classList.toggle("error", Boolean(isError));
+}
+
+function hydrateSessionState(snapshot) {
+  state.session = snapshot;
+  state.participantProfile = snapshot?.participantProfile || state.participantProfile;
+  state.quickFields = { ...buildEmptyQuickFields(), ...(snapshot?.quickFields || state.quickFields || {}) };
+  populateQuickPanel(state.quickFields);
+}
+
+function populateQuickPanel(quickFields) {
+  const fields = { ...buildEmptyQuickFields(), ...(quickFields || {}) };
+  if (quickPeriodStartInput) quickPeriodStartInput.value = fields.periodStart || "";
+  if (quickPeriodEndInput) quickPeriodEndInput.value = fields.periodEnd || "";
+  if (quickSecondaryActivityInput) quickSecondaryActivityInput.value = fields.secondaryActivity || "";
+  if (quickHoursRemoteInput) quickHoursRemoteInput.value = fields.hoursRemote || "";
+  if (quickHoursOnsiteInput) quickHoursOnsiteInput.value = fields.hoursOnsite || "";
+  if (quickModalityInput) quickModalityInput.value = fields.modality || "";
+  if (quickProgressPercentInput) quickProgressPercentInput.value = fields.progressPercent || "";
+  if (quickRisksInput) quickRisksInput.value = fields.risks || "";
+  if (quickBlockersInput) quickBlockersInput.value = fields.blockers || "";
+  if (quickResourcesInput) quickResourcesInput.value = fields.resourcesNeeded || "";
+  if (quickNextStepsInput) quickNextStepsInput.value = fields.nextSteps || "";
+  if (quickReferencesInput) quickReferencesInput.value = fields.references || "";
+}
+
+function collectQuickFields() {
+  return {
+    periodStart: quickPeriodStartInput?.value || "",
+    periodEnd: quickPeriodEndInput?.value || "",
+    secondaryActivity: quickSecondaryActivityInput?.value.trim() || "",
+    hoursRemote: quickHoursRemoteInput?.value || "",
+    hoursOnsite: quickHoursOnsiteInput?.value || "",
+    modality: quickModalityInput?.value.trim() || "",
+    progressPercent: quickProgressPercentInput?.value || "",
+    risks: quickRisksInput?.value.trim() || "",
+    blockers: quickBlockersInput?.value.trim() || "",
+    resourcesNeeded: quickResourcesInput?.value.trim() || "",
+    nextSteps: quickNextStepsInput?.value.trim() || "",
+    references: quickReferencesInput?.value.trim() || "",
+  };
+}
+
+function scheduleQuickFieldsSave() {
+  if (!state.session) {
+    return;
+  }
+  clearTimeout(quickFieldSaveTimer);
+  quickFieldSaveTimer = setTimeout(() => {
+    saveQuickFields(true).catch(() => {});
+  }, 280);
+}
+
+async function saveQuickFields(isSilent = false) {
+  if (!state.session) {
+    return null;
+  }
+
+  const quickFields = collectQuickFields();
+  state.quickFields = quickFields;
+  const response = await fetch(buildApiUrl(`/sessions/${state.session.id}/quick-fields`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(quickFields),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || "No se pudo guardar el panel rapido.");
+  }
+
+  state.quickFields = { ...buildEmptyQuickFields(), ...(data.quickFields || quickFields) };
+  if (!isSilent) {
+    setQuickPanelStatus("Panel rapido guardado");
+  }
+  return data;
+}
+
+async function applyQuickFieldsToReport() {
+  if (!state.session) {
+    return;
+  }
+
+  applyQuickFieldsButton.disabled = true;
+  setQuickPanelStatus("Aplicando datos del panel al reporte...");
+  state.activeMode = "quick-fields-apply";
+  setThinking(true, "aplicando panel");
+
+  try {
+    const quickFields = collectQuickFields();
+    const response = await fetch(buildApiUrl(`/sessions/${state.session.id}/quick-fields-apply`), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(quickFields),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "No se pudo aplicar el panel rapido.");
+    }
+
+    state.quickFields = { ...buildEmptyQuickFields(), ...(data.quickFields || quickFields) };
+    const visible = extractPageResponse(data.result?.assistantText || "").text || "Panel aplicado al reporte";
+    setQuickPanelStatus(visible);
+  } catch (error) {
+    setQuickPanelStatus(error.message || "No se pudo aplicar el panel rapido.", true);
+  } finally {
+    applyQuickFieldsButton.disabled = false;
+    state.activeMode = null;
+    setThinking(false);
+  }
+}
+
+async function requestSecondaryActivitySuggestions() {
+  if (!state.session) {
+    return;
+  }
+
+  suggestSecondaryActivityButton.disabled = true;
+  setQuickPanelStatus("Generando sugerencias para actividad secundaria...");
+  state.activeMode = "secondary-suggestions";
+
+  try {
+    await saveQuickFields(true);
+    const response = await fetch(buildApiUrl(`/sessions/${state.session.id}/secondary-activity-suggestions`), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "No se pudieron generar sugerencias.");
+    }
+
+    const suggestions = parseQuickReplies(data.result?.assistantText || "");
+    renderSecondarySuggestions(suggestions);
+    setQuickPanelStatus(suggestions.length ? "Sugerencias generadas" : "No hubo sugerencias utiles");
+  } catch (error) {
+    renderSecondarySuggestions([]);
+    setQuickPanelStatus(error.message || "No se pudieron generar sugerencias.", true);
+  } finally {
+    suggestSecondaryActivityButton.disabled = false;
+    state.activeMode = null;
+  }
+}
+
+function renderSecondarySuggestions(options) {
+  state.secondarySuggestions = Array.isArray(options) ? options : [];
+  if (!quickSecondarySuggestions) {
+    return;
+  }
+
+  quickSecondarySuggestions.innerHTML = "";
+  for (const option of state.secondarySuggestions) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "quick-reply-button";
+    button.dataset.secondaryOption = option;
+    button.textContent = option;
+    quickSecondarySuggestions.append(button);
+  }
+}
+
+function setQuickPanelEnabled(enabled) {
+  const inputs = [
+    quickPeriodStartInput,
+    quickPeriodEndInput,
+    quickSecondaryActivityInput,
+    quickHoursRemoteInput,
+    quickHoursOnsiteInput,
+    quickModalityInput,
+    quickProgressPercentInput,
+    quickRisksInput,
+    quickBlockersInput,
+    quickResourcesInput,
+    quickNextStepsInput,
+    quickReferencesInput,
+    quickWeekCurrentButton,
+    quickWeekPreviousButton,
+    suggestSecondaryActivityButton,
+    applyQuickFieldsButton,
+  ].filter(Boolean);
+
+  for (const input of inputs) {
+    input.disabled = !enabled;
+  }
+}
+
+function applyWeekRange(dayOffset) {
+  const baseDate = new Date();
+  baseDate.setDate(baseDate.getDate() + dayOffset);
+  const day = baseDate.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const monday = new Date(baseDate);
+  monday.setDate(baseDate.getDate() + mondayOffset);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  if (quickPeriodStartInput) quickPeriodStartInput.value = formatDateInput(monday);
+  if (quickPeriodEndInput) quickPeriodEndInput.value = formatDateInput(sunday);
+  scheduleQuickFieldsSave();
+}
+
+function formatDateInput(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function collectRequestedImages(rawText) {
