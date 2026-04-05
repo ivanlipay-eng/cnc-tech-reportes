@@ -89,6 +89,39 @@ body {
   background: rgba(255, 255, 255, 0.85);
 }
 
+.uploaded-file-icon {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 10px;
+  border: 1px solid rgba(39, 31, 17, 0.12);
+  background: linear-gradient(180deg, rgba(240, 247, 253, 0.98) 0%, rgba(223, 237, 248, 0.98) 100%);
+  color: var(--accent-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.uploaded-file-icon-glyph {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.uploaded-file-icon-ext {
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.52rem;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .uploaded-file-preview.is-broken {
   display: none;
 }
@@ -169,6 +202,25 @@ body {
   background: transparent;
   color: var(--accent-strong);
   font-weight: 700;
+}
+
+.ribbon-tab-stacked {
+  min-width: 124px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1.05;
+  text-align: center;
+}
+
+.ribbon-tab-stacked span {
+  display: block;
+}
+
+.ribbon-tab.has-upload-alert {
+  animation: tab-upload-pulse 720ms ease;
 }
 
 .ribbon-tab.is-active {
@@ -753,6 +805,25 @@ button:disabled {
   100% {
     color: #8d857d;
     opacity: 0.72;
+  }
+}
+
+@keyframes tab-upload-pulse {
+  0% {
+    transform: translateY(0);
+    box-shadow: 0 0 0 rgba(31, 182, 255, 0);
+  }
+  35% {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(31, 182, 255, 0.18);
+  }
+  70% {
+    transform: translateY(0);
+    box-shadow: 0 0 0 rgba(31, 182, 255, 0);
+  }
+  100% {
+    transform: translateY(0);
+    box-shadow: 0 0 0 rgba(31, 182, 255, 0);
   }
 }
 

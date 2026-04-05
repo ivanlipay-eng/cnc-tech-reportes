@@ -963,6 +963,8 @@ function addUploadedFile(file) {
   while (uploadedFilesList.children.length > 12) {
     uploadedFilesList.removeChild(uploadedFilesList.lastElementChild);
   }
+
+  pulseRibbonTab("subidos");
 }
 
 function createUploadedFileItem(file) {
@@ -989,6 +991,8 @@ function createUploadedFileItem(file) {
       preview.classList.add("is-broken");
     }, { once: true });
     item.append(preview);
+  } else {
+    item.append(createFileIconPreview(file));
   }
 
   const name = document.createElement("span");
@@ -1010,6 +1014,49 @@ function createUploadedFileItem(file) {
 
   item.append(name, meta, removeButton);
   return item;
+}
+
+function createFileIconPreview(file) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "uploaded-file-icon";
+  wrapper.setAttribute("aria-hidden", "true");
+
+  const glyph = document.createElement("span");
+  glyph.className = "uploaded-file-icon-glyph";
+  glyph.textContent = "DOC";
+
+  const ext = document.createElement("span");
+  ext.className = "uploaded-file-icon-ext";
+  ext.textContent = getFileExtensionLabel(file.name || file.path || "archivo");
+
+  wrapper.append(glyph, ext);
+  return wrapper;
+}
+
+function getFileExtensionLabel(name) {
+  const parts = String(name || "").split(".");
+  if (parts.length < 2) {
+    return "FILE";
+  }
+
+  return String(parts[parts.length - 1] || "file")
+    .replace(/[^a-z0-9]/gi, "")
+    .slice(0, 4)
+    .toUpperCase() || "FILE";
+}
+
+function pulseRibbonTab(target) {
+  const tab = ribbonTabs.find((item) => item.dataset.toolbarTarget === target);
+  if (!tab) {
+    return;
+  }
+
+  tab.classList.remove("has-upload-alert");
+  void tab.offsetWidth;
+  tab.classList.add("has-upload-alert");
+  setTimeout(() => {
+    tab.classList.remove("has-upload-alert");
+  }, 760);
 }
 
 uploadedFilesList.addEventListener("click", async (event) => {
