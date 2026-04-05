@@ -1160,14 +1160,22 @@ async function serveStaticFile(requestPath, response) {
   try {
     const content = await fs.readFile(filePath);
     const ext = path.extname(filePath).toLowerCase();
-    const contentType =
-      ext === ".html"
-        ? "text/html; charset=utf-8"
-        : ext === ".js"
-          ? "application/javascript; charset=utf-8"
-          : ext === ".css"
-            ? "text/css; charset=utf-8"
-            : "application/octet-stream";
+    const contentTypeMap = {
+      ".html": "text/html; charset=utf-8",
+      ".js": "application/javascript; charset=utf-8",
+      ".css": "text/css; charset=utf-8",
+      ".json": "application/json; charset=utf-8",
+      ".svg": "image/svg+xml",
+      ".png": "image/png",
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".webp": "image/webp",
+      ".gif": "image/gif",
+      ".ico": "image/x-icon",
+      ".pdf": "application/pdf",
+      ".txt": "text/plain; charset=utf-8",
+    };
+    const contentType = contentTypeMap[ext] || "application/octet-stream";
 
     response.writeHead(200, {
       "Content-Type": contentType,
