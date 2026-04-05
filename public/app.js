@@ -18,6 +18,7 @@ const openVsCodeInput = document.getElementById("open-vscode");
 const sessionMeta = document.getElementById("session-meta");
 const downloadZipLink = document.getElementById("download-zip");
 const compileButton = document.getElementById("compile-report");
+const viewPdfButton = document.getElementById("view-pdf");
 const syncImagesButton = document.getElementById("sync-images");
 const uploadTrigger = document.getElementById("upload-files-trigger");
 const uploadInput = document.getElementById("upload-files");
@@ -141,7 +142,7 @@ form.addEventListener("submit", async (event) => {
     state.lastAssistantMessageId = null;
     state.userMessageCount = 0;
     messages.innerHTML = "";
-    clearPdfViewer("Pulsa Compilar PDF para generar y ver el reporte");
+    clearPdfViewer("Compila el PDF y luego pulsa Ver PDF para abrirlo");
     renderUploadedFiles(data.uploadedFiles || []);
     renderRequestedImages();
     renderMeta(data);
@@ -160,7 +161,7 @@ form.addEventListener("submit", async (event) => {
     chatInput.focus();
     setStatus("Sesion lista");
     setThinking(false);
-    pdfStatus.textContent = "Pulsa Compilar PDF para generar y ver el reporte";
+    pdfStatus.textContent = "Compila el PDF y luego pulsa Ver PDF para abrirlo";
   } catch (error) {
     setStatus("No se pudo crear la sesion.", true);
     setThinking(false);
@@ -400,6 +401,7 @@ compileButton.addEventListener("click", async () => {
   }
 
   compileButton.disabled = true;
+  setPdfViewButtonEnabled(false);
   syncImagesButton.disabled = true;
   chatInput.disabled = true;
   sendButton.disabled = true;
@@ -420,13 +422,45 @@ compileButton.addEventListener("click", async () => {
       throw new Error(data.error || "No se pudo compilar el PDF.");
     }
 
-    await refreshPdfViewer(true);
-    pdfStatus.textContent = "PDF recompilado";
+    pdfStatus.textContent = "PDF compilado. Pulsa Ver PDF para abrirlo";
     setStatus("Listo");
   } catch (error) {
     pdfStatus.textContent = "No se pudo actualizar el PDF";
     setStatus("No se pudo compilar el PDF.", true);
   } finally {
+    compileButton.disabled = false;
+    setPdfViewButtonEnabled(Boolean(state.session));
+    syncImagesButton.disabled = false;
+    chatInput.disabled = false;
+    sendButton.disabled = false;
+    state.activeMode = null;
+    setThinking(false);
+    chatInput.focus();
+  }
+});
+
+viewPdfButton.addEventListener("click", async () => {
+  if (!state.session || viewPdfButton.disabled) {
+    return;
+  }
+
+  viewPdfButton.disabled = true;
+  compileButton.disabled = true;
+  syncImagesButton.disabled = true;
+  chatInput.disabled = true;
+  sendButton.disabled = true;
+  state.activeMode = "view-pdf";
+  setStatus("Abriendo PDF...");
+  setThinking(true, "cargando PDF");
+
+  try {
+    await refreshPdfViewer(true);
+    setStatus("Listo");
+  } catch (error) {
+    pdfStatus.textContent = "No se pudo abrir el PDF";
+    setStatus("No se pudo abrir el PDF.", true);
+  } finally {
+    setPdfViewButtonEnabled(Boolean(state.session));
     compileButton.disabled = false;
     syncImagesButton.disabled = false;
     chatInput.disabled = false;
@@ -489,6 +523,7 @@ downloadZipLink.addEventListener("click", async (event) => {
   downloadZipLink.classList.add("disabled");
   downloadZipLink.setAttribute("aria-disabled", "true");
   compileButton.disabled = true;
+  setPdfViewButtonEnabled(false);
   syncImagesButton.disabled = true;
   chatInput.disabled = true;
   sendButton.disabled = true;
@@ -525,8 +560,7 @@ downloadZipLink.addEventListener("click", async (event) => {
     tempLink.click();
     tempLink.remove();
     URL.revokeObjectURL(url);
-    await refreshPdfViewer(true);
-    pdfStatus.textContent = "PDF recompilado para la descarga";
+    pdfStatus.textContent = "ZIP descargado. Usa Ver PDF si quieres abrir el reporte";
     setStatus("ZIP descargado");
     showDownloadOverlay("ZIP listo", 100, "Descarga completada");
   } catch (error) {
@@ -537,6 +571,7 @@ downloadZipLink.addEventListener("click", async (event) => {
     downloadZipLink.classList.remove("disabled");
     downloadZipLink.setAttribute("aria-disabled", "false");
     compileButton.disabled = false;
+    setPdfViewButtonEnabled(Boolean(state.session));
     syncImagesButton.disabled = false;
     chatInput.disabled = false;
     sendButton.disabled = false;
@@ -885,6 +920,7 @@ function renderMeta(session) {
   uploadTrigger.classList.remove("disabled");
   uploadTrigger.setAttribute("aria-disabled", "false");
   compileButton.disabled = false;
+  setPdfViewButtonEnabled(true);
   syncImagesButton.disabled = false;
   requestedImageSelect.disabled = stateRequestedImages.size === 0;
   requestedImageInput.disabled = stateRequestedImages.size === 0;
@@ -896,9 +932,9 @@ function renderMeta(session) {
     setRequestedImageStatus("Cuando el bot pida una imagen, aparecera aqui para subirla");
   }
   if (!pdfLoadedOnce) {
-    clearPdfViewer("Pulsa Compilar PDF para generar y ver el reporte");
+    clearPdfViewer("Compila el PDF y luego pulsa Ver PDF para abrirlo");
   } else {
-    pdfStatus.textContent = "Pulsa Compilar PDF para ver los cambios recientes";
+    pdfStatus.textContent = "PDF listo. Pulsa Ver PDF para recargarlo";
   }
 }
 
@@ -1473,6 +1509,16 @@ function clearPdfViewer(message) {
   reportPdfFrame.src = "about:blank";
   pdfStatus.textContent = message;
   pdfLoadedOnce = false;
+}
+
+function setPdfViewButtonEnabled(enabled) {
+  if (!viewPdfButton) {
+    return;
+  }
+
+  viewPdfButton.disabled = !enabled;
+  viewPdfButton.classList.toggle("disabled", !enabled);
+  viewPdfButton.setAttribute("aria-disabled", enabled ? "false" : "true");
 }
 
 async function refreshPdfViewer(force = false) {

@@ -15,11 +15,19 @@ function Get-CloudflaredPath {
 }
 
 $root = Split-Path -Parent $PSScriptRoot
+$tunnelName = $env:CLOUDFLARED_TUNNEL_NAME
+$port = if ($env:PORT) { $env:PORT } else { "3226" }
+$allowedOrigins = if ($env:CORS_ALLOWED_ORIGINS) { $env:CORS_ALLOWED_ORIGINS } else { "https://ivanlipay-eng.github.io" }
+
+if ([string]::IsNullOrWhiteSpace($tunnelName)) {
+  throw "Define CLOUDFLARED_TUNNEL_NAME antes de ejecutar este script. Ejemplo: `$env:CLOUDFLARED_TUNNEL_NAME='cnc-tech-reportes'"
+}
+
 Push-Location $root
 
 try {
   $cloudflaredPath = Get-CloudflaredPath
-  $backendCommand = "`$env:HOST='127.0.0.1'; `$env:PORT='3221'; `$env:CORS_ALLOWED_ORIGINS='*'; node server.js"
+  $backendCommand = "`$env:HOST='127.0.0.1'; `$env:PORT='$port'; `$env:CORS_ALLOWED_ORIGINS='$allowedOrigins'; node server.js"
 
   Start-Process powershell -ArgumentList @(
     "-NoProfile",
@@ -29,11 +37,11 @@ try {
 
   Start-Sleep -Seconds 3
 
-  Write-Host "Backend local iniciado en http://127.0.0.1:3221" -ForegroundColor Cyan
-  Write-Host "Abriendo tunel publico con Cloudflare..." -ForegroundColor Cyan
-  Write-Host "Cuando aparezca la URL https://...trycloudflare.com, usala como apiBaseUrl en public/config.js" -ForegroundColor Yellow
+  Write-Host "Backend local iniciado en http://127.0.0.1:$port" -ForegroundColor Cyan
+  Write-Host "Origen permitido: $allowedOrigins" -ForegroundColor Cyan
+  Write-Host "Iniciando tunel permanente: $tunnelName" -ForegroundColor Cyan
 
-  & $cloudflaredPath tunnel --url http://127.0.0.1:3221
+  & $cloudflaredPath tunnel run $tunnelName
 }
 finally {
   Pop-Location

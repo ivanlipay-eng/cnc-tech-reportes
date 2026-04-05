@@ -69,6 +69,34 @@ La URL de `trycloudflare.com` no es permanente. Cambia cuando reinicias el tunel
 
 Si quieres que otras PCs usen siempre tu pagina publicada y que el backend siga estando en esta maquina, la siguiente etapa correcta es crear un tunel permanente de Cloudflare con cuenta y dominio propio.
 
+## Tunel permanente preparado
+
+Ya deje listo un arranque para tunel nombrado:
+
+`npm run start:permanent-backend`
+
+Antes de usarlo, haz esto una sola vez con tu cuenta de Cloudflare:
+
+1. `cloudflared tunnel login`
+2. `cloudflared tunnel create cnc-tech-reportes`
+3. Crea un host DNS o una ruta publica para ese tunel.
+4. Define la variable de entorno `CLOUDFLARED_TUNNEL_NAME=cnc-tech-reportes`
+
+Opcionalmente puedes cambiar el puerto y origen permitido:
+
+```powershell
+$env:CLOUDFLARED_TUNNEL_NAME="cnc-tech-reportes"
+$env:PORT="3226"
+$env:CORS_ALLOWED_ORIGINS="https://ivanlipay-eng.github.io"
+npm run start:permanent-backend
+```
+
+El script deja el backend local corriendo en esta PC y luego ejecuta `cloudflared tunnel run` con el nombre indicado.
+
+Si quieres exponer un subdominio fijo, usa un archivo de configuracion de Cloudflare como base:
+
+`cloudflared/config.yml.example`
+
 ## Arranque del backend local
 
 Usa:

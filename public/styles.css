@@ -473,11 +473,14 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .panel-note {
   color: var(--muted);
   font-size: 0.9rem;
+  text-align: right;
 }
 
 .report-frame {
@@ -490,6 +493,21 @@ button:disabled {
   border: 1px solid rgba(11, 46, 74, 0.12);
   border-radius: 18px;
   background: white;
+}
+
+@media (max-width: 900px) {
+  .panel-head {
+    align-items: flex-start;
+  }
+
+  .panel-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .panel-note {
+    text-align: left;
+  }
 }
 
 .messages {

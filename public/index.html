@@ -7,10 +7,10 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Asistente de Reportes CNC Tech Formativo</title>
-    <link rel="stylesheet" href="./styles.css?v=1.1.20" />
+    <link rel="stylesheet" href="./styles.css?v=1.1.21" />
   </head>
   <body>
-    <div id="app-version-badge" class="app-version-badge">Version 1.1.20</div>
+    <div id="app-version-badge" class="app-version-badge">Version 1.1.21</div>
     <div id="download-overlay" class="download-overlay" hidden>
       <div class="download-card">
         <div class="download-eyebrow">Descargando ZIP</div>
@@ -27,7 +27,7 @@
     <header class="ribbon-shell">
       <div class="ribbon-topline">
         <div class="topbar-brand">
-          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.20" alt="Logo real de CNC Tech" />
+          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.21" alt="Logo real de CNC Tech" />
           <div class="brand-copy">
             <span class="brand-kicker">CNC Tech</span>
             <strong class="brand-title">Centro de reportes</strong>
@@ -143,14 +143,19 @@
         <section class="panel report-panel">
           <div class="panel-head">
             <strong>PDF del reporte</strong>
-            <span id="pdf-status" class="panel-note">Pulsa Compilar PDF para generar y ver el reporte</span>
+            <div class="panel-actions">
+              <button id="view-pdf" type="button" class="secondary-button" disabled>
+                Ver PDF
+              </button>
+              <span id="pdf-status" class="panel-note">Compila el PDF y luego pulsa Ver PDF para abrirlo</span>
+            </div>
           </div>
           <iframe id="report-pdf-frame" class="report-frame" title="PDF del reporte"></iframe>
         </section>
       </section>
     </main>
 
-    <script src="./config.js?v=1.1.20"></script>
-    <script src="./app.js?v=1.1.20"></script>
+    <script src="./config.js?v=1.1.21"></script>
+    <script src="./app.js?v=1.1.21"></script>
   </body>
 </html>
