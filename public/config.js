@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "",
+  apiBaseUrl: "http://localhost:3221",
   brandLogoUrl: "",
 };

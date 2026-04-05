@@ -39,13 +39,42 @@ window.CNC_TECH_CONFIG = {
 
 ## Backend
 
-El backend debe estar accesible por HTTPS y permitir CORS para GitHub Pages.
+Para este proyecto ya deje configurado un modo de backend local en esta misma PC.
 
-Ejemplo en Windows:
+La pagina publicada en GitHub Pages apuntara a:
+
+`http://localhost:3221`
+
+Esto significa que la web publicada funcionara correctamente cuando la abras desde esta misma PC, porque el navegador usara tu propio backend local.
+
+No es un backend remoto para terceros. Si otra persona abre tu GitHub Pages desde otra maquina, intentara hablar con su propio localhost y no funcionara.
+
+## Arranque del backend local
+
+Usa:
+
+`npm run start:pages-backend`
+
+Eso levanta el backend en `http://localhost:3221` y con CORS habilitado para GitHub Pages.
+
+## Nota tecnica
+
+El origen permitido para CORS queda configurado para:
+
+`https://ivanlipay-eng.github.io`
+
+Eso cubre la pagina publicada en:
+
+`https://ivanlipay-eng.github.io/cnc-tech-reportes/`
+
+## Ejemplo manual
+
+Si quisieras levantarlo manualmente en Windows, seria asi:
 
 ```powershell
-$env:PORT=3220
-$env:CORS_ALLOWED_ORIGINS="https://cnc-tech.github.io"
+$env:HOST="127.0.0.1"
+$env:PORT=3221
+$env:CORS_ALLOWED_ORIGINS="https://ivanlipay-eng.github.io"
 node server.js
 ```
 
