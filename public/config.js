@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "http://localhost:3221",
+  apiBaseUrl: "https://helicopter-pearl-waterproof-finish.trycloudflare.com",
   brandLogoUrl: "",
 };

@@ -49,6 +49,26 @@ Esto significa que la web publicada funcionara correctamente cuando la abras des
 
 No es un backend remoto para terceros. Si otra persona abre tu GitHub Pages desde otra maquina, intentara hablar con su propio localhost y no funcionara.
 
+## Exponer este backend local
+
+Tambien deje preparado un modo para exponer el backend de esta misma PC por un tunel publico usando Cloudflare.
+
+Comando:
+
+`npm run start:public-backend`
+
+Ese script:
+
+1. Levanta el backend en `http://127.0.0.1:3221`.
+2. Abre un tunel publico con `cloudflared`.
+3. Imprime una URL `https://...trycloudflare.com` para usar como backend publico.
+
+### Importante
+
+La URL de `trycloudflare.com` no es permanente. Cambia cuando reinicias el tunel.
+
+Si quieres que otras PCs usen siempre tu pagina publicada y que el backend siga estando en esta maquina, la siguiente etapa correcta es crear un tunel permanente de Cloudflare con cuenta y dominio propio.
+
 ## Arranque del backend local
 
 Usa:
