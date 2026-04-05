@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://helicopter-pearl-waterproof-finish.trycloudflare.com",
+  apiBaseUrl: "https://thank-resumes-turtle-saturn.trycloudflare.com",
   brandLogoUrl: "",
 };

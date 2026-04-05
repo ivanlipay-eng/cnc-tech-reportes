@@ -841,6 +841,71 @@ async function requestImageSync(session) {
   return session.sendUserMessage(buildSyncImagesRequestMessage(session));
 }
 
+async function compileReportPdf(session) {
+  const reportDir = session.reportProjectPath || path.dirname(session.reportTexPath || session.workspacePath);
+  const reportTexPath = session.reportTexPath || path.join(reportDir, "reporte.tex");
+  const reportPdfPath = session.reportPdfPath || path.join(reportDir, "reporte.pdf");
+
+  await new Promise((resolve, reject) => {
+    const child = spawn(
+      "latexmk",
+      ["-pdf", "-interaction=nonstopmode", "-halt-on-error", path.basename(reportTexPath)],
+      {
+        cwd: reportDir,
+        windowsHide: true,
+        stdio: ["ignore", "pipe", "pipe"],
+      }
+    );
+
+    let stdout = "";
+    let stderr = "";
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+    }, 120000);
+
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+
+    child.on("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+
+    child.on("exit", (code) => {
+      clearTimeout(timeout);
+      if (timedOut) {
+        reject(new Error("La compilacion del PDF supero el tiempo limite."));
+        return;
+      }
+
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      reject(new Error(stderr.trim() || stdout.trim() || "No se pudo compilar el PDF del reporte."));
+    });
+  });
+
+  if (!(await pathExists(reportPdfPath))) {
+    throw new Error("La compilacion termino sin generar el PDF del reporte.");
+  }
+
+  return {
+    reportPdfPath,
+    compiledAt: new Date().toISOString(),
+  };
+}
+
 function json(response, statusCode, payload) {
   response.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
@@ -1325,7 +1390,7 @@ async function handleApi(request, response) {
 
   if (request.method === "POST" && segments[3] === "compile") {
     try {
-      const result = await requestReportCompilation(session);
+      const result = await compileReportPdf(session);
       json(response, 200, { ok: true, result });
     } catch (error) {
       json(response, 409, { error: error.message });
@@ -1494,8 +1559,12 @@ async function handleApi(request, response) {
 
   if (request.method === "GET" && segments[3] === "report-pdf") {
     if (!(await pathExists(session.reportPdfPath))) {
-      json(response, 404, { error: "PDF del reporte no encontrado." });
-      return;
+      try {
+        await compileReportPdf(session);
+      } catch (error) {
+        json(response, 404, { error: `PDF del reporte no encontrado: ${error.message}` });
+        return;
+      }
     }
 
     response.writeHead(200, {
@@ -1509,7 +1578,7 @@ async function handleApi(request, response) {
 
   if (request.method === "GET" && segments[3] === "download") {
     try {
-      await requestReportCompilation(session);
+      await compileReportPdf(session);
     } catch (error) {
       json(response, 409, { error: `No se pudo compilar antes de descargar: ${error.message}` });
       return;
