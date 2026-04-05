@@ -46,6 +46,7 @@ const downloadProgressBar = document.getElementById("download-progress-bar");
 const downloadProgressPercent = document.getElementById("download-progress-percent");
 const downloadProgressDetail = document.getElementById("download-progress-detail");
 let pdfLoadedOnce = false;
+let currentPdfObjectUrl = null;
 let dragDepth = 0;
 let inlineImageSequence = 0;
 const PAGE_RESPONSE_START = "--respuesta de pagina--";
@@ -419,7 +420,7 @@ compileButton.addEventListener("click", async () => {
       throw new Error(data.error || "No se pudo compilar el PDF.");
     }
 
-    refreshPdfViewer(true);
+    await refreshPdfViewer(true);
     pdfStatus.textContent = "PDF recompilado";
     setStatus("Listo");
   } catch (error) {
@@ -524,7 +525,7 @@ downloadZipLink.addEventListener("click", async (event) => {
     tempLink.click();
     tempLink.remove();
     URL.revokeObjectURL(url);
-    refreshPdfViewer(true);
+    await refreshPdfViewer(true);
     pdfStatus.textContent = "PDF recompilado para la descarga";
     setStatus("ZIP descargado");
     showDownloadOverlay("ZIP listo", 100, "Descarga completada");
@@ -1465,12 +1466,16 @@ function isImageLikeFile(file) {
 }
 
 function clearPdfViewer(message) {
+  if (currentPdfObjectUrl) {
+    URL.revokeObjectURL(currentPdfObjectUrl);
+    currentPdfObjectUrl = null;
+  }
   reportPdfFrame.src = "about:blank";
   pdfStatus.textContent = message;
   pdfLoadedOnce = false;
 }
 
-function refreshPdfViewer(force = false) {
+async function refreshPdfViewer(force = false) {
   if (!state.session) {
     clearPdfViewer("Sin sesion activa");
     return;
@@ -1480,8 +1485,20 @@ function refreshPdfViewer(force = false) {
     return;
   }
 
+  pdfStatus.textContent = "Cargando PDF...";
   const url = buildApiUrl(`/sessions/${state.session.id}/report-pdf?t=${Date.now()}`);
-  reportPdfFrame.src = url;
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("No se pudo cargar el PDF del reporte.");
+  }
+
+  const pdfBlob = await response.blob();
+  if (currentPdfObjectUrl) {
+    URL.revokeObjectURL(currentPdfObjectUrl);
+  }
+
+  currentPdfObjectUrl = URL.createObjectURL(pdfBlob);
+  reportPdfFrame.src = currentPdfObjectUrl;
   pdfStatus.textContent = pdfLoadedOnce ? "Vista PDF actualizada" : "PDF cargado";
   pdfLoadedOnce = true;
 }
