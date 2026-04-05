@@ -158,7 +158,7 @@ form.addEventListener("submit", async (event) => {
     chatInput.focus();
     setStatus("Sesion lista");
     setThinking(false);
-    refreshPdfViewer(true);
+    pdfStatus.textContent = "Pulsa Compilar PDF para generar y ver el reporte";
   } catch (error) {
     setStatus("No se pudo crear la sesion.", true);
     setThinking(false);
@@ -894,7 +894,8 @@ function renderMeta(session) {
     setRequestedImageStatus("Cuando el bot pida una imagen, aparecera aqui para subirla");
   }
   if (!pdfLoadedOnce) {
-    refreshPdfViewer(true);
+    reportPdfFrame.removeAttribute("src");
+    pdfStatus.textContent = "Pulsa Compilar PDF para generar y ver el reporte";
   } else {
     pdfStatus.textContent = "Pulsa Compilar PDF para ver los cambios recientes";
   }

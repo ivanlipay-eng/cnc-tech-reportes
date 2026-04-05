@@ -1074,6 +1074,26 @@ async function createWorkspaceFolder(requestedName) {
 }
 
 function openWorkspaceInVsCode(workspacePath) {
+  if (process.platform === "win32") {
+    const child = spawn(
+      "powershell",
+      [
+        "-NoProfile",
+        "-WindowStyle",
+        "Hidden",
+        "-Command",
+        `Start-Process -FilePath 'code' -ArgumentList @('-n', ${quotePowerShell(workspacePath)}) -WindowStyle Minimized`,
+      ],
+      {
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true,
+      }
+    );
+    child.unref();
+    return;
+  }
+
   const child = spawn("code", ["-n", workspacePath], {
     detached: true,
     stdio: "ignore",
@@ -1480,6 +1500,7 @@ async function handleApi(request, response) {
 
     response.writeHead(200, {
       "Content-Type": "application/pdf",
+      "Content-Disposition": `inline; filename="${encodeURIComponent(path.basename(session.reportPdfPath))}"`,
       "Cache-Control": "no-store",
     });
     fsSync.createReadStream(session.reportPdfPath).pipe(response);
