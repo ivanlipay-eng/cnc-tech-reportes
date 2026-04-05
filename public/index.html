@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Asistente de Reportes CNC Tech Formativo</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="app-version-badge" class="app-version-badge">Version 1.1.9</div>
+    <div id="download-overlay" class="download-overlay" hidden>
+      <div class="download-card">
+        <div class="download-eyebrow">Descargando ZIP</div>
+        <strong id="download-title" class="download-title">Preparando proyecto</strong>
+        <div class="download-progress-track">
+          <div id="download-progress-bar" class="download-progress-bar"></div>
+        </div>
+        <div class="download-progress-meta">
+          <span id="download-progress-percent">0%</span>
+          <span id="download-progress-detail">Esperando datos...</span>
+        </div>
+      </div>
+    </div>
+    <header class="ribbon-shell">
+      <div class="ribbon-topline">
+        <div class="topbar-brand">
+          <img class="brand-logo" src="./cnc-tech-mark.svg" alt="Logo CNC Tech" />
+          <div class="brand-copy">
+            <span class="brand-kicker">CNC Tech</span>
+            <strong class="brand-title">Centro de reportes</strong>
+          </div>
+        </div>
+
+        <nav class="ribbon-tab-row" aria-label="Herramientas">
+          <button type="button" class="ribbon-tab is-active" data-toolbar-target="session">Sesion</button>
+          <button type="button" class="ribbon-tab" data-toolbar-target="acciones">Acciones</button>
+          <button type="button" class="ribbon-tab" data-toolbar-target="evidencia">Evidencia</button>
+          <button type="button" class="ribbon-tab" data-toolbar-target="estado">Estado</button>
+          <button type="button" class="ribbon-tab" data-toolbar-target="subidos">Subidos</button>
+        </nav>
+      </div>
+
+      <div class="ribbon-drawer">
+        <section class="ribbon-panel is-active" data-toolbar-panel="session">
+          <form id="session-form" class="toolbar-session-form">
+            <label class="field toolbar-field toolbar-field-wide">
+              <span>Nombre base</span>
+              <input id="folder-name" name="folderName" placeholder="mi-reporte-contexto" />
+            </label>
+
+            <label class="checkbox compact-checkbox toolbar-checkbox">
+              <input id="open-vscode" type="checkbox" checked />
+              <span>Abrir en VS Code</span>
+            </label>
+
+            <button id="create-session" type="submit">Crear sesion</button>
+          </form>
+        </section>
+
+        <section class="ribbon-panel" data-toolbar-panel="acciones">
+          <div class="toolbar-button-row">
+            <a id="download-zip" class="secondary-button disabled" href="#" aria-disabled="true">
+              Descargar ZIP
+            </a>
+            <button id="upload-files-trigger" type="button" class="secondary-button upload-button disabled" aria-disabled="true" disabled>
+              Subir archivos
+            </button>
+            <button id="sync-images" type="button" class="secondary-button" disabled>
+              Actualizar imagenes
+            </button>
+            <button id="compile-report" type="button" class="secondary-button" disabled>
+              Compilar PDF
+            </button>
+            <input id="upload-files" type="file" multiple hidden disabled />
+          </div>
+          <div id="upload-status" class="upload-status">Sin sesion activa</div>
+        </section>
+
+        <section class="ribbon-panel" data-toolbar-panel="evidencia">
+          <div class="toolbar-evidence-row">
+            <label class="field compact-field evidence-field toolbar-field toolbar-field-wide">
+              <span>Imagen solicitada</span>
+              <select id="requested-image-select" disabled>
+                <option value="">Todavia no hay imagenes pendientes</option>
+              </select>
+            </label>
+            <button id="upload-requested-image-trigger" type="button" class="secondary-button upload-button disabled" aria-disabled="true" disabled>
+              Subir imagen solicitada
+            </button>
+            <input id="upload-requested-image" type="file" accept="image/*" hidden disabled />
+          </div>
+          <div id="requested-image-status" class="upload-status">Sin imagen solicitada</div>
+        </section>
+
+        <section class="ribbon-panel" data-toolbar-panel="estado">
+          <div id="session-meta" class="meta top-meta empty">
+            Todavia no hay una sesion activa.
+          </div>
+        </section>
+
+        <section class="ribbon-panel" data-toolbar-panel="subidos">
+          <ul id="uploaded-files-list" class="uploaded-files-list uploaded-files-inline">
+            <li class="empty">Nada todavia</li>
+          </ul>
+        </section>
+      </div>
+    </header>
+
+    <main class="layout">
+
+      <section class="workspace-main">
+        <section class="panel chat-panel">
+          <div class="panel-head panel-head-stacked">
+            <div>
+              <strong>Chat de reporte</strong>
+              <div id="chat-drop-hint" class="chat-drop-hint">
+                Puedes pegar imagenes con Ctrl+V o arrastrarlas aqui para subirlas a la sesion.
+              </div>
+            </div>
+            <span id="status-pill" class="status">Sin sesion</span>
+          </div>
+
+          <div id="messages" class="messages"></div>
+          <div id="bot-thinking" class="thinking-indicator" hidden>Contexto esta pensando...</div>
+
+          <form id="chat-form" class="chat-form">
+            <textarea
+              id="chat-input"
+              rows="4"
+              placeholder="Empieza respondiendo: Quien eres?"
+              disabled
+            ></textarea>
+            <div class="chat-actions">
+              <div class="chat-actions-note">Chat y evidencias en una misma vista.</div>
+              <button id="send-message" type="submit" disabled>Enviar</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel report-panel">
+          <div class="panel-head">
+            <strong>PDF del reporte</strong>
+            <span id="pdf-status" class="panel-note">Pulsa Compilar PDF para actualizar la vista</span>
+          </div>
+          <iframe id="report-pdf-frame" class="report-frame" title="PDF del reporte"></iframe>
+        </section>
+      </section>
+    </main>
+
+    <script src="./config.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
