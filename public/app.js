@@ -913,7 +913,6 @@ function handleServerEvent(event) {
       setStatus("Sesion lista");
       break;
     case "session-updated":
-      maybeTriggerRubenAnimation(event.payload, state.session);
       hydrateSessionState(event.payload);
       renderMeta(event.payload);
       break;
@@ -962,6 +961,7 @@ function handleServerEvent(event) {
             true
           );
           collectRequestedImages(event.payload.assistantText || "");
+          collectAssistantSignals(event.payload.assistantText || "");
         }
       }
       chatInput.disabled = false;
@@ -1136,6 +1136,7 @@ function applyAssistantFallback(result) {
     true
   );
   collectRequestedImages(result.assistantText);
+  collectAssistantSignals(result.assistantText);
   chatInput.disabled = false;
   sendButton.disabled = false;
   compileButton.disabled = false;
@@ -1624,22 +1625,47 @@ function isRubenPinasProfile(profile) {
   });
 }
 
-function maybeTriggerRubenAnimation(nextSnapshot, previousSnapshot) {
-  const nextProfile = nextSnapshot?.participantProfile;
-  if (!isRubenPinasProfile(nextProfile)) {
+function textMentionsRubenPinas(value) {
+  const normalized = normalizeIdentityToken(value);
+  if (!normalized) {
+    return false;
+  }
+
+  const directPatterns = [
+    "ruben pinas rafael",
+    "ruben pinas",
+    "ruben pina",
+    "sr pinas",
+    "senor pinas",
+    "senor pina",
+    "pineapple",
+  ];
+
+  if (directPatterns.some((pattern) => normalized.includes(pattern))) {
+    return true;
+  }
+
+  if (/(^| )pinas($| )/.test(normalized) || /(^| )pina($| )/.test(normalized)) {
+    return true;
+  }
+
+  return normalized.includes("ruben") && normalized.includes("pinas");
+}
+
+function maybeTriggerRubenAnimationFromText(visibleText) {
+  if (!state.session?.id) {
     return;
   }
 
-  const previousProfile = previousSnapshot?.participantProfile;
-  if (isRubenPinasProfile(previousProfile)) {
+  if (state.rubenAnimationShownForSessionId === state.session.id) {
     return;
   }
 
-  if (state.rubenAnimationShownForSessionId === nextSnapshot?.id) {
+  if (!textMentionsRubenPinas(visibleText)) {
     return;
   }
 
-  state.rubenAnimationShownForSessionId = nextSnapshot?.id || "";
+  state.rubenAnimationShownForSessionId = state.session.id;
   showParticipantAnimation();
 }
 
@@ -1964,6 +1990,15 @@ function collectRequestedImages(rawText) {
     requestedImageTrigger.setAttribute("aria-disabled", "false");
     setRequestedImageStatus("Elige una imagen solicitada y subela directamente");
   }
+}
+
+function collectAssistantSignals(rawText) {
+  const visibleText = extractPageResponse(rawText).text;
+  if (!visibleText) {
+    return;
+  }
+
+  maybeTriggerRubenAnimationFromText(visibleText);
 }
 
 function parseRequestedImages(text) {
