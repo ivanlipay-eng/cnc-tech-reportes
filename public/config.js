@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://smell-forecasts-shoppers-sixth.trycloudflare.com",
+  apiBaseUrl: "https://head-maui-lime-footage.trycloudflare.com",
   brandLogoUrl: "",
 };
