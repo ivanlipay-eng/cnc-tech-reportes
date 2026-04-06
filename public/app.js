@@ -282,6 +282,19 @@ chatForm.addEventListener("submit", async (event) => {
   await submitChatMessage(chatInput.value);
 });
 
+chatInput.addEventListener("keydown", async (event) => {
+  if (event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) {
+    return;
+  }
+
+  if (event.isComposing || chatInput.disabled || sendButton.disabled) {
+    return;
+  }
+
+  event.preventDefault();
+  await submitChatMessage(chatInput.value);
+});
+
 messages.addEventListener("click", async (event) => {
   const quickReplyButton = event.target.closest("[data-quick-reply]");
   if (!quickReplyButton || !state.session) {

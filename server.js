@@ -26,6 +26,7 @@ const CORS_ALLOWED_ORIGINS = String(process.env.CORS_ALLOWED_ORIGINS || "*")
   .split(",")
   .map((item) => item.trim())
   .filter(Boolean);
+const GRAPHVIZ_DOT_COMMAND = resolveGraphvizDotCommand();
 const CODEX_COMMAND = resolveCodexCommand();
 
 const sessions = new Map();
@@ -443,6 +444,18 @@ function resolveCodexCommand() {
 
   const foundPath = candidatePaths.find((candidate) => candidate === "codex" || fsSync.existsSync(candidate));
   return foundPath || "codex";
+}
+
+function resolveGraphvizDotCommand() {
+  const candidatePaths = [
+    process.env.GRAPHVIZ_DOT,
+    path.join("C:\\Program Files\\Graphviz\\bin", "dot.exe"),
+    path.join("C:\\Program Files (x86)\\Graphviz\\bin", "dot.exe"),
+    path.join(process.env.LOCALAPPDATA || "", "Programs", "Graphviz", "bin", "dot.exe"),
+  ].filter(Boolean);
+
+  const foundPath = candidatePaths.find((candidate) => fsSync.existsSync(candidate));
+  return foundPath || "";
 }
 
 async function spawnCodexProcess(workspacePath) {
@@ -946,6 +959,16 @@ async function seedWorkspaceReportProject(workspacePath) {
 }
 
 function buildReportBotInstructions(sessionWorkspacePath, reportProjectPath) {
+  const graphvizInstructions = GRAPHVIZ_DOT_COMMAND
+    ? [
+        `Graphviz disponible en esta PC: ${GRAPHVIZ_DOT_COMMAND}`,
+        `Si generas un diagrama, guarda primero el archivo fuente .dot en ${path.join(sessionWorkspacePath, "archivos")}.`,
+        `Renderiza luego el diagrama como .png o .svg dentro de ${path.join(sessionWorkspacePath, "imagenes")} y referencialo en ${path.join(reportProjectPath, "reporte.tex")} cuando aporte claridad.`,
+      ]
+    : [
+        "Si el caso necesita diagrama, primero intenta localizar dot.exe de Graphviz en esta PC y usalo si esta disponible.",
+      ];
+
   const lines = [
     "Esta sesion esta dedicada unicamente a crear, actualizar, revisar y cerrar reportes CNC Tech Formativo.",
     "El chat puede ser libre, pero siempre debes reconducirlo hacia la generacion del reporte semanal institucional usando la plantilla oficial.",
@@ -995,7 +1018,12 @@ function buildReportBotInstructions(sessionWorkspacePath, reportProjectPath) {
     "No cierres el reporte demasiado pronto si aun faltan evidencias clave, referencias utiles o pasos del proceso que claramente deberian estar.",
     "Antes de considerar terminado el reporte, verifica si ya pediste al menos la evidencia principal y las referencias tecnicas necesarias cuando apliquen.",
     "Si faltan referencias, debes buscarlas en internet cuando el tema tecnico ya este claro y agregar fuentes confiables relevantes al reporte.",
-    "Cuando un diagrama o esquema aclare mejor el contenido, usa Graphviz, que ya esta disponible en esta PC.",
+    "Debes favorecer el uso de graficos tecnicos cuando ayuden a explicar flujos, arquitectura, secuencias, relaciones entre componentes, decisiones o procesos del trabajo semanal.",
+    "Antes de generar un grafico, haz preguntas breves para completar nodos, etapas, conexiones, etiquetas, decisiones o direcciones de flujo que todavia no esten claras.",
+    "Si despues de esas preguntas ya tienes estructura suficiente, genera el diagrama en lugar de dejar solo texto descriptivo.",
+    "Cuando el caso lo permita, intenta primero resolver esquemas y flujos con Graphviz antes que con una imagen manual.",
+    ...graphvizInstructions,
+    "Si generas un grafico con Graphviz, tratalo como evidencia tecnica del reporte y mencionaselo al usuario de forma natural.",
     "El entregable final esperado para el usuario es el zip completo del proyecto de la sesion.",
     "No recompiles el PDF automaticamente tras cada cambio menor.",
     "Debes compilar el PDF cuando el usuario lo pida explicitamente o cuando el sistema vaya a descargar el proyecto en ZIP.",
