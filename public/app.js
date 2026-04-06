@@ -12,6 +12,7 @@ const state = {
   secondarySuggestions: [],
   availableFormats: [],
   selectedFormatId: "",
+  rubenAnimationShownForSessionId: "",
 };
 
 const appConfig = window.CNC_TECH_CONFIG || {};
@@ -74,12 +75,15 @@ const downloadTitle = document.getElementById("download-title");
 const downloadProgressBar = document.getElementById("download-progress-bar");
 const downloadProgressPercent = document.getElementById("download-progress-percent");
 const downloadProgressDetail = document.getElementById("download-progress-detail");
+const participantAnimationOverlay = document.getElementById("participant-animation-overlay");
+const participantAnimationVideo = document.getElementById("participant-animation-video");
 let uploadOverlayHideTimer = null;
 let pdfLoadedOnce = false;
 let currentPdfObjectUrl = null;
 let dragDepth = 0;
 let inlineImageSequence = 0;
 let quickFieldSaveTimer = null;
+let participantAnimationHideTimer = null;
 const PAGE_RESPONSE_START = "--respuesta de pagina--";
 const PAGE_RESPONSE_END = "--finalice--";
 const QUICK_REPLIES_START = "[[respuestas_rapidas]]";
@@ -99,6 +103,7 @@ initializeBrandLogo();
 loadAppVersion();
 initializeQuickPanel();
 initializeQuickDrawer();
+initializeParticipantAnimation();
 
 function getFormatDefinitionById(formatId) {
   const normalizedId = String(formatId || "").trim();
@@ -908,6 +913,7 @@ function handleServerEvent(event) {
       setStatus("Sesion lista");
       break;
     case "session-updated":
+      maybeTriggerRubenAnimation(event.payload, state.session);
       hydrateSessionState(event.payload);
       renderMeta(event.payload);
       break;
@@ -1554,12 +1560,108 @@ function setExperimentalStatus(text, isError = false) {
 }
 
 function hydrateSessionState(snapshot) {
+  if (snapshot?.id && snapshot.id !== state.session?.id) {
+    state.rubenAnimationShownForSessionId = "";
+  }
   state.session = snapshot;
   state.selectedFormatId = snapshot?.reportFormat?.id || state.selectedFormatId;
   state.participantProfile = snapshot?.participantProfile || state.participantProfile;
   state.quickFields = buildNormalizedQuickFields(snapshot?.quickFields || state.quickFields || {}, getCurrentFormatDefinition());
   state.uploadedFiles = Array.isArray(snapshot?.uploadedFiles) ? [...snapshot.uploadedFiles] : [];
   renderQuickPanel(state.quickFields, getCurrentFormatDefinition());
+}
+
+function initializeParticipantAnimation() {
+  if (!participantAnimationVideo) {
+    return;
+  }
+  participantAnimationVideo.addEventListener("ended", hideParticipantAnimation);
+}
+
+function normalizeIdentityToken(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function collectProfileIdentityTokens(profile) {
+  const candidates = [
+    profile?.name,
+    profile?.fullName,
+    profile?.displayName,
+    ...(Array.isArray(profile?.aliases) ? profile.aliases : []),
+    ...(Array.isArray(profile?.apodos) ? profile.apodos : []),
+  ];
+
+  return candidates
+    .map((value) => normalizeIdentityToken(value))
+    .filter(Boolean);
+}
+
+function isRubenPinasProfile(profile) {
+  const tokens = collectProfileIdentityTokens(profile);
+  return tokens.some((normalized) => {
+    if (!normalized) {
+      return false;
+    }
+    if (normalized.includes("ruben pinas rafael")) {
+      return true;
+    }
+    if (normalized.includes("pineapple")) {
+      return true;
+    }
+    if (normalized === "pinas" || normalized === "pina") {
+      return true;
+    }
+    return normalized.includes("ruben") && normalized.includes("pinas");
+  });
+}
+
+function maybeTriggerRubenAnimation(nextSnapshot, previousSnapshot) {
+  const nextProfile = nextSnapshot?.participantProfile;
+  if (!isRubenPinasProfile(nextProfile)) {
+    return;
+  }
+
+  const previousProfile = previousSnapshot?.participantProfile;
+  if (isRubenPinasProfile(previousProfile)) {
+    return;
+  }
+
+  if (state.rubenAnimationShownForSessionId === nextSnapshot?.id) {
+    return;
+  }
+
+  state.rubenAnimationShownForSessionId = nextSnapshot?.id || "";
+  showParticipantAnimation();
+}
+
+function showParticipantAnimation() {
+  if (!participantAnimationOverlay || !participantAnimationVideo) {
+    return;
+  }
+
+  clearTimeout(participantAnimationHideTimer);
+  participantAnimationOverlay.hidden = false;
+  participantAnimationVideo.currentTime = 0;
+  const playAttempt = participantAnimationVideo.play();
+  if (playAttempt && typeof playAttempt.catch === "function") {
+    playAttempt.catch(() => {});
+  }
+  participantAnimationHideTimer = setTimeout(hideParticipantAnimation, 5600);
+}
+
+function hideParticipantAnimation() {
+  clearTimeout(participantAnimationHideTimer);
+  participantAnimationHideTimer = null;
+  if (!participantAnimationOverlay || !participantAnimationVideo) {
+    return;
+  }
+  participantAnimationOverlay.hidden = true;
+  participantAnimationVideo.pause();
 }
 
 function populateFormatOptions(formats, preferredFormatId = "") {

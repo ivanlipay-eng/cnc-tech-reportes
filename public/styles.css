@@ -31,6 +31,25 @@ body {
     linear-gradient(180deg, #f7fbff 0%, #edf4fa 48%, #e4edf5 100%);
 }
 
+.participant-animation-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 160;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: transparent;
+}
+
+.participant-animation-video {
+  width: min(420px, 62vw);
+  max-width: 100%;
+  max-height: 72vh;
+  background: transparent;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 18px 26px rgba(11, 46, 74, 0.18));
+}
+
 .app-version-badge {
   position: fixed;
   left: 18px;
@@ -48,6 +67,10 @@ body {
 }
 
 @media (max-width: 720px) {
+  .participant-animation-video {
+    width: min(74vw, 300px);
+    max-height: 56vh;
+  }
 }
 
 .layout {

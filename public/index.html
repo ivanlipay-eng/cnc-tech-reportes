@@ -7,10 +7,10 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Asistente de Reportes CNC Tech</title>
-    <link rel="stylesheet" href="./styles.css?v=1.1.44" />
+    <link rel="stylesheet" href="./styles.css?v=1.1.45" />
   </head>
   <body>
-    <div id="app-version-badge" class="app-version-badge">Version 1.1.44</div>
+    <div id="app-version-badge" class="app-version-badge">Version 1.1.45</div>
     <div id="upload-overlay" class="download-overlay upload-overlay" hidden>
       <div id="upload-card" class="download-card upload-card">
         <div class="download-eyebrow">Subiendo archivo</div>
@@ -43,6 +43,18 @@
           <span id="download-progress-detail">Esperando datos...</span>
         </div>
       </div>
+    </div>
+    <div id="participant-animation-overlay" class="participant-animation-overlay" hidden aria-hidden="true">
+      <video
+        id="participant-animation-video"
+        class="participant-animation-video"
+        autoplay
+        muted
+        playsinline
+        preload="auto"
+      >
+        <source src="./ruben-pinas-transparent.webm" type="video/webm" />
+      </video>
     </div>
     <header class="ribbon-shell">
       <div class="ribbon-topline">
@@ -293,7 +305,7 @@
       </div>
     </footer>
 
-    <script src="./config.js?v=1.1.44"></script>
-    <script src="./app.js?v=1.1.44"></script>
+    <script src="./config.js?v=1.1.45"></script>
+    <script src="./app.js?v=1.1.45"></script>
   </body>
 </html>
