@@ -42,6 +42,7 @@ const applyQuickFieldsButton = document.getElementById("apply-quick-fields");
 const quickPanelStatus = document.getElementById("quick-panel-status");
 const quickDrawer = document.getElementById("quick-drawer");
 const quickDrawerToggle = document.getElementById("quick-drawer-toggle");
+const quickDrawerToggleLabel = document.getElementById("quick-drawer-toggle-label");
 const quickDrawerBody = document.getElementById("quick-drawer-body");
 const workspaceMain = document.querySelector(".workspace-main");
 const uploadTrigger = document.getElementById("upload-files-trigger");
@@ -199,20 +200,25 @@ function initializeQuickDrawer() {
     return;
   }
 
+  const updateQuickDrawerToggle = (isOpen) => {
+    quickDrawerToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    quickDrawerToggle.title = isOpen ? "Cerrar panel rapido" : "Abrir panel rapido";
+    if (quickDrawerToggleLabel) {
+      quickDrawerToggleLabel.textContent = isOpen ? "Panel rapido" : "Abrir panel";
+    }
+  };
+
   quickDrawer.classList.remove("is-open");
   workspaceMain?.classList.remove("quick-drawer-open");
   quickDrawerBody.hidden = true;
-  quickDrawerToggle.setAttribute("aria-expanded", "false");
-  quickDrawerToggle.title = "Abrir panel rapido";
+  updateQuickDrawerToggle(false);
 
   quickDrawerToggle.addEventListener("click", () => {
     const nextOpen = !quickDrawer.classList.contains("is-open");
     quickDrawer.classList.toggle("is-open", nextOpen);
     workspaceMain?.classList.toggle("quick-drawer-open", nextOpen);
     quickDrawerBody.hidden = !nextOpen;
-    quickDrawerToggle.setAttribute("aria-expanded", nextOpen ? "true" : "false");
-    quickDrawerToggle.textContent = nextOpen ? "Panel rapido" : "PR";
-    quickDrawerToggle.title = nextOpen ? "Cerrar panel rapido" : "Abrir panel rapido";
+    updateQuickDrawerToggle(nextOpen);
   });
 }
 
