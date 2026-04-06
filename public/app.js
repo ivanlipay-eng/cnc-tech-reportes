@@ -70,11 +70,19 @@ const chatPanel = document.querySelector(".chat-panel");
 const reportPdfFrame = document.getElementById("report-pdf-frame");
 const pdfStatus = document.getElementById("pdf-status");
 const appVersionBadge = document.getElementById("app-version-badge");
+const uploadOverlay = document.getElementById("upload-overlay");
+const uploadCard = document.getElementById("upload-card");
+const uploadTitle = document.getElementById("upload-title");
+const uploadProgressBar = document.getElementById("upload-progress-bar");
+const uploadProgressPercent = document.getElementById("upload-progress-percent");
+const uploadProgressDetail = document.getElementById("upload-progress-detail");
+const uploadCompleteIcon = document.getElementById("upload-complete-icon");
 const downloadOverlay = document.getElementById("download-overlay");
 const downloadTitle = document.getElementById("download-title");
 const downloadProgressBar = document.getElementById("download-progress-bar");
 const downloadProgressPercent = document.getElementById("download-progress-percent");
 const downloadProgressDetail = document.getElementById("download-progress-detail");
+let uploadOverlayHideTimer = null;
 let pdfLoadedOnce = false;
 let currentPdfObjectUrl = null;
 let dragDepth = 0;
@@ -409,6 +417,7 @@ uploadInput.addEventListener("change", async () => {
 
   const files = Array.from(uploadInput.files);
   setUploadStatus(`Subiendo ${files.length} archivo(s)...`);
+  showUploadOverlay("Subiendo archivos", 0, `0/${files.length} archivos`);
   uploadInput.disabled = true;
   uploadTrigger.disabled = true;
   uploadTrigger.classList.add("disabled");
@@ -419,6 +428,13 @@ uploadInput.addEventListener("change", async () => {
         url: buildApiUrl(`/sessions/${state.session.id}/upload?name=${encodeURIComponent(file.name)}`),
         file,
         onProgress: ({ loaded, total, speedBytesPerSecond }) => {
+          const filePercent = total > 0 ? (loaded / total) * 100 : 0;
+          const percent = ((index + Math.min(filePercent, 100) / 100) / files.length) * 100;
+          showUploadOverlay(
+            "Subiendo archivos",
+            percent,
+            `${index + 1}/${files.length} ${file.name} - ${formatUploadProgress(loaded, total, speedBytesPerSecond)}`
+          );
           setUploadStatus(
             `${index + 1}/${files.length} ${file.name} - ${formatUploadProgress(loaded, total, speedBytesPerSecond)}`
           );
@@ -429,8 +445,10 @@ uploadInput.addEventListener("change", async () => {
     }
 
     setUploadStatus("Archivos subidos al proyecto");
+    completeUploadOverlay("Carga completada", `${files.length} archivo(s) subidos`);
   } catch (error) {
     setUploadStatus(error.message || "No se pudieron subir los archivos.", true);
+    failUploadOverlay("Carga interrumpida", error.message || "No se pudieron subir los archivos.");
   } finally {
     uploadInput.value = "";
     uploadInput.disabled = false;
@@ -457,12 +475,19 @@ requestedImageInput.addEventListener("change", async () => {
   requestedImageTrigger.disabled = true;
   requestedImageTrigger.classList.add("disabled");
   setRequestedImageStatus(`Subiendo imagen de ${requestedImage?.label || requestedName}...`);
+  showUploadOverlay("Subiendo imagen solicitada", 0, file.name);
 
   try {
     const data = await uploadBinaryWithProgress({
       url: buildApiUrl(`/sessions/${state.session.id}/upload-image?targetName=${encodeURIComponent(requestedName)}&originalName=${encodeURIComponent(file.name)}`),
       file,
       onProgress: ({ loaded, total, speedBytesPerSecond }) => {
+        const percent = total > 0 ? (loaded / total) * 100 : 0;
+        showUploadOverlay(
+          "Subiendo imagen solicitada",
+          percent,
+          `${requestedImage?.label || requestedName} - ${formatUploadProgress(loaded, total, speedBytesPerSecond)}`
+        );
         setRequestedImageStatus(
           `${requestedImage?.label || requestedName} - ${formatUploadProgress(loaded, total, speedBytesPerSecond)}`
         );
@@ -476,8 +501,10 @@ requestedImageInput.addEventListener("change", async () => {
         ? `Imagen guardada para ${requestedImage?.label || data.fileName} y TEX ajustado al tipo real`
         : `Imagen guardada para ${requestedImage?.label || data.fileName}`
     );
+    completeUploadOverlay("Imagen subida", requestedImage?.label || data.fileName);
   } catch (error) {
     setRequestedImageStatus(error.message || "No se pudo subir la imagen solicitada.", true);
+    failUploadOverlay("Carga interrumpida", error.message || "No se pudo subir la imagen solicitada.");
   } finally {
     requestedImageInput.value = "";
     requestedImageInput.disabled = false;
@@ -1866,6 +1893,56 @@ function hideDownloadOverlay() {
   downloadOverlay.hidden = true;
 }
 
+function showUploadOverlay(title, percent, detail, state = "progress") {
+  if (!uploadOverlay || !uploadTitle || !uploadProgressBar || !uploadProgressPercent || !uploadProgressDetail) {
+    return;
+  }
+
+  if (uploadOverlayHideTimer) {
+    clearTimeout(uploadOverlayHideTimer);
+    uploadOverlayHideTimer = null;
+  }
+
+  const clampedPercent = Math.max(0, Math.min(percent || 0, 100));
+  uploadOverlay.hidden = false;
+  uploadTitle.textContent = title;
+  uploadProgressBar.style.width = `${clampedPercent}%`;
+  uploadProgressPercent.textContent = `${Math.round(clampedPercent)}%`;
+  uploadProgressDetail.textContent = detail || "";
+  uploadCard?.classList.toggle("is-success", state === "success");
+  if (uploadCompleteIcon) {
+    uploadCompleteIcon.hidden = state !== "success";
+  }
+}
+
+function hideUploadOverlay() {
+  if (!uploadOverlay) {
+    return;
+  }
+
+  uploadOverlay.hidden = true;
+  uploadCard?.classList.remove("is-success");
+  if (uploadCompleteIcon) {
+    uploadCompleteIcon.hidden = true;
+  }
+}
+
+function completeUploadOverlay(title, detail) {
+  showUploadOverlay(title, 100, detail, "success");
+  uploadOverlayHideTimer = setTimeout(() => {
+    hideUploadOverlay();
+    uploadOverlayHideTimer = null;
+  }, 1200);
+}
+
+function failUploadOverlay(title, detail) {
+  showUploadOverlay(title, 100, detail, "progress");
+  uploadOverlayHideTimer = setTimeout(() => {
+    hideUploadOverlay();
+    uploadOverlayHideTimer = null;
+  }, 1400);
+}
+
 function uploadBinaryWithProgress({ url, file, onProgress }) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -1915,33 +1992,53 @@ async function uploadInlineImage(file, sourceLabel = "subiendo") {
   const usingRequestedImage = requestedTarget !== originalName;
   const requestedImage = stateRequestedImages.get(requestedTarget);
 
+  showUploadOverlay(
+    capitalizeWord(sourceLabel),
+    0,
+    usingRequestedImage ? (requestedImage?.label || requestedTarget) : file.name
+  );
+
   setRequestedImageStatus(
     usingRequestedImage
       ? `${capitalizeWord(sourceLabel)} imagen para ${requestedImage?.label || requestedTarget}...`
       : `${capitalizeWord(sourceLabel)} imagen en la carpeta de imagenes...`
   );
 
-  const data = await uploadBinaryWithProgress({
-    url: buildApiUrl(`/sessions/${state.session.id}/upload-image?targetName=${encodeURIComponent(requestedTarget)}&originalName=${encodeURIComponent(originalName)}`),
-    file,
-    onProgress: ({ loaded, total, speedBytesPerSecond }) => {
-      const label = usingRequestedImage
-        ? (requestedImage?.label || requestedTarget)
-        : originalName;
-      setRequestedImageStatus(`${label} - ${formatUploadProgress(loaded, total, speedBytesPerSecond)}`);
-    },
-  });
+  try {
+    const data = await uploadBinaryWithProgress({
+      url: buildApiUrl(`/sessions/${state.session.id}/upload-image?targetName=${encodeURIComponent(requestedTarget)}&originalName=${encodeURIComponent(originalName)}`),
+      file,
+      onProgress: ({ loaded, total, speedBytesPerSecond }) => {
+        const label = usingRequestedImage
+          ? (requestedImage?.label || requestedTarget)
+          : originalName;
+        const percent = total > 0 ? (loaded / total) * 100 : 0;
+        showUploadOverlay(
+          capitalizeWord(sourceLabel),
+          percent,
+          `${label} - ${formatUploadProgress(loaded, total, speedBytesPerSecond)}`
+        );
+        setRequestedImageStatus(`${label} - ${formatUploadProgress(loaded, total, speedBytesPerSecond)}`);
+      },
+    });
 
-  addUploadedFile(withLocalPreview(data.fileInfo, file));
-  if (usingRequestedImage) {
-    completeRequestedImage(data.requestedName || data.fileName);
-    setRequestedImageStatus(
-      data.texUpdated
-        ? `Imagen subida para ${requestedImage?.label || data.fileName} y TEX ajustado al tipo real`
-        : `Imagen subida para ${requestedImage?.label || data.fileName}`
-    );
-  } else {
-    setRequestedImageStatus("Imagen subida guardada en la carpeta de imagenes");
+    addUploadedFile(withLocalPreview(data.fileInfo, file));
+    if (usingRequestedImage) {
+      completeRequestedImage(data.requestedName || data.fileName);
+      setRequestedImageStatus(
+        data.texUpdated
+          ? `Imagen subida para ${requestedImage?.label || data.fileName} y TEX ajustado al tipo real`
+          : `Imagen subida para ${requestedImage?.label || data.fileName}`
+      );
+      completeUploadOverlay("Imagen subida", requestedImage?.label || data.fileName);
+    } else {
+      setRequestedImageStatus("Imagen subida guardada en la carpeta de imagenes");
+      completeUploadOverlay("Imagen subida", data.fileName || file.name);
+    }
+  } catch (error) {
+    setRequestedImageStatus(error.message || "No se pudo subir la imagen.", true);
+    failUploadOverlay("Carga interrumpida", error.message || "No se pudo subir la imagen.");
+    throw error;
   }
 }
 

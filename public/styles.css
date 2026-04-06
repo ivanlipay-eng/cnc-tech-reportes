@@ -928,6 +928,48 @@ button:disabled {
   backdrop-filter: blur(12px);
 }
 
+.upload-overlay {
+  bottom: 120px;
+}
+
+.upload-card.is-success {
+  border-color: rgba(22, 108, 67, 0.22);
+  background: rgba(243, 252, 247, 0.97);
+}
+
+.upload-card.is-success .upload-progress-track {
+  background: rgba(22, 108, 67, 0.14);
+}
+
+.upload-card.is-success .upload-progress-bar {
+  background: linear-gradient(90deg, #1d8b55 0%, #55c98b 100%);
+}
+
+.upload-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.upload-complete-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(29, 139, 85, 0.14);
+  color: #1d8b55;
+  flex: none;
+}
+
+.upload-complete-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
 .download-eyebrow {
   margin-bottom: 6px;
   text-transform: uppercase;
@@ -1045,6 +1087,10 @@ button:disabled {
     right: 12px;
     bottom: 56px;
     width: min(300px, calc(100vw - 24px));
+  }
+
+  .upload-overlay {
+    bottom: 172px;
   }
 
   .workspace-main {

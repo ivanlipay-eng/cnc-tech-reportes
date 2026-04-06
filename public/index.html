@@ -7,10 +7,30 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Asistente de Reportes CNC Tech Formativo</title>
-    <link rel="stylesheet" href="./styles.css?v=1.1.36" />
+    <link rel="stylesheet" href="./styles.css?v=1.1.38" />
   </head>
   <body>
-    <div id="app-version-badge" class="app-version-badge">Version 1.1.36</div>
+    <div id="app-version-badge" class="app-version-badge">Version 1.1.38</div>
+    <div id="upload-overlay" class="download-overlay upload-overlay" hidden>
+      <div id="upload-card" class="download-card upload-card">
+        <div class="download-eyebrow">Subiendo archivo</div>
+        <div class="upload-title-row">
+          <strong id="upload-title" class="download-title">Preparando carga</strong>
+          <span id="upload-complete-icon" class="upload-complete-icon" hidden aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="M9.55 16.6 5.7 12.75l-1.4 1.4 5.25 5.25L20 8.95l-1.4-1.4z"></path>
+            </svg>
+          </span>
+        </div>
+        <div class="download-progress-track upload-progress-track">
+          <div id="upload-progress-bar" class="download-progress-bar upload-progress-bar"></div>
+        </div>
+        <div class="download-progress-meta">
+          <span id="upload-progress-percent">0%</span>
+          <span id="upload-progress-detail">Esperando datos...</span>
+        </div>
+      </div>
+    </div>
     <div id="download-overlay" class="download-overlay" hidden>
       <div class="download-card">
         <div class="download-eyebrow">Descargando ZIP</div>
@@ -27,7 +47,7 @@
     <header class="ribbon-shell">
       <div class="ribbon-topline">
         <div class="topbar-brand">
-          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.36" alt="Logo real de CNC Tech" />
+          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.38" alt="Logo real de CNC Tech" />
           <div class="brand-copy">
             <span class="brand-kicker">CNC Tech</span>
             <strong class="brand-title">Centro de reportes</strong>
@@ -251,7 +271,7 @@
       </section>
     </main>
 
-    <script src="./config.js?v=1.1.36"></script>
-    <script src="./app.js?v=1.1.36"></script>
+    <script src="./config.js?v=1.1.38"></script>
+    <script src="./app.js?v=1.1.38"></script>
   </body>
 </html>
