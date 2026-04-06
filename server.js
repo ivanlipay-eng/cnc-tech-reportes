@@ -53,6 +53,7 @@ class CodexSession extends EventEmitter {
     this.uploadedFiles = [];
     this.imageAssignments = [];
     this.participantProfile = null;
+    this.pendingParticipantFullNameAnnouncement = "";
     this.quickFields = buildDefaultQuickFields(formatDefinition);
     this.currentTurnMeta = { visible: true, mode: "chat" };
     this.openingQuestion = formatDefinition?.bot?.openingQuestion || "Quien eres?";
@@ -152,6 +153,15 @@ class CodexSession extends EventEmitter {
       throw new Error("El mensaje no puede estar vacio.");
     }
 
+    const participantAnnouncementName = this.pendingParticipantFullNameAnnouncement;
+    const turnInputText = participantAnnouncementName && options.visible !== false
+      ? [
+          content,
+          "",
+          `[Instruccion interna no visible: el participante ya fue identificado correctamente como ${participantAnnouncementName}. En esta respuesta visible debes mencionar textualmente el nombre completo '${participantAnnouncementName}' al menos una vez antes de continuar con la siguiente pregunta o confirmacion.]`,
+        ].join("\n")
+      : content;
+
     const turnMeta = {
       visible: options.visible !== false,
       mode: String(options.mode || "chat"),
@@ -176,7 +186,7 @@ class CodexSession extends EventEmitter {
 
     const turn = await this.#sendRequest("turn/start", {
       threadId: this.threadId,
-      input: [{ type: "text", text: content }],
+      input: [{ type: "text", text: turnInputText }],
     });
 
     this.currentTurnId = turn.turn.id;
@@ -186,6 +196,9 @@ class CodexSession extends EventEmitter {
       const onComplete = (payload) => {
         if (payload.turnId !== turnId) {
           return;
+        }
+        if (participantAnnouncementName) {
+          this.pendingParticipantFullNameAnnouncement = "";
         }
         cleanup();
         resolve(payload);
@@ -1125,6 +1138,7 @@ async function maybeResolveParticipantProfile(session, inputText) {
 
   const profile = await buildParticipantProfile(participant);
   session.setParticipantProfile(profile);
+  session.pendingParticipantFullNameAnnouncement = profile.name || "";
   return profile;
 }
 
@@ -1391,6 +1405,7 @@ function buildParticipantContextBlock(formatDefinition) {
     `${nextIndex}. ${participantContext.participantIndexTexPath}`,
     "Luego, cuando el usuario diga quien es o se identifique, debes buscar a esa persona en el indice y leer su TEX asociado y su PDF asociado si existen.",
     `La primera respuesta del usuario a '${formatDefinition.bot.openingQuestion}' solo debe usarse para identificarlo en el contexto; desde ahi debes recuperar nombre, area, trabajo actual, disponibilidad y habilidades desde los archivos de contexto ya registrados.`,
+    "En la primera respuesta visible posterior a una identificacion correcta debes mencionar explicitamente el nombre completo confirmado del colaborador antes de seguir con la entrevista.",
     "No debes volver a preguntar el area si ya puede inferirse de ese contexto; solo pide confirmacion de nombre y area manualmente si la identificacion falla.",
     `Tambien puedes consultar material en: ${participantContext.participantProfilesDir}`,
     participantContext.schedulePdfPath ? `Y el PDF de horarios en: ${participantContext.schedulePdfPath}` : "",
