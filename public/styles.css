@@ -41,6 +41,10 @@ body {
   background: transparent;
 }
 
+.participant-animation-overlay[hidden] {
+  display: none !important;
+}
+
 .participant-animation-video {
   width: min(420px, 62vw);
   max-width: 100%;

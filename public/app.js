@@ -1572,9 +1572,13 @@ function hydrateSessionState(snapshot) {
 }
 
 function initializeParticipantAnimation() {
+  if (participantAnimationOverlay) {
+    participantAnimationOverlay.hidden = true;
+  }
   if (!participantAnimationVideo) {
     return;
   }
+  participantAnimationVideo.pause();
   participantAnimationVideo.addEventListener("ended", hideParticipantAnimation);
 }
 
