@@ -43,11 +43,11 @@ body.theme-rose {
   --user: #9a2f63;
   --user-text: #fff7fb;
   --system: #fff4f8;
-  --shadow: 0 24px 70px rgba(154, 47, 99, 0.14);
+  --shadow: 0 24px 70px rgba(11, 46, 74, 0.12);
   background:
-    radial-gradient(circle at top left, rgba(255, 174, 208, 0.08), transparent 20%),
-    radial-gradient(circle at top right, rgba(255, 205, 225, 0.08), transparent 22%),
-    linear-gradient(180deg, #ffffff 0%, #fffdfd 50%, #fffafb 100%);
+    radial-gradient(circle at top left, rgba(31, 182, 255, 0.24), transparent 26%),
+    radial-gradient(circle at top right, rgba(11, 46, 74, 0.12), transparent 30%),
+    linear-gradient(180deg, #f7fbff 0%, #edf4fa 48%, #e4edf5 100%);
 }
 
 body.theme-rose input,
