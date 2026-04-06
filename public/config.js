@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://inquiry-outlets-glen-relatives.trycloudflare.com",
+  apiBaseUrl: "https://pro-opinions-blanket-qualifying.trycloudflare.com",
   brandLogoUrl: "",
 };

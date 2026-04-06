@@ -2057,6 +2057,8 @@ async function loadAppVersion() {
     return;
   }
 
+  const frontendVersion = String(appVersionBadge.textContent || "").trim();
+
   try {
     const response = await fetch(buildApiUrl("/health"), { cache: "no-store" });
     if (!response.ok) {
@@ -2064,7 +2066,8 @@ async function loadAppVersion() {
     }
     const data = await response.json();
     if (data.version) {
-      appVersionBadge.textContent = `Version ${data.version}`;
+      appVersionBadge.textContent = frontendVersion || `Version ${data.version}`;
+      appVersionBadge.title = `Frontend ${frontendVersion || "desconocido"} | Backend ${data.version}`;
     }
   } catch {
     // Mantiene el valor inicial renderizado en HTML si la lectura falla.
