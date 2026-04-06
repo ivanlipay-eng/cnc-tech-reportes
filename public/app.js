@@ -1641,15 +1641,40 @@ function textMentionsRubenPinas(value) {
     "pineapple",
   ];
 
-  if (directPatterns.some((pattern) => normalized.includes(pattern))) {
-    return true;
-  }
+  const identityCues = [
+    "participante identificado",
+    "autor identificado",
+    "autor del reporte",
+    "autor es",
+    "el autor es",
+    "la autora es",
+    "he identificado a",
+    "identifique a",
+    "identificado como",
+    "corresponde a",
+  ];
 
-  if (/(^| )pinas($| )/.test(normalized) || /(^| )pina($| )/.test(normalized)) {
-    return true;
-  }
+  const sentences = normalized
+    .split(/[\n\r.!?;:]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 
-  return normalized.includes("ruben") && normalized.includes("pinas");
+  return sentences.some((sentence) => {
+    const hasIdentityCue = identityCues.some((cue) => sentence.includes(cue));
+    if (!hasIdentityCue) {
+      return false;
+    }
+
+    if (directPatterns.some((pattern) => sentence.includes(pattern))) {
+      return true;
+    }
+
+    if (/(^| )pinas($| )/.test(sentence) || /(^| )pina($| )/.test(sentence)) {
+      return true;
+    }
+
+    return sentence.includes("ruben") && sentence.includes("pinas");
+  });
 }
 
 function maybeTriggerRubenAnimationFromText(visibleText) {
