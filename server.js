@@ -1263,6 +1263,38 @@ function buildExperimentalActionMessage(session, actionId) {
       "Si agregas referencias, integrarlas al reporte con naturalidad.",
       ...shared,
     ],
+    "strengthen-conclusions": [
+      "Activa un modo experimental de refuerzo de conclusiones.",
+      "Revisa la seccion de conclusiones y fortalece cierre, hallazgos, impacto, aprendizaje y siguiente paso con base estricta en el trabajo ya documentado.",
+      "Haz que la conclusion quede mas solida, concreta y profesional sin inventar resultados ni promesas no sustentadas.",
+      ...shared,
+    ],
+    "find-missing-references": [
+      "Activa un modo experimental de busqueda de referencias faltantes.",
+      "Detecta afirmaciones tecnicas, procesos, componentes o decisiones que merecen respaldo externo y agrega referencias confiables cuando puedas verificarlas.",
+      "Prioriza manuales, fichas tecnicas, documentacion oficial, normas o fuentes tecnicas serias.",
+      "Integra las referencias en el reporte solo si realmente fortalecen el contenido existente.",
+      ...shared,
+    ],
+    "convert-lists-to-tables": [
+      "Activa un modo experimental de conversion estructural.",
+      "Busca listas, comparaciones, secuencias o resumentes que se entiendan mejor como cuadros o tablas tecnicas dentro del TEX.",
+      "Convierte solo donde el cambio mejore legibilidad y orden; evita tablas decorativas o innecesarias.",
+      "Ajusta el texto circundante para que la nueva estructura se lea natural.",
+      ...shared,
+    ],
+    "detect-repetitions": [
+      "Activa un modo experimental de depuracion por repeticiones.",
+      "Analiza el documento para detectar ideas, frases, datos o explicaciones repetidas entre secciones cercanas o lejanas.",
+      "Elimina o fusiona repeticiones sin perder informacion importante ni volver el texto seco.",
+      ...shared,
+    ],
+    "review-chronology": [
+      "Activa un modo experimental de revision cronologica.",
+      "Revisa si el reporte mantiene una secuencia temporal coherente entre actividades, avances, resultados, bloqueos y proximos pasos.",
+      "Si detectas saltos, contradicciones o desorden temporal, reordena o ajusta la redaccion para que la progresion del trabajo se entienda claramente.",
+      ...shared,
+    ],
     "normalize-consistency": [
       "Activa un modo experimental de normalizacion editorial.",
       "Revisa consistencia de tiempos verbales, terminologia, nombres de componentes, formato de subtitulos, estilo de listas y voz institucional.",

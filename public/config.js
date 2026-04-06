@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://strongly-textile-consequences-chest.trycloudflare.com",
+  apiBaseUrl: "https://property-declare-sunshine-zen.trycloudflare.com",
   brandLogoUrl: "",
 };
