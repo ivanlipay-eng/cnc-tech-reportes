@@ -49,6 +49,31 @@ Esto significa que la web publicada funcionara correctamente cuando la abras des
 
 No es un backend remoto para terceros. Si otra persona abre tu GitHub Pages desde otra maquina, intentara hablar con su propio localhost y no funcionara.
 
+## Runtime gestionado
+
+El proyecto ahora arranca el backend y los tuneles con un runtime gestionado.
+
+Comandos:
+
+`npm run start:pages-backend`
+
+`npm run start:public-backend`
+
+`npm run start:permanent-backend`
+
+`npm run status:managed-runtime`
+
+`npm run stop:managed-runtime`
+
+Cuando arrancas uno de estos modos, el gestor hace lo siguiente:
+
+1. Cierra el runtime gestionado anterior si existe.
+2. Intenta recuperar el puerto si esta ocupado por un backend previo de este proyecto.
+3. Inicia el backend nuevo y el tunel correspondiente.
+4. Guarda PID, logs y datos del runtime en `tmp/managed-runtime.json`.
+
+Si el puerto esta ocupado por un proceso ajeno, el arranque falla para no matar un proceso no reconocido.
+
 ## Exponer este backend local
 
 Tambien deje preparado un modo para exponer el backend de esta misma PC por un tunel publico usando Cloudflare.
@@ -57,7 +82,7 @@ Comando:
 
 `npm run start:public-backend`
 
-Ese script:
+Ese comando:
 
 1. Levanta el backend en `http://127.0.0.1:3221`.
 2. Abre un tunel publico con `cloudflared`.
@@ -91,7 +116,7 @@ $env:CORS_ALLOWED_ORIGINS="https://ivanlipay-eng.github.io"
 npm run start:permanent-backend
 ```
 
-El script deja el backend local corriendo en esta PC y luego ejecuta `cloudflared tunnel run` con el nombre indicado.
+El runtime gestionado deja el backend local corriendo en esta PC y luego ejecuta `cloudflared tunnel run` con el nombre indicado.
 
 Si quieres exponer un subdominio fijo, usa un archivo de configuracion de Cloudflare como base:
 
