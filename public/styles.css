@@ -245,6 +245,18 @@ body {
   display: block;
 }
 
+.ribbon-tab-experimental {
+  color: #8e2616;
+  background: rgba(255, 236, 233, 0.55);
+}
+
+.ribbon-tab-experimental.is-active {
+  background: rgba(255, 245, 243, 0.96);
+  border-color: rgba(142, 38, 22, 0.14);
+  border-bottom-color: rgba(255, 245, 243, 0.96);
+  color: #8e2616;
+}
+
 .ribbon-tab.has-upload-alert {
   animation: tab-upload-pulse 720ms ease;
 }
@@ -308,6 +320,44 @@ body {
 .toolbar-evidence-row-secondary {
   padding-top: 10px;
   border-top: 1px solid rgba(11, 46, 74, 0.08);
+}
+
+.ribbon-panel-experimental {
+  background: linear-gradient(180deg, rgba(255, 247, 245, 0.96) 0%, rgba(255, 240, 236, 0.92) 100%);
+  border-color: rgba(142, 38, 22, 0.12);
+}
+
+.experimental-panel-shell {
+  display: grid;
+  gap: 14px;
+}
+
+.experimental-panel-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.experimental-panel-note {
+  color: #8d5a50;
+  text-align: left;
+}
+
+.experimental-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.experimental-button {
+  justify-content: center;
+  background: rgba(255, 251, 250, 0.96);
+  color: #8e2616;
+  border: 1px solid rgba(142, 38, 22, 0.12);
+}
+
+.experimental-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgba(255, 239, 235, 0.98);
 }
 
 .quick-panel-grid {

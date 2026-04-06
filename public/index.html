@@ -47,7 +47,7 @@
     <header class="ribbon-shell">
       <div class="ribbon-topline">
         <div class="topbar-brand">
-          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.38" alt="Logo real de CNC Tech" />
+          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.39" alt="Logo real de CNC Tech" />
           <div class="brand-copy">
             <span class="brand-kicker">CNC Tech</span>
             <strong class="brand-title">Centro de reportes</strong>
@@ -64,6 +64,10 @@
           <button type="button" class="ribbon-tab ribbon-tab-stacked" data-toolbar-target="subidos">
             <span>Archivos</span>
             <span>subidos</span>
+          </button>
+          <button type="button" class="ribbon-tab ribbon-tab-stacked ribbon-tab-experimental" data-toolbar-target="experimental">
+            <span>Funciones</span>
+            <span>experimentales</span>
           </button>
         </nav>
       </div>
@@ -138,6 +142,38 @@
           <ul id="uploaded-files-list" class="uploaded-files-list uploaded-files-inline">
             <li class="empty">Nada todavia</li>
           </ul>
+        </section>
+
+        <section class="ribbon-panel ribbon-panel-experimental" data-toolbar-panel="experimental">
+          <div class="experimental-panel-shell">
+            <div class="experimental-panel-copy">
+              <strong>Funciones experimentales</strong>
+              <div class="panel-note experimental-panel-note">
+                Estas acciones lanzan prompts internos para empujar mejoras que Contexto no haria por defecto.
+              </div>
+            </div>
+            <div id="experimental-actions" class="experimental-actions-grid">
+              <button type="button" class="secondary-button experimental-button" data-experimental-action="graphviz-opportunities" disabled>
+                Añadir graficos
+              </button>
+              <button type="button" class="secondary-button experimental-button" data-experimental-action="improve-syntax" disabled>
+                Mejorar sintaxis
+              </button>
+              <button type="button" class="secondary-button experimental-button" data-experimental-action="technical-enrichment" disabled>
+                Enriquecer tecnica
+              </button>
+              <button type="button" class="secondary-button experimental-button" data-experimental-action="normalize-consistency" disabled>
+                Unificar estilo
+              </button>
+              <button type="button" class="secondary-button experimental-button" data-experimental-action="detect-gaps" disabled>
+                Detectar huecos
+              </button>
+              <button type="button" class="secondary-button experimental-button" data-experimental-action="compress-report" disabled>
+                Compactar reporte
+              </button>
+            </div>
+            <div id="experimental-status" class="upload-status">Sin sesion activa</div>
+          </div>
         </section>
       </div>
     </header>
@@ -271,7 +307,7 @@
       </section>
     </main>
 
-    <script src="./config.js?v=1.1.38"></script>
-    <script src="./app.js?v=1.1.38"></script>
+    <script src="./config.js?v=1.1.39"></script>
+    <script src="./app.js?v=1.1.39"></script>
   </body>
 </html>

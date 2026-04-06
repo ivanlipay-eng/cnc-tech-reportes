@@ -56,6 +56,8 @@ const requestedImageExistingSelect = document.getElementById("requested-image-ex
 const associateRequestedImageTrigger = document.getElementById("associate-requested-image-trigger");
 const requestedImageStatus = document.getElementById("requested-image-status");
 const uploadedFilesList = document.getElementById("uploaded-files-list");
+const experimentalActions = document.getElementById("experimental-actions");
+const experimentalStatus = document.getElementById("experimental-status");
 const ribbonTabs = Array.from(document.querySelectorAll("[data-toolbar-target]"));
 const ribbonPanels = Array.from(document.querySelectorAll("[data-toolbar-panel]"));
 const chatForm = document.getElementById("chat-form");
@@ -1155,6 +1157,7 @@ function renderMeta(session) {
   setPdfViewButtonEnabled(true);
   syncImagesButton.disabled = false;
   setQuickPanelEnabled(true);
+  setExperimentalActionsEnabled(true);
   requestedImageSelect.disabled = stateRequestedImages.size === 0;
   requestedImageInput.disabled = stateRequestedImages.size === 0;
   requestedImageTrigger.disabled = stateRequestedImages.size === 0;
@@ -1165,6 +1168,7 @@ function renderMeta(session) {
     setRequestedImageStatus("Cuando el bot pida una imagen, aparecera aqui para subirla");
   }
   setQuickPanelStatus("Panel rapido listo para completar datos de cierre");
+  setExperimentalStatus("Funciones experimentales listas para usar");
   if (!pdfLoadedOnce) {
     clearPdfViewer("Al crear el proyecto se intentara abrir el PDF automaticamente");
   } else {
@@ -1423,6 +1427,14 @@ function setQuickPanelStatus(text, isError = false) {
   quickPanelStatus.classList.toggle("error", Boolean(isError));
 }
 
+function setExperimentalStatus(text, isError = false) {
+  if (!experimentalStatus) {
+    return;
+  }
+  experimentalStatus.textContent = text;
+  experimentalStatus.classList.toggle("error", Boolean(isError));
+}
+
 function hydrateSessionState(snapshot) {
   state.session = snapshot;
   state.participantProfile = snapshot?.participantProfile || state.participantProfile;
@@ -1569,6 +1581,82 @@ function setQuickPanelEnabled(enabled) {
     input.disabled = !enabled;
   }
 }
+
+function setExperimentalActionsEnabled(enabled) {
+  const buttons = Array.from(document.querySelectorAll("[data-experimental-action]"));
+  for (const button of buttons) {
+    button.disabled = !enabled;
+    button.classList.toggle("disabled", !enabled);
+    button.setAttribute("aria-disabled", enabled ? "false" : "true");
+  }
+}
+
+function getExperimentalActionLabel(actionId) {
+  const labels = {
+    "graphviz-opportunities": "Añadir graficos",
+    "improve-syntax": "Mejorar sintaxis",
+    "technical-enrichment": "Enriquecer tecnica",
+    "normalize-consistency": "Unificar estilo",
+    "detect-gaps": "Detectar huecos",
+    "compress-report": "Compactar reporte",
+  };
+
+  return labels[actionId] || "Accion experimental";
+}
+
+async function runExperimentalAction(actionId) {
+  if (!state.session) {
+    return;
+  }
+
+  const label = getExperimentalActionLabel(actionId);
+  setExperimentalActionsEnabled(false);
+  chatInput.disabled = true;
+  sendButton.disabled = true;
+  compileButton.disabled = true;
+  syncImagesButton.disabled = true;
+  setExperimentalStatus(`Ejecutando: ${label}...`);
+  setStatus(`Ejecutando ${label}...`);
+  state.activeMode = "experimental-action";
+  setThinking(true, "probando mejoras");
+
+  try {
+    const response = await fetch(buildApiUrl(`/sessions/${state.session.id}/experimental-action`), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actionId }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "No se pudo ejecutar la funcion experimental.");
+    }
+
+    applyAssistantFallback(data.result);
+    const visible = extractPageResponse(data.result?.assistantText || "").text || `${label} completado`;
+    setExperimentalStatus(visible);
+  } catch (error) {
+    setExperimentalStatus(error.message || "No se pudo ejecutar la funcion experimental.", true);
+    setStatus("No se pudo ejecutar la funcion experimental.", true);
+  } finally {
+    setExperimentalActionsEnabled(Boolean(state.session));
+    chatInput.disabled = false;
+    sendButton.disabled = false;
+    compileButton.disabled = false;
+    syncImagesButton.disabled = false;
+    state.activeMode = null;
+    setThinking(false);
+    chatInput.focus();
+  }
+}
+
+experimentalActions?.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-experimental-action]");
+  if (!button || button.disabled) {
+    return;
+  }
+
+  await runExperimentalAction(String(button.dataset.experimentalAction || "").trim());
+});
 
 function applyWeekRange(dayOffset) {
   const baseDate = new Date();

@@ -1225,6 +1225,78 @@ async function requestImageSync(session) {
   return session.sendUserMessage(buildSyncImagesRequestMessage(session));
 }
 
+function buildExperimentalActionMessage(session, actionId) {
+  const participantSummary = buildParticipantProfileSummary(session.participantProfile);
+  const quickFieldsSummary = buildQuickFieldsSummary(session);
+  const shared = [
+    `Trabaja sobre este archivo TEX: ${session.reportTexPath}`,
+    `PDF asociado: ${session.reportPdfPath}`,
+    `Carpeta de imagenes: ${session.imagesDir}`,
+    `Carpeta de archivos: ${session.filesDir}`,
+    participantSummary ? `Contexto confirmado del participante:\n${participantSummary}` : "",
+    quickFieldsSummary ? `Datos rapidos actuales:\n${quickFieldsSummary}` : "",
+    "No inventes datos tecnicos ni hechos no sustentados.",
+    "La respuesta visible final debe venir dentro del bloque --respuesta de pagina-- ... --finalice--.",
+    "En esa respuesta visible explica de forma breve que mejoraste o que limite encontraste.",
+  ].filter(Boolean);
+
+  const messages = {
+    "graphviz-opportunities": [
+      "Activa un modo experimental de mejora visual del reporte.",
+      "Despues de entender el estado actual del reporte, busca donde conviene insertar graficos, diagramas o cuadros tecnicos que mejoren la comprension.",
+      "Prioriza Graphviz para flujos, procesos, arquitectura, secuencias, relaciones entre componentes y decisiones.",
+      "Si detectas una oportunidad clara y tienes contexto suficiente, genera el .dot en la carpeta archivos, renderiza PNG o SVG en imagenes, inserta la referencia en el TEX y ajusta el texto alrededor para que el grafico tenga sentido.",
+      "Si aun falta contexto para un diagrama, no inventes. En ese caso deja una respuesta visible muy breve pidiendo solo el dato faltante mas importante.",
+      ...shared,
+    ],
+    "improve-syntax": [
+      "Activa un modo experimental de mejora linguistica agresiva pero fiel.",
+      "Analiza el documento completo y mejora sintaxis, puntuacion, concordancia, claridad, fluidez y tono institucional.",
+      "Haz mejoras que normalmente no aplicarias en modo conservador si ves que elevan claramente la calidad del reporte.",
+      "No cambies hechos ni agregues contenido nuevo no sustentado.",
+      ...shared,
+    ],
+    "technical-enrichment": [
+      "Activa un modo experimental de enriquecimiento tecnico.",
+      "Busca secciones donde el trabajo ya esta identificado pero se puede explicar mejor con mas precision tecnica, mejores pasos, criterios, resultados o referencias confiables.",
+      "Amplia solo donde haya base real en la conversacion o en fuentes tecnicas verificables.",
+      "Si agregas referencias, integrarlas al reporte con naturalidad.",
+      ...shared,
+    ],
+    "normalize-consistency": [
+      "Activa un modo experimental de normalizacion editorial.",
+      "Revisa consistencia de tiempos verbales, terminologia, nombres de componentes, formato de subtitulos, estilo de listas y voz institucional.",
+      "Unifica el documento para que parezca escrito de una sola vez y con una sola voz.",
+      ...shared,
+    ],
+    "detect-gaps": [
+      "Activa un modo experimental de auditoria del reporte.",
+      "Analiza el documento y detecta huecos tecnicos, secciones debiles, evidencias faltantes, referencias insuficientes o afirmaciones poco justificadas.",
+      "Si puedes resolver alguno de esos huecos sin inventar, resuelvelo directamente en el TEX.",
+      "Si quedan huecos que requieren preguntar, formula una sola pregunta breve y precisa en la respuesta visible.",
+      ...shared,
+    ],
+    "compress-report": [
+      "Activa un modo experimental de compactacion editorial.",
+      "Reduce redundancias, frases flojas, rodeos y repeticiones para que el documento quede mas directo y elegante sin perder contenido real.",
+      "No lo vuelvas telegráfico; solo elimina peso innecesario.",
+      ...shared,
+    ],
+  };
+
+  return (messages[actionId] || [
+    "Ejecuta una mejora experimental general del reporte sin inventar informacion.",
+    ...shared,
+  ]).join("\n");
+}
+
+async function requestExperimentalAction(session, actionId) {
+  return session.sendUserMessage(buildExperimentalActionMessage(session, actionId), {
+    visible: false,
+    mode: `experimental-${actionId}`,
+  });
+}
+
 async function compileReportPdf(session) {
   const reportDir = session.reportProjectPath || path.dirname(session.reportTexPath || session.workspacePath);
   const reportTexPath = session.reportTexPath || path.join(reportDir, "reporte.tex");
@@ -1824,6 +1896,23 @@ async function handleApi(request, response) {
   if (request.method === "POST" && segments[3] === "sync-images") {
     try {
       const result = await requestImageSync(session);
+      json(response, 200, { ok: true, result });
+    } catch (error) {
+      json(response, 409, { error: error.message });
+    }
+    return;
+  }
+
+  if (request.method === "POST" && segments[3] === "experimental-action") {
+    const body = await readRequestBody(request);
+    const actionId = String(body?.actionId || "").trim();
+    if (!actionId) {
+      json(response, 400, { error: "Falta la accion experimental." });
+      return;
+    }
+
+    try {
+      const result = await requestExperimentalAction(session, actionId);
       json(response, 200, { ok: true, result });
     } catch (error) {
       json(response, 409, { error: error.message });
