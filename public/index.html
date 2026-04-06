@@ -44,6 +44,32 @@
         </div>
       </div>
     </div>
+    <div id="participant-preview-overlay" class="participant-preview-overlay" hidden>
+      <main class="participant-preview-panel" aria-label="Previsualizacion de reconocimiento">
+        <button id="participant-preview-close" type="button" class="participant-preview-close" aria-label="Cerrar previsualizacion">
+          Cerrar
+        </button>
+        <h1>Prueba Sobre Fondo Verde</h1>
+        <p>
+          Esta vista usa el archivo transparente exportado y limita la previsualizacion a una zona central para inspeccion visual, sin alterar el archivo fuente.
+        </p>
+        <section class="participant-preview-stage">
+          <div class="participant-preview-viewport">
+            <video
+              id="participant-preview-video"
+              class="participant-preview-video"
+              autoplay
+              muted
+              loop
+              playsinline
+              preload="auto"
+            >
+              <source src="./ruben-pinas-transparent.webm" type="video/webm" />
+            </video>
+          </div>
+        </section>
+      </main>
+    </div>
     <header class="ribbon-shell">
       <div class="ribbon-topline">
         <div class="topbar-brand">

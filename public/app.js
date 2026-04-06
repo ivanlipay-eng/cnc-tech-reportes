@@ -12,6 +12,7 @@ const state = {
   secondarySuggestions: [],
   availableFormats: [],
   selectedFormatId: "",
+  rubenPreviewShownForSessionId: "",
 };
 
 const appConfig = window.CNC_TECH_CONFIG || {};
@@ -74,12 +75,16 @@ const downloadTitle = document.getElementById("download-title");
 const downloadProgressBar = document.getElementById("download-progress-bar");
 const downloadProgressPercent = document.getElementById("download-progress-percent");
 const downloadProgressDetail = document.getElementById("download-progress-detail");
+const participantPreviewOverlay = document.getElementById("participant-preview-overlay");
+const participantPreviewClose = document.getElementById("participant-preview-close");
+const participantPreviewVideo = document.getElementById("participant-preview-video");
 let uploadOverlayHideTimer = null;
 let pdfLoadedOnce = false;
 let currentPdfObjectUrl = null;
 let dragDepth = 0;
 let inlineImageSequence = 0;
 let quickFieldSaveTimer = null;
+let participantPreviewHideTimer = null;
 const PAGE_RESPONSE_START = "--respuesta de pagina--";
 const PAGE_RESPONSE_END = "--finalice--";
 const QUICK_REPLIES_START = "[[respuestas_rapidas]]";
@@ -99,6 +104,7 @@ initializeBrandLogo();
 loadAppVersion();
 initializeQuickPanel();
 initializeQuickDrawer();
+initializeParticipantPreview();
 
 function getFormatDefinitionById(formatId) {
   const normalizedId = String(formatId || "").trim();
@@ -908,6 +914,7 @@ function handleServerEvent(event) {
       setStatus("Sesion lista");
       break;
     case "session-updated":
+      maybeTriggerParticipantPreview(event.payload, state.session);
       hydrateSessionState(event.payload);
       renderMeta(event.payload);
       break;
@@ -1554,12 +1561,88 @@ function setExperimentalStatus(text, isError = false) {
 }
 
 function hydrateSessionState(snapshot) {
+  if (snapshot?.id && snapshot.id !== state.session?.id) {
+    state.rubenPreviewShownForSessionId = "";
+  }
   state.session = snapshot;
   state.selectedFormatId = snapshot?.reportFormat?.id || state.selectedFormatId;
   state.participantProfile = snapshot?.participantProfile || state.participantProfile;
   state.quickFields = buildNormalizedQuickFields(snapshot?.quickFields || state.quickFields || {}, getCurrentFormatDefinition());
   state.uploadedFiles = Array.isArray(snapshot?.uploadedFiles) ? [...snapshot.uploadedFiles] : [];
   renderQuickPanel(state.quickFields, getCurrentFormatDefinition());
+}
+
+function initializeParticipantPreview() {
+  participantPreviewClose?.addEventListener("click", hideParticipantPreview);
+  participantPreviewOverlay?.addEventListener("click", (event) => {
+    if (event.target === participantPreviewOverlay) {
+      hideParticipantPreview();
+    }
+  });
+}
+
+function normalizeIdentityToken(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function isRubenPinasProfile(profile) {
+  const normalized = normalizeIdentityToken(profile?.name);
+  return normalized.includes("ruben") && normalized.includes("pinas");
+}
+
+function maybeTriggerParticipantPreview(nextSnapshot, previousSnapshot) {
+  if (nextSnapshot?.reportFormat?.id !== "cnc-tech-formativo") {
+    return;
+  }
+
+  const nextProfile = nextSnapshot?.participantProfile;
+  if (!isRubenPinasProfile(nextProfile)) {
+    return;
+  }
+
+  const previousProfile = previousSnapshot?.participantProfile;
+  if (isRubenPinasProfile(previousProfile)) {
+    return;
+  }
+
+  if (state.rubenPreviewShownForSessionId === nextSnapshot?.id) {
+    return;
+  }
+
+  state.rubenPreviewShownForSessionId = nextSnapshot.id || "";
+  showParticipantPreview();
+}
+
+function showParticipantPreview() {
+  if (!participantPreviewOverlay || !participantPreviewVideo) {
+    return;
+  }
+
+  clearTimeout(participantPreviewHideTimer);
+  participantPreviewOverlay.hidden = false;
+  participantPreviewVideo.currentTime = 0;
+  const playAttempt = participantPreviewVideo.play();
+  if (playAttempt && typeof playAttempt.catch === "function") {
+    playAttempt.catch(() => {});
+  }
+  participantPreviewHideTimer = setTimeout(() => {
+    hideParticipantPreview();
+  }, 5600);
+}
+
+function hideParticipantPreview() {
+  clearTimeout(participantPreviewHideTimer);
+  participantPreviewHideTimer = null;
+  if (!participantPreviewOverlay || !participantPreviewVideo) {
+    return;
+  }
+  participantPreviewOverlay.hidden = true;
+  participantPreviewVideo.pause();
 }
 
 function populateFormatOptions(formats, preferredFormatId = "") {
