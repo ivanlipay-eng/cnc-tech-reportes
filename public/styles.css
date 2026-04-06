@@ -339,24 +339,44 @@ body {
 }
 
 .quick-drawer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 56px;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 12px;
   min-height: 0;
   overflow: hidden;
+  transition: width 220ms ease, box-shadow 220ms ease, background 220ms ease;
 }
 
 .quick-drawer-toggle {
   width: 100%;
-  padding: 12px 16px;
+  min-width: 0;
+  padding: 12px 10px;
   border-radius: 16px;
-  text-align: left;
+  text-align: center;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
 }
 
 .quick-drawer-body {
   min-height: 0;
   overflow: auto;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.quick-drawer.is-open {
+  width: 260px;
+}
+
+.quick-drawer.is-open .quick-drawer-body {
+  opacity: 1;
 }
 
 .quick-panel-grid-compact {
@@ -627,12 +647,19 @@ button:disabled {
 }
 
 .workspace-main {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(360px, 0.85fr) minmax(520px, 1.15fr);
+  grid-template-columns: minmax(420px, 0.9fr) minmax(520px, 1.1fr);
   gap: 20px;
   align-items: stretch;
   height: var(--workspace-height);
   min-height: var(--workspace-height);
+  padding-left: 0;
+  transition: padding-left 220ms ease;
+}
+
+.workspace-main.quick-drawer-open {
+  padding-left: 280px;
 }
 
 .panel-head {
@@ -963,6 +990,11 @@ button:disabled {
 
   .workspace-main {
     grid-template-columns: 1fr;
+    padding-left: 0;
+  }
+
+  .workspace-main.quick-drawer-open {
+    padding-left: 0;
   }
 
   .ribbon-topline {
@@ -985,6 +1017,20 @@ button:disabled {
 
   .quick-drawer-body {
     display: block;
+  }
+
+  .quick-drawer {
+    position: static;
+    width: 100%;
+  }
+
+  .quick-drawer.is-open {
+    width: 100%;
+  }
+
+  .quick-drawer-toggle {
+    text-align: left;
+    padding: 12px 16px;
   }
 
   .workspace-main {

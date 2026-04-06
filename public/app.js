@@ -43,6 +43,7 @@ const quickPanelStatus = document.getElementById("quick-panel-status");
 const quickDrawer = document.getElementById("quick-drawer");
 const quickDrawerToggle = document.getElementById("quick-drawer-toggle");
 const quickDrawerBody = document.getElementById("quick-drawer-body");
+const workspaceMain = document.querySelector(".workspace-main");
 const uploadTrigger = document.getElementById("upload-files-trigger");
 const uploadInput = document.getElementById("upload-files");
 const uploadStatus = document.getElementById("upload-status");
@@ -198,11 +199,20 @@ function initializeQuickDrawer() {
     return;
   }
 
+  quickDrawer.classList.remove("is-open");
+  workspaceMain?.classList.remove("quick-drawer-open");
+  quickDrawerBody.hidden = true;
+  quickDrawerToggle.setAttribute("aria-expanded", "false");
+  quickDrawerToggle.title = "Abrir panel rapido";
+
   quickDrawerToggle.addEventListener("click", () => {
     const nextOpen = !quickDrawer.classList.contains("is-open");
     quickDrawer.classList.toggle("is-open", nextOpen);
+    workspaceMain?.classList.toggle("quick-drawer-open", nextOpen);
     quickDrawerBody.hidden = !nextOpen;
     quickDrawerToggle.setAttribute("aria-expanded", nextOpen ? "true" : "false");
+    quickDrawerToggle.textContent = nextOpen ? "Panel rapido" : "PR";
+    quickDrawerToggle.title = nextOpen ? "Cerrar panel rapido" : "Abrir panel rapido";
   });
 }
 
