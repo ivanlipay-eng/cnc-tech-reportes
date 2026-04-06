@@ -53,6 +53,39 @@ body {
   padding: 18px 0 56px;
 }
 
+.site-footer {
+  width: min(1400px, calc(100% - 32px));
+  margin: 0 auto 28px;
+  padding: 18px 0 0;
+  border-top: 1px solid rgba(16, 34, 53, 0.12);
+}
+
+.site-footer-inner {
+  display: grid;
+  gap: 10px;
+  color: rgba(16, 34, 53, 0.5);
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.site-footer-inner p {
+  margin: 0;
+}
+
+.site-footer-inner a {
+  color: rgba(16, 34, 53, 0.58);
+  text-decoration: underline;
+  text-decoration-color: rgba(16, 34, 53, 0.26);
+  text-underline-offset: 0.14em;
+  transition: color 160ms ease, text-decoration-color 160ms ease;
+}
+
+.site-footer-inner a:hover,
+.site-footer-inner a:focus-visible {
+  color: rgba(16, 34, 53, 0.76);
+  text-decoration-color: rgba(16, 34, 53, 0.5);
+}
+
 .upload-corner-title {
   margin-bottom: 8px;
   font-size: 0.78rem;
