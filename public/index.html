@@ -7,10 +7,10 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Asistente de Reportes CNC Tech Formativo</title>
-    <link rel="stylesheet" href="./styles.css?v=1.1.32" />
+    <link rel="stylesheet" href="./styles.css?v=1.1.33" />
   </head>
   <body>
-    <div id="app-version-badge" class="app-version-badge">Version 1.1.32</div>
+    <div id="app-version-badge" class="app-version-badge">Version 1.1.33</div>
     <div id="download-overlay" class="download-overlay" hidden>
       <div class="download-card">
         <div class="download-eyebrow">Descargando ZIP</div>
@@ -27,7 +27,7 @@
     <header class="ribbon-shell">
       <div class="ribbon-topline">
         <div class="topbar-brand">
-          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.32" alt="Logo real de CNC Tech" />
+          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.33" alt="Logo real de CNC Tech" />
           <div class="brand-copy">
             <span class="brand-kicker">CNC Tech</span>
             <strong class="brand-title">Centro de reportes</strong>
@@ -37,10 +37,6 @@
         <nav class="ribbon-tab-row" aria-label="Herramientas">
           <button type="button" class="ribbon-tab is-active" data-toolbar-target="session">Sesion</button>
           <button type="button" class="ribbon-tab" data-toolbar-target="acciones">Acciones</button>
-          <button type="button" class="ribbon-tab ribbon-tab-stacked" data-toolbar-target="panel-rapido">
-            <span>Panel</span>
-            <span>rapido</span>
-          </button>
           <button type="button" class="ribbon-tab ribbon-tab-stacked" data-toolbar-target="evidencia">
             <span>Evidencia</span>
             <span>solicitada</span>
@@ -89,85 +85,6 @@
           <div id="upload-status" class="upload-status">Sin sesion activa</div>
         </section>
 
-        <section class="ribbon-panel" data-toolbar-panel="panel-rapido">
-          <div class="quick-panel-grid">
-            <label class="field quick-panel-field quick-panel-field-wide">
-              <span>Periodo semanal</span>
-              <div class="quick-date-row">
-                <input id="quick-period-start" type="date" disabled />
-                <input id="quick-period-end" type="date" disabled />
-              </div>
-            </label>
-
-            <div class="quick-panel-actions-row">
-              <button id="quick-week-current" type="button" class="secondary-button" disabled>Esta semana</button>
-              <button id="quick-week-previous" type="button" class="secondary-button" disabled>Semana anterior</button>
-            </div>
-
-            <label class="field quick-panel-field quick-panel-field-wide">
-              <span>Actividad secundaria</span>
-              <textarea id="quick-secondary-activity" rows="3" placeholder="Se completara o sugerira despues de entender la principal" disabled></textarea>
-            </label>
-
-            <div class="quick-panel-actions-row">
-              <button id="suggest-secondary-activity" type="button" class="secondary-button" disabled>Sugerir secundaria</button>
-            </div>
-
-            <div id="quick-secondary-suggestions" class="quick-suggestions" aria-live="polite"></div>
-
-            <label class="field quick-panel-field">
-              <span>Horas remotas</span>
-              <input id="quick-hours-remote" type="number" min="0" step="0.5" placeholder="0" disabled />
-            </label>
-
-            <label class="field quick-panel-field">
-              <span>Horas presenciales</span>
-              <input id="quick-hours-onsite" type="number" min="0" step="0.5" placeholder="0" disabled />
-            </label>
-
-            <label class="field quick-panel-field">
-              <span>Modalidad</span>
-              <input id="quick-modality" placeholder="Presencial, remota o mixta" disabled />
-            </label>
-
-            <label class="field quick-panel-field">
-              <span>Porcentaje de avance</span>
-              <input id="quick-progress-percent" type="number" min="0" max="100" step="1" placeholder="0-100" disabled />
-            </label>
-
-            <label class="field quick-panel-field quick-panel-field-wide">
-              <span>Riesgos</span>
-              <textarea id="quick-risks" rows="2" placeholder="Riesgos detectados" disabled></textarea>
-            </label>
-
-            <label class="field quick-panel-field quick-panel-field-wide">
-              <span>Bloqueos</span>
-              <textarea id="quick-blockers" rows="2" placeholder="Bloqueos o dependencias" disabled></textarea>
-            </label>
-
-            <label class="field quick-panel-field quick-panel-field-wide">
-              <span>Necesidades o recursos</span>
-              <textarea id="quick-resources" rows="2" placeholder="Piezas, accesos, aprobaciones, recursos" disabled></textarea>
-            </label>
-
-            <label class="field quick-panel-field quick-panel-field-wide">
-              <span>Proximos pasos</span>
-              <textarea id="quick-next-steps" rows="2" placeholder="Siguiente paso o cierre esperado" disabled></textarea>
-            </label>
-
-            <label class="field quick-panel-field quick-panel-field-wide">
-              <span>Referencias</span>
-              <textarea id="quick-references" rows="3" placeholder="Manual, ficha tecnica, bitacora, URL o fuente" disabled></textarea>
-            </label>
-
-            <div class="quick-panel-actions-row quick-panel-actions-row-wide">
-              <button id="apply-quick-fields" type="button" disabled>Aplicar al reporte</button>
-            </div>
-
-            <div id="quick-panel-status" class="upload-status">Sin sesion activa</div>
-          </div>
-        </section>
-
         <section class="ribbon-panel" data-toolbar-panel="evidencia">
           <div class="toolbar-evidence-row">
             <label class="field compact-field evidence-field toolbar-field toolbar-field-wide">
@@ -195,6 +112,79 @@
     <main class="layout">
 
       <section class="workspace-main">
+        <aside id="quick-drawer" class="panel quick-drawer is-open">
+          <button id="quick-drawer-toggle" type="button" class="quick-drawer-toggle" aria-expanded="true">
+            Panel rapido
+          </button>
+          <div id="quick-drawer-body" class="quick-drawer-body">
+            <div class="quick-panel-grid quick-panel-grid-compact">
+              <label class="field quick-panel-field quick-panel-field-wide">
+                <span>Periodo semanal</span>
+                <div class="quick-date-row">
+                  <input id="quick-period-start" type="date" disabled />
+                  <input id="quick-period-end" type="date" disabled />
+                </div>
+              </label>
+
+              <div class="quick-panel-actions-row quick-panel-actions-row-wide">
+                <button id="quick-week-current" type="button" class="secondary-button" disabled>Esta semana</button>
+                <button id="quick-week-previous" type="button" class="secondary-button" disabled>Semana anterior</button>
+              </div>
+
+              <label class="field quick-panel-field">
+                <span>Horas remotas</span>
+                <input id="quick-hours-remote" type="number" min="0" step="0.5" placeholder="0" disabled />
+              </label>
+
+              <label class="field quick-panel-field">
+                <span>Horas presenciales</span>
+                <input id="quick-hours-onsite" type="number" min="0" step="0.5" placeholder="0" disabled />
+              </label>
+
+              <label class="field quick-panel-field quick-panel-field-wide">
+                <span>Modalidad</span>
+                <input id="quick-modality" placeholder="Presencial, remota o mixta" disabled />
+              </label>
+
+              <label class="field quick-panel-field quick-panel-field-wide">
+                <span>Porcentaje de avance</span>
+                <input id="quick-progress-percent" type="number" min="0" max="100" step="1" placeholder="0-100" disabled />
+              </label>
+
+              <label class="field quick-panel-field quick-panel-field-wide">
+                <span>Riesgos</span>
+                <textarea id="quick-risks" rows="2" placeholder="Riesgos detectados" disabled></textarea>
+              </label>
+
+              <label class="field quick-panel-field quick-panel-field-wide">
+                <span>Bloqueos</span>
+                <textarea id="quick-blockers" rows="2" placeholder="Bloqueos o dependencias" disabled></textarea>
+              </label>
+
+              <label class="field quick-panel-field quick-panel-field-wide">
+                <span>Necesidades</span>
+                <textarea id="quick-resources" rows="2" placeholder="Piezas, accesos o aprobaciones" disabled></textarea>
+              </label>
+
+              <label class="field quick-panel-field quick-panel-field-wide">
+                <span>Proximos pasos</span>
+                <textarea id="quick-next-steps" rows="2" placeholder="Siguiente paso o cierre esperado" disabled></textarea>
+              </label>
+
+              <label class="field quick-panel-field quick-panel-field-wide">
+                <span>Referencias</span>
+                <textarea id="quick-references" rows="3" placeholder="Manual, ficha tecnica, bitacora o URL" disabled></textarea>
+              </label>
+
+              <div class="quick-panel-actions-row quick-panel-actions-row-wide">
+                <button id="apply-quick-fields" type="button" disabled>Aplicar</button>
+              </div>
+
+              <div id="quick-panel-status" class="upload-status">Sin sesion activa</div>
+            </div>
+          </div>
+        </aside>
+
         <section class="panel chat-panel">
           <div class="panel-head panel-head-stacked">
             <div>
@@ -241,7 +231,7 @@
       </section>
     </main>
 
-    <script src="./config.js?v=1.1.32"></script>
-    <script src="./app.js?v=1.1.32"></script>
+    <script src="./config.js?v=1.1.33"></script>
+    <script src="./app.js?v=1.1.33"></script>
   </body>
 </html>

@@ -40,6 +40,9 @@ const quickNextStepsInput = document.getElementById("quick-next-steps");
 const quickReferencesInput = document.getElementById("quick-references");
 const applyQuickFieldsButton = document.getElementById("apply-quick-fields");
 const quickPanelStatus = document.getElementById("quick-panel-status");
+const quickDrawer = document.getElementById("quick-drawer");
+const quickDrawerToggle = document.getElementById("quick-drawer-toggle");
+const quickDrawerBody = document.getElementById("quick-drawer-body");
 const uploadTrigger = document.getElementById("upload-files-trigger");
 const uploadInput = document.getElementById("upload-files");
 const uploadStatus = document.getElementById("upload-status");
@@ -88,6 +91,7 @@ initializeRibbon();
 initializeBrandLogo();
 loadAppVersion();
 initializeQuickPanel();
+initializeQuickDrawer();
 
 function buildEmptyQuickFields() {
   return {
@@ -184,21 +188,21 @@ function initializeQuickPanel() {
     applyWeekRange(-7);
   });
 
-  suggestSecondaryActivityButton?.addEventListener("click", async () => {
-    await requestSecondaryActivitySuggestions();
-  });
-
-  quickSecondarySuggestions?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-secondary-option]");
-    if (!button) {
-      return;
-    }
-    quickSecondaryActivityInput.value = button.dataset.secondaryOption || "";
-    scheduleQuickFieldsSave();
-  });
-
   applyQuickFieldsButton?.addEventListener("click", async () => {
     await applyQuickFieldsToReport();
+  });
+}
+
+function initializeQuickDrawer() {
+  if (!quickDrawer || !quickDrawerToggle || !quickDrawerBody) {
+    return;
+  }
+
+  quickDrawerToggle.addEventListener("click", () => {
+    const nextOpen = !quickDrawer.classList.contains("is-open");
+    quickDrawer.classList.toggle("is-open", nextOpen);
+    quickDrawerBody.hidden = !nextOpen;
+    quickDrawerToggle.setAttribute("aria-expanded", nextOpen ? "true" : "false");
   });
 }
 
@@ -240,7 +244,6 @@ form.addEventListener("submit", async (event) => {
     hydrateSessionState(data);
     state.assistantNodes.clear();
     stateRequestedImages.clear();
-    state.secondarySuggestions = [];
     pdfLoadedOnce = false;
     state.lastAssistantMessageId = null;
     state.userMessageCount = 0;
@@ -1038,22 +1041,16 @@ function renderMeta(session) {
   state.quickFields = { ...buildEmptyQuickFields(), ...(session.quickFields || state.quickFields || {}) };
   populateQuickPanel(state.quickFields);
   sessionMeta.classList.remove("empty");
-  const participantSummary = state.participantProfile
-    ? `
-    <strong>Participante:</strong> ${escapeHtml(state.participantProfile.name || "No identificado")}<br />
-    <strong>Area:</strong> ${escapeHtml(state.participantProfile.area || "Pendiente")}<br />
-    <strong>Disponibilidad:</strong> ${escapeHtml(state.participantProfile.schedule || "Pendiente")}<br />
-    <strong>Rol actual:</strong> ${escapeHtml(state.participantProfile.roleSummary || state.participantProfile.taskSummary || "Pendiente")}
-  `
-    : `
-    <strong>Participante:</strong> Pendiente de identificar<br />
-    <strong>Area:</strong> Se autocompletara desde el contexto al responder "Quien eres?"
-  `;
+  const participantName = state.participantProfile?.name || "Pendiente de identificar";
+  const participantArea = state.participantProfile?.area || "Pendiente";
+  const periodText = state.quickFields?.periodStart && state.quickFields?.periodEnd
+    ? `${state.quickFields.periodStart} al ${state.quickFields.periodEnd}`
+    : "Pendiente";
   sessionMeta.innerHTML = `
     <strong>Proyecto:</strong> ${escapeHtml(session.name || "Sesion activa")}<br />
-    <strong>Estructura:</strong> reporte, imagenes, archivos y export listas<br />
-    <strong>Pregunta inicial:</strong> ${escapeHtml(session.openingQuestion || "Quien eres?")}<br />
-    ${participantSummary}
+    <strong>Participante:</strong> ${escapeHtml(participantName)}<br />
+    <strong>Area:</strong> ${escapeHtml(participantArea)}<br />
+    <strong>Periodo:</strong> ${escapeHtml(periodText)}
   `;
   downloadZipLink.href = buildApiUrl(`/sessions/${session.id}/download`);
   downloadZipLink.classList.remove("disabled");
@@ -1335,7 +1332,6 @@ function populateQuickPanel(quickFields) {
   const fields = { ...buildEmptyQuickFields(), ...(quickFields || {}) };
   if (quickPeriodStartInput) quickPeriodStartInput.value = fields.periodStart || "";
   if (quickPeriodEndInput) quickPeriodEndInput.value = fields.periodEnd || "";
-  if (quickSecondaryActivityInput) quickSecondaryActivityInput.value = fields.secondaryActivity || "";
   if (quickHoursRemoteInput) quickHoursRemoteInput.value = fields.hoursRemote || "";
   if (quickHoursOnsiteInput) quickHoursOnsiteInput.value = fields.hoursOnsite || "";
   if (quickModalityInput) quickModalityInput.value = fields.modality || "";
@@ -1351,7 +1347,7 @@ function collectQuickFields() {
   return {
     periodStart: quickPeriodStartInput?.value || "",
     periodEnd: quickPeriodEndInput?.value || "",
-    secondaryActivity: quickSecondaryActivityInput?.value.trim() || "",
+    secondaryActivity: "",
     hoursRemote: quickHoursRemoteInput?.value || "",
     hoursOnsite: quickHoursOnsiteInput?.value || "",
     modality: quickModalityInput?.value.trim() || "",
@@ -1432,61 +1428,10 @@ async function applyQuickFieldsToReport() {
   }
 }
 
-async function requestSecondaryActivitySuggestions() {
-  if (!state.session) {
-    return;
-  }
-
-  suggestSecondaryActivityButton.disabled = true;
-  setQuickPanelStatus("Generando sugerencias para actividad secundaria...");
-  state.activeMode = "secondary-suggestions";
-
-  try {
-    await saveQuickFields(true);
-    const response = await fetch(buildApiUrl(`/sessions/${state.session.id}/secondary-activity-suggestions`), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || "No se pudieron generar sugerencias.");
-    }
-
-    const suggestions = parseQuickReplies(data.result?.assistantText || "");
-    renderSecondarySuggestions(suggestions);
-    setQuickPanelStatus(suggestions.length ? "Sugerencias generadas" : "No hubo sugerencias utiles");
-  } catch (error) {
-    renderSecondarySuggestions([]);
-    setQuickPanelStatus(error.message || "No se pudieron generar sugerencias.", true);
-  } finally {
-    suggestSecondaryActivityButton.disabled = false;
-    state.activeMode = null;
-  }
-}
-
-function renderSecondarySuggestions(options) {
-  state.secondarySuggestions = Array.isArray(options) ? options : [];
-  if (!quickSecondarySuggestions) {
-    return;
-  }
-
-  quickSecondarySuggestions.innerHTML = "";
-  for (const option of state.secondarySuggestions) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "quick-reply-button";
-    button.dataset.secondaryOption = option;
-    button.textContent = option;
-    quickSecondarySuggestions.append(button);
-  }
-}
-
 function setQuickPanelEnabled(enabled) {
   const inputs = [
     quickPeriodStartInput,
     quickPeriodEndInput,
-    quickSecondaryActivityInput,
     quickHoursRemoteInput,
     quickHoursOnsiteInput,
     quickModalityInput,
@@ -1498,7 +1443,6 @@ function setQuickPanelEnabled(enabled) {
     quickReferencesInput,
     quickWeekCurrentButton,
     quickWeekPreviousButton,
-    suggestSecondaryActivityButton,
     applyQuickFieldsButton,
   ].filter(Boolean);
 
