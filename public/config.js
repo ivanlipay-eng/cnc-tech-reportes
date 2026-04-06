@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://galleries-northern-include-tions.trycloudflare.com",
+  apiBaseUrl: "https://dramatically-functional-saints-vegetable.trycloudflare.com",
   brandLogoUrl: "",
 };

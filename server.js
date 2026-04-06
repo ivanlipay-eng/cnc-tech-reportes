@@ -1338,7 +1338,7 @@ async function seedWorkspaceReportProject(workspacePath, formatDefinition) {
   for (const assetName of formatDefinition.template.assetsToImages) {
     const sourcePath = path.join(formatDefinition.formatDir, assetName);
     if (await pathExists(sourcePath)) {
-      await fs.copyFile(sourcePath, path.join(imagesDir, assetName));
+      await fs.copyFile(sourcePath, path.join(imagesDir, path.basename(assetName)));
     }
   }
 
