@@ -37,13 +37,7 @@ class CodexSession extends EventEmitter {
     this.name = name;
     this.workspacePath = workspacePath;
     this.formatDefinition = formatDefinition || null;
-    this.reportFormat = formatDefinition
-      ? {
-          id: formatDefinition.id,
-          label: formatDefinition.label,
-          description: formatDefinition.description,
-        }
-      : null;
+    this.reportFormat = formatDefinition ? formatPublicSummary(formatDefinition) : null;
     this.threadId = null;
     this.codexProcess = null;
     this.buffer = "";
@@ -59,7 +53,7 @@ class CodexSession extends EventEmitter {
     this.uploadedFiles = [];
     this.imageAssignments = [];
     this.participantProfile = null;
-    this.quickFields = buildDefaultQuickFields();
+    this.quickFields = buildDefaultQuickFields(formatDefinition);
     this.currentTurnMeta = { visible: true, mode: "chat" };
     this.openingQuestion = formatDefinition?.bot?.openingQuestion || "Quien eres?";
     this.serviceName = formatDefinition?.bot?.serviceName || "Contexto";
@@ -264,8 +258,9 @@ class CodexSession extends EventEmitter {
 
   mergeQuickFields(partialFields = {}) {
     this.quickFields = {
+      ...buildDefaultQuickFields(this.formatDefinition),
       ...this.quickFields,
-      ...sanitizeQuickFields(partialFields),
+      ...sanitizeQuickFields(partialFields, this.formatDefinition),
     };
     this.#emitEvent("session-updated", this.snapshot(false));
     return this.quickFields;
@@ -453,10 +448,43 @@ function resolveConfigPath(baseDir, targetPath) {
 }
 
 function formatPublicSummary(formatDefinition) {
+  const quickPanel = formatDefinition?.quickPanel || null;
   return {
     id: formatDefinition.id,
     label: formatDefinition.label,
     description: formatDefinition.description,
+    usesParticipantProfiles: Boolean(formatDefinition?.context?.participantProfilesDir),
+    quickPanel: quickPanel
+      ? {
+          title: quickPanel.title,
+          description: quickPanel.description,
+          emptyStatus: quickPanel.emptyStatus,
+          readyStatus: quickPanel.readyStatus,
+          saveSuccessText: quickPanel.saveSuccessText,
+          applyingText: quickPanel.applyingText,
+          applySuccessText: quickPanel.applySuccessText,
+          fields: quickPanel.fields.map((field) => ({
+            key: field.key,
+            label: field.label,
+            type: field.type,
+            width: field.width,
+            placeholder: field.placeholder,
+            rows: field.rows,
+            min: field.min,
+            max: field.max,
+            step: field.step,
+            options: field.options,
+            meta: field.meta,
+          })),
+          actions: quickPanel.actions.map((action) => ({
+            type: action.type,
+            label: action.label,
+            dayOffset: action.dayOffset,
+            startKey: action.startKey,
+            endKey: action.endKey,
+          })),
+        }
+      : null,
   };
 }
 
@@ -491,6 +519,228 @@ function buildParticipantContextDefinition(formatDir, contextConfig = {}) {
     participantIndexTexPath: participantProfilesDir ? path.join(participantProfilesDir, participantIndexTex) : "",
     participantIndexPdfPath: participantProfilesDir ? path.join(participantProfilesDir, participantIndexPdf) : "",
   };
+}
+
+function buildDefaultQuickPanelConfig() {
+  return {
+    title: "Panel rapido",
+    description: "Datos estructurados para cerrar el reporte semanal.",
+    emptyStatus: "Sin sesion activa",
+    readyStatus: "Panel rapido listo para completar datos de cierre",
+    saveSuccessText: "Panel rapido guardado",
+    applyingText: "Aplicando datos del panel al reporte...",
+    applySuccessText: "Panel aplicado al reporte",
+    fields: [
+      {
+        key: "periodStart",
+        label: "Inicio del periodo",
+        type: "date",
+        width: "half",
+        defaultPreset: "currentWeekStart",
+        autoRangeEndKey: "periodEnd",
+        autoRangeEndDays: 6,
+        meta: true,
+      },
+      {
+        key: "periodEnd",
+        label: "Fin del periodo",
+        type: "date",
+        width: "half",
+        defaultPreset: "currentWeekEnd",
+        meta: true,
+      },
+      {
+        key: "hoursRemote",
+        label: "Horas remotas",
+        type: "number",
+        width: "half",
+        min: 0,
+        step: 0.5,
+        placeholder: "0",
+      },
+      {
+        key: "hoursOnsite",
+        label: "Horas presenciales",
+        type: "number",
+        width: "half",
+        min: 0,
+        step: 0.5,
+        placeholder: "0",
+      },
+      {
+        key: "modality",
+        label: "Modalidad",
+        type: "text",
+        width: "full",
+        placeholder: "Presencial, remota o mixta",
+      },
+      {
+        key: "progressPercent",
+        label: "Porcentaje de avance",
+        type: "number",
+        width: "full",
+        min: 0,
+        max: 100,
+        step: 1,
+        placeholder: "0-100",
+        meta: true,
+      },
+      {
+        key: "risks",
+        label: "Riesgos",
+        type: "textarea",
+        width: "full",
+        rows: 2,
+        placeholder: "Riesgos detectados",
+      },
+      {
+        key: "blockers",
+        label: "Bloqueos",
+        type: "textarea",
+        width: "full",
+        rows: 2,
+        placeholder: "Bloqueos o dependencias",
+      },
+      {
+        key: "resourcesNeeded",
+        label: "Necesidades",
+        type: "textarea",
+        width: "full",
+        rows: 2,
+        placeholder: "Piezas, accesos o aprobaciones",
+      },
+      {
+        key: "nextSteps",
+        label: "Proximos pasos",
+        type: "textarea",
+        width: "full",
+        rows: 2,
+        placeholder: "Siguiente paso o cierre esperado",
+      },
+      {
+        key: "references",
+        label: "Referencias",
+        type: "textarea",
+        width: "full",
+        rows: 3,
+        placeholder: "Manual, ficha tecnica, bitacora o URL",
+      },
+    ],
+    actions: [
+      {
+        type: "weekRange",
+        label: "Esta semana",
+        dayOffset: 0,
+        startKey: "periodStart",
+        endKey: "periodEnd",
+      },
+      {
+        type: "weekRange",
+        label: "Semana anterior",
+        dayOffset: -7,
+        startKey: "periodStart",
+        endKey: "periodEnd",
+      },
+    ],
+  };
+}
+
+function normalizeQuickPanelField(rawField = {}, index = 0) {
+  const key = String(rawField.key || `campo_${index + 1}`).trim();
+  const supportedType = new Set(["text", "textarea", "number", "date", "select"]);
+  const type = supportedType.has(String(rawField.type || "text").trim())
+    ? String(rawField.type || "text").trim()
+    : "text";
+
+  return {
+    key,
+    label: String(rawField.label || key).trim(),
+    type,
+    width: rawField.width === "half" ? "half" : "full",
+    placeholder: String(rawField.placeholder || "").trim(),
+    rows: Number.isFinite(Number(rawField.rows)) ? Math.max(2, Number(rawField.rows)) : 3,
+    min: rawField.min ?? null,
+    max: rawField.max ?? null,
+    step: rawField.step ?? null,
+    options: type === "select" && Array.isArray(rawField.options)
+      ? rawField.options
+          .map((option) => {
+            if (option && typeof option === "object") {
+              return {
+                value: String(option.value ?? option.label ?? "").trim(),
+                label: String(option.label ?? option.value ?? "").trim(),
+              };
+            }
+            const value = String(option || "").trim();
+            return { value, label: value };
+          })
+          .filter((option) => option.value)
+      : [],
+    defaultValue: String(rawField.defaultValue || "").trim(),
+    defaultPreset: String(rawField.defaultPreset || "").trim(),
+    autoRangeEndKey: String(rawField.autoRangeEndKey || "").trim(),
+    autoRangeEndDays: Number.isFinite(Number(rawField.autoRangeEndDays)) ? Number(rawField.autoRangeEndDays) : 0,
+    meta: rawField.meta === true,
+  };
+}
+
+function normalizeQuickPanelAction(rawAction = {}) {
+  return {
+    type: String(rawAction.type || "").trim(),
+    label: String(rawAction.label || "").trim(),
+    dayOffset: Number.isFinite(Number(rawAction.dayOffset)) ? Number(rawAction.dayOffset) : 0,
+    startKey: String(rawAction.startKey || "").trim(),
+    endKey: String(rawAction.endKey || "").trim(),
+  };
+}
+
+function normalizeQuickPanelConfig(rawQuickPanel) {
+  const baseConfig = rawQuickPanel && typeof rawQuickPanel === "object"
+    ? rawQuickPanel
+    : buildDefaultQuickPanelConfig();
+  const baseFields = Array.isArray(baseConfig.fields) && baseConfig.fields.length
+    ? baseConfig.fields
+    : buildDefaultQuickPanelConfig().fields;
+
+  return {
+    title: String(baseConfig.title || "Panel rapido").trim() || "Panel rapido",
+    description: String(baseConfig.description || "").trim(),
+    emptyStatus: String(baseConfig.emptyStatus || "Sin sesion activa").trim() || "Sin sesion activa",
+    readyStatus: String(baseConfig.readyStatus || "Panel rapido listo").trim() || "Panel rapido listo",
+    saveSuccessText: String(baseConfig.saveSuccessText || "Panel guardado").trim() || "Panel guardado",
+    applyingText: String(baseConfig.applyingText || "Aplicando datos del panel al reporte...").trim()
+      || "Aplicando datos del panel al reporte...",
+    applySuccessText: String(baseConfig.applySuccessText || "Panel aplicado al reporte").trim()
+      || "Panel aplicado al reporte",
+    fields: baseFields.map((field, index) => normalizeQuickPanelField(field, index)).filter((field) => field.key),
+    actions: Array.isArray(baseConfig.actions)
+      ? baseConfig.actions.map(normalizeQuickPanelAction).filter((action) => action.type && action.label)
+      : [],
+  };
+}
+
+function resolveQuickFieldDefault(field) {
+  if (!field) {
+    return "";
+  }
+
+  if (field.defaultPreset === "currentWeekStart") {
+    return formatDateForInput(getCurrentWeekRange().monday);
+  }
+
+  if (field.defaultPreset === "currentWeekEnd") {
+    return formatDateForInput(getCurrentWeekRange().sunday);
+  }
+
+  if (field.defaultValue) {
+    return field.defaultValue;
+  }
+
+  return "";
+}
+
+function getQuickPanelFields(formatDefinition) {
+  return Array.isArray(formatDefinition?.quickPanel?.fields) ? formatDefinition.quickPanel.fields : [];
 }
 
 function normalizeFormatDefinition(formatDir, rawConfig = {}) {
@@ -538,6 +788,7 @@ function normalizeFormatDefinition(formatDir, rawConfig = {}) {
       serviceName: String(botConfig.serviceName || "Contexto").trim() || "Contexto",
     },
     context,
+    quickPanel: normalizeQuickPanelConfig(rawConfig.quickPanel),
   };
 }
 
@@ -686,26 +937,13 @@ function getCurrentWeekRange(referenceDate = new Date()) {
   return { monday, sunday };
 }
 
-function buildDefaultQuickFields() {
-  const { monday, sunday } = getCurrentWeekRange();
-  return {
-    periodStart: formatDateForInput(monday),
-    periodEnd: formatDateForInput(sunday),
-    secondaryActivity: "",
-    hoursRemote: "",
-    hoursOnsite: "",
-    modality: "",
-    risks: "",
-    blockers: "",
-    nextSteps: "",
-    resourcesNeeded: "",
-    references: "",
-    progressPercent: "",
-  };
+function buildDefaultQuickFields(formatDefinition) {
+  const fields = getQuickPanelFields(formatDefinition);
+  return Object.fromEntries(fields.map((field) => [field.key, resolveQuickFieldDefault(field)]));
 }
 
-function sanitizeQuickFields(fields = {}) {
-  const currentDefaults = buildDefaultQuickFields();
+function sanitizeQuickFields(fields = {}, formatDefinition) {
+  const currentDefaults = buildDefaultQuickFields(formatDefinition);
   return Object.fromEntries(
     Object.keys(currentDefaults).map((key) => [key, String(fields[key] ?? currentDefaults[key] ?? "").trim()])
   );
@@ -1196,21 +1434,10 @@ function buildParticipantProfileSummary(profile) {
 }
 
 function buildQuickFieldsSummary(session) {
-  const quickFields = sanitizeQuickFields(session.quickFields);
-  const labels = {
-    periodStart: "Fecha de inicio",
-    periodEnd: "Fecha de fin",
-    secondaryActivity: "Actividad secundaria",
-    hoursRemote: "Horas remotas",
-    hoursOnsite: "Horas presenciales",
-    modality: "Modalidad",
-    risks: "Riesgos",
-    blockers: "Bloqueos",
-    nextSteps: "Proximos pasos",
-    resourcesNeeded: "Necesidades o recursos",
-    references: "Referencias",
-    progressPercent: "Porcentaje de avance",
-  };
+  const quickFields = sanitizeQuickFields(session.quickFields, session.formatDefinition);
+  const labels = Object.fromEntries(
+    getQuickPanelFields(session.formatDefinition).map((field) => [field.key, field.label])
+  );
 
   return Object.entries(quickFields)
     .filter(([, value]) => String(value || "").trim())
@@ -1221,16 +1448,17 @@ function buildQuickFieldsSummary(session) {
 function buildQuickFieldsApplyMessage(session) {
   const summary = buildQuickFieldsSummary(session);
   const participantSummary = buildParticipantProfileSummary(session.participantProfile);
+  const quickPanelTitle = session.formatDefinition?.quickPanel?.title || "panel rapido";
 
   return [
-    "Actualiza el reporte usando los datos estructurados enviados desde el panel rapido de la interfaz.",
+    `Actualiza el reporte usando los datos estructurados enviados desde el ${quickPanelTitle.toLowerCase()} de la interfaz.`,
     `Trabaja sobre este archivo TEX: ${session.reportTexPath}`,
     participantSummary ? `Datos confirmados del participante:\n${participantSummary}` : "",
-    summary ? `Datos del panel rapido:\n${summary}` : "No se recibieron datos utiles desde el panel rapido.",
+    summary ? `Datos del panel:\n${summary}` : "No se recibieron datos utiles desde el panel.",
     "Usa estos datos solo para actualizar campos y secciones realmente correspondientes dentro del TEX.",
     "No conviertas esto en una nueva entrevista; solo ajusta el contenido del reporte con cambios conservadores y coherentes.",
     "Si algun campo esta vacio, no lo inventes.",
-    "Si actividad secundaria o referencias llegan desde el panel, integralas sin volver a preguntarlas.",
+    "Si llegan referencias, objetivos, observaciones u otros datos listos para usar, integralos sin volver a preguntarlos.",
     "La respuesta visible debe ir dentro del bloque --respuesta de pagina-- ... --finalice-- y limitarse a confirmar brevemente que el panel fue aplicado.",
   ].filter(Boolean).join("\n");
 }

@@ -400,11 +400,32 @@ body {
   align-items: start;
 }
 
+.quick-panel-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.quick-panel-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.quick-panel-description {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 .quick-panel-field {
   margin: 0;
 }
 
+.quick-panel-field-half {
+  grid-column: span 1;
+}
+
 .quick-panel-field-wide,
+.quick-panel-field-full,
 .quick-panel-actions-row-wide,
 .quick-suggestions,
 #quick-panel-status {
@@ -494,6 +515,10 @@ body {
   overflow: auto;
   opacity: 0;
   transition: opacity 180ms ease;
+}
+
+.quick-drawer-body .quick-panel-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .quick-drawer.is-open {

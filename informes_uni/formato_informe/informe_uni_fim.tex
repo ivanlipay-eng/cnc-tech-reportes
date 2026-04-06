@@ -1,0 +1,323 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[spanish]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{fontspec}
+\usepackage{microtype}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{siunitx}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{tocloft}
+\usepackage{tikz}
+\usepackage[most]{tcolorbox}
+
+\setmainfont{Times New Roman}
+\setsansfont{Arial}
+\setmonofont{Latin Modern Mono}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=black,
+  pdftitle={Formato de Informe - UNI FIM},
+  pdfauthor={Universidad Nacional de Ingenier\'ia},
+  pdfsubject={Plantilla de informe acad\'emico de ingenier\'ia},
+  pdfcreator={Codex}
+}
+
+% Paleta institucional sobria
+\definecolor{UNIPrimary}{HTML}{711610}
+\definecolor{UNIPrimaryDark}{HTML}{4E0F0B}
+\definecolor{UNIAccent}{HTML}{B79D63}
+\definecolor{UNIInk}{HTML}{1F1A17}
+\definecolor{UNILine}{HTML}{D6CCC0}
+\definecolor{UNILight}{HTML}{FAF8F4}
+
+% Variables de portada
+\newcommand{\reporttitle}{Informe de Laboratorio}
+\newcommand{\reportsubtitle}{Ensayo Experimental de Ingenier\'ia Mec\'anica}
+\newcommand{\reportcourse}{Nombre del curso}
+\newcommand{\reportauthor}{Nombre del estudiante}
+\newcommand{\reportcode}{C\'odigo universitario}
+\newcommand{\reportteacher}{Nombre del docente}
+\newcommand{\reportgroup}{Secci\'on o grupo}
+\newcommand{\reportlab}{Laboratorio o asignatura}
+\newcommand{\reportdate}{06/04/2026}
+\newcommand{\reportterm}{2026-I}
+\newcommand{\reportcity}{Lima - Per\'u}
+\newcommand{\unishieldpath}{escudo_uni_portada_crisp.png}
+
+\setstretch{1.18}
+\setlength{\parindent}{1.1em}
+\setlength{\parskip}{0.3em}
+\setlength{\headheight}{24.1pt}
+
+% Encabezado y pie
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{UNIPrimaryDark}{Universidad Nacional de Ingenier\'ia}}
+\fancyhead[R]{\small\textcolor{UNIPrimaryDark}{Facultad de Ingenier\'ia Mec\'anica}}
+\fancyfoot[L]{\small\textcolor{UNIPrimaryDark}{\reporttitle}}
+\fancyfoot[R]{\small\textcolor{UNIPrimaryDark}{\thepage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{UNILine}\leaders\hrule height \headrulewidth\hfill}}
+\renewcommand{\footrulewidth}{0pt}
+
+% Jerarquia tipografica
+\titleformat{\section}
+  {\Large\bfseries\color{UNIPrimaryDark}}
+  {\thesection}
+  {0.65em}
+  {}
+
+\titleformat{\subsection}
+  {\large\bfseries\color{UNIPrimaryDark}}
+  {\thesubsection}
+  {0.65em}
+  {}
+
+\titlespacing*{\section}{0pt}{1.2em}{0.55em}
+\titlespacing*{\subsection}{0pt}{0.95em}{0.35em}
+
+% TOC
+\renewcommand{\cfttoctitlefont}{\Huge\bfseries\color{UNIPrimaryDark}}
+\renewcommand{\cftsecfont}{\color{UNIInk}}
+\renewcommand{\cftsecpagefont}{\color{UNIInk}}
+\setlength{\cftbeforesecskip}{0.25em}
+
+% Figuras y tablas
+\captionsetup{
+  font=small,
+  labelfont={bf,color=UNIPrimaryDark},
+  textfont=small
+}
+\sisetup{
+  locale = DE,
+  output-decimal-marker = {,},
+  per-mode = symbol
+}
+
+\newtcolorbox{infobox}[1][]{
+  enhanced,
+  colback=UNILight,
+  colframe=UNIAccent,
+  boxrule=0.6pt,
+  arc=1.2mm,
+  left=4.5mm,
+  right=4.5mm,
+  top=2.2mm,
+  bottom=2.2mm,
+  #1
+}
+
+\newcommand{\EscudoUNI}{%
+  \IfFileExists{\unishieldpath}{%
+    \includegraphics[width=5.1cm]{\unishieldpath}%
+  }{%
+    \begin{tikzpicture}
+      \draw[UNIPrimaryDark,line width=0.9pt] (0,0) circle (1.5cm);
+      \draw[UNIAccent,line width=0.7pt] (0,0) circle (1.3cm);
+      \node[align=center,text width=2.3cm,font=\sffamily\bfseries\small,text=UNIPrimaryDark] at (0,0.1) {ESCUDO\\UNI};
+    \end{tikzpicture}%
+  }%
+}
+
+\newcommand{\PortadaUNI}{%
+\begin{titlepage}
+  \thispagestyle{empty}
+  \color{UNIInk}
+
+  \begin{center}
+    {\bfseries\fontsize{18pt}{21pt}\selectfont UNIVERSIDAD NACIONAL DE\\INGENIER\'IA}\\[0.28cm]
+    {\fontsize{12.5pt}{14pt}\selectfont FACULTAD DE INGENIER\'IA MEC\'ANICA}
+  \end{center}
+
+  \vspace{1.15cm}
+  \begin{center}
+    \EscudoUNI
+  \end{center}
+
+  \vspace{0.85cm}
+  \begin{center}
+    {\bfseries\fontsize{12.8pt}{14.8pt}\selectfont \MakeUppercase{\reportlab}}\\[0.28cm]
+    {\bfseries\fontsize{14pt}{16pt}\selectfont \MakeUppercase{\reporttitle}: \MakeUppercase{\reportsubtitle}}
+  \end{center}
+
+  \vspace{1.05cm}
+  \begin{center}
+    \renewcommand{\arraystretch}{1.72}
+    \begin{tabular}{>{\bfseries}p{3.4cm} p{8.1cm}}
+      CURSO: & \reportcourse \\
+      SECCI\'ON: & \reportgroup \\
+      DOCENTE: & \reportteacher \\
+      ESTUDIANTE: & \reportauthor \\
+      C\'ODIGO: & \reportcode \\
+      FECHA: & \reportdate \\
+    \end{tabular}
+  \end{center}
+
+  \vfill
+  \begin{center}
+    {\fontsize{23pt}{26pt}\selectfont \reportterm}\\[0.38cm]
+    {\small \reportcity}
+  \end{center}
+\end{titlepage}
+}
+
+\begin{document}
+
+\PortadaUNI
+
+\tableofcontents
+\thispagestyle{empty}
+\clearpage
+
+\section{Introducci\'on}
+Describe el contexto del ensayo, el problema que motiva el informe y su relevancia dentro del curso. Cierra esta secci\'on con una descripci\'on breve de la estructura del documento.
+
+\section{Objetivos}
+\begin{itemize}[leftmargin=1.5em]
+  \item Objetivo general del ensayo o pr\'actica.
+  \item Objetivo espec\'ifico 1.
+  \item Objetivo espec\'ifico 2.
+  \item Objetivo espec\'ifico 3.
+\end{itemize}
+
+\section{Fundamento Te\'orico}
+Incluye conceptos, principios f\'isicos, ecuaciones y criterios t\'ecnicos necesarios para interpretar el ensayo.
+
+\subsection{Principios relevantes}
+Explica aqu\'i las leyes, modelos o definiciones que sustentan el trabajo.
+
+\subsection{Ecuaciones base}
+\[
+  \eta = \frac{P_{\text{\'util}}}{P_{\text{entrada}}}\times 100
+\]
+\[
+  Q = m\,c\,\Delta T
+\]
+
+\section{Equipos}
+Enumera y describe los equipos, instrumentos y materiales utilizados.
+
+\begin{longtable}{p{4.5cm} p{4cm} p{5cm}}
+\toprule
+\textbf{Equipo o instrumento} & \textbf{Modelo / rango} & \textbf{Observaci\'on} \\
+\midrule
+Banco de ensayo & --- & Completar \\
+Sensor de temperatura & --- & Completar \\
+Tac\'ometro / mult\'imetro & --- & Completar \\
+\bottomrule
+\end{longtable}
+
+\section{Procedimiento del Ensayo}
+Presenta los pasos ejecutados en orden cronol\'ogico y con detalle suficiente para permitir la repetici\'on del ensayo.
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item Preparaci\'on del banco o sistema experimental.
+  \item Verificaci\'on de condiciones iniciales y calibraci\'on de instrumentos.
+  \item Toma de datos bajo diferentes condiciones de operaci\'on.
+  \item Registro de incidencias durante la prueba.
+\end{enumerate}
+
+\section{Datos del Laboratorio}
+Registra las mediciones obtenidas directamente del experimento.
+
+\begin{table}[H]
+  \centering
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabular}{>{\bfseries}c c c c c}
+    \toprule
+    Ensayo & Variable 1 & Variable 2 & Variable 3 & Observaci\'on \\
+    \midrule
+    1 & --- & --- & --- & --- \\
+    2 & --- & --- & --- & --- \\
+    3 & --- & --- & --- & --- \\
+    \bottomrule
+  \end{tabular}
+  \caption{Datos experimentales iniciales.}
+\end{table}
+
+\section{C\'alculos y Resultados}
+Desarrolla los c\'alculos a partir de los datos medidos. Conviene separar claramente desarrollo y resultados.
+
+\subsection{C\'alculos}
+Muestra una sustituci\'on ordenada de valores, unidades y resultados intermedios.
+
+\begin{infobox}
+Ejemplo de presentaci\'on:
+\[
+  P = T\,\omega
+\]
+Si $T = \SI{12}{N.m}$ y $\omega = \SI{18}{rad/s}$, entonces:
+\[
+  P = 12\times 18 = \SI{216}{W}
+\]
+\end{infobox}
+
+\subsection{Resultados}
+Resume los resultados m\'as importantes y acompa\~nalos con tablas, figuras o comparaciones te\'orico-experimentales.
+
+\begin{table}[H]
+  \centering
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabular}{>{\bfseries}p{5cm} p{4cm} p{4cm}}
+    \toprule
+    Magnitud & Valor obtenido & Unidad \\
+    \midrule
+    Eficiencia & --- & \% \\
+    Potencia & --- & W \\
+    Error relativo & --- & \% \\
+    \bottomrule
+  \end{tabular}
+  \caption{Resumen de resultados finales.}
+\end{table}
+
+\section{Observaciones}
+Registra condiciones reales del ensayo, limitaciones, desviaciones del procedimiento y cualquier aspecto que influya en la interpretaci\'on de los datos.
+
+\section{Conclusiones}
+\begin{itemize}[leftmargin=1.5em]
+  \item Conclusi\'on principal alineada con el objetivo general.
+  \item Interpretaci\'on t\'ecnica del resultado m\'as relevante.
+  \item Recomendaci\'on para mejorar el procedimiento en pruebas futuras.
+\end{itemize}
+
+\section{Bibliograf\'ia (APA 7.\textordfeminine~edici\'on)}
+Usa formato APA para libros, art\'iculos, normas y fuentes web. Referencias de ejemplo:
+
+\begin{thebibliography}{9}
+  \bibitem{manual_lab}
+  Autor, A. A. (2022). \textit{Manual del laboratorio o gu\'ia de pr\'actica}. Editorial o Instituci\'on.
+
+  \bibitem{mecanica}
+  Autor, B. B., \& Autor, C. C. (2021). \textit{Texto de ingenier\'ia mec\'anica} (3.\textordfeminine~ed.). Editorial.
+
+  \bibitem{norma}
+  American Psychological Association. (2020). \textit{Publication manual of the American Psychological Association} (7th ed.).
+\end{thebibliography}
+
+\section{Anexos}
+Incluye fotograf\'ias, hojas de datos, tablas extendidas, capturas del banco de pruebas, planos o c\'alculos complementarios.
+
+\begin{infobox}[colback=white,colframe=UNILine]
+Sugerencias de uso:
+\begin{itemize}[leftmargin=1.5em]
+  \item Reemplaza los campos de la portada al inicio del archivo.
+  \item Inserta figuras con \texttt{\textbackslash includegraphics}.
+  \item Mant\'en unidades normalizadas (SI) y consistencia decimal en tablas.
+\end{itemize}
+\end{infobox}
+
+\end{document}

@@ -7,10 +7,10 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Asistente de Reportes CNC Tech</title>
-    <link rel="stylesheet" href="./styles.css?v=1.1.42" />
+    <link rel="stylesheet" href="./styles.css?v=1.1.43" />
   </head>
   <body>
-    <div id="app-version-badge" class="app-version-badge">Version 1.1.42</div>
+    <div id="app-version-badge" class="app-version-badge">Version 1.1.43</div>
     <div id="upload-overlay" class="download-overlay upload-overlay" hidden>
       <div id="upload-card" class="download-card upload-card">
         <div class="download-eyebrow">Subiendo archivo</div>
@@ -47,7 +47,7 @@
     <header class="ribbon-shell">
       <div class="ribbon-topline">
         <div class="topbar-brand">
-          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.42" alt="Logo real de CNC Tech" />
+          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.43" alt="Logo real de CNC Tech" />
           <div class="brand-copy">
             <span class="brand-kicker">CNC Tech</span>
             <strong class="brand-title">Centro de reportes</strong>
@@ -215,69 +215,15 @@
             </span>
           </button>
           <div id="quick-drawer-body" class="quick-drawer-body" hidden>
-            <div class="quick-panel-grid quick-panel-grid-compact">
-              <label class="field quick-panel-field quick-panel-field-wide">
-                <span>Periodo semanal</span>
-                <div class="quick-date-row">
-                  <input id="quick-period-start" type="date" disabled />
-                  <input id="quick-period-end" type="date" disabled />
-                </div>
-              </label>
-
-              <div class="quick-panel-actions-row quick-panel-actions-row-wide">
-                <button id="quick-week-current" type="button" class="secondary-button" disabled>Esta semana</button>
-                <button id="quick-week-previous" type="button" class="secondary-button" disabled>Semana anterior</button>
+            <div class="quick-panel-shell">
+              <div class="quick-panel-heading">
+                <strong id="quick-panel-title">Panel rapido</strong>
+                <span id="quick-panel-description" class="quick-panel-description">Campos segun el formato activo</span>
               </div>
-
-              <label class="field quick-panel-field">
-                <span>Horas remotas</span>
-                <input id="quick-hours-remote" type="number" min="0" step="0.5" placeholder="0" disabled />
-              </label>
-
-              <label class="field quick-panel-field">
-                <span>Horas presenciales</span>
-                <input id="quick-hours-onsite" type="number" min="0" step="0.5" placeholder="0" disabled />
-              </label>
-
-              <label class="field quick-panel-field quick-panel-field-wide">
-                <span>Modalidad</span>
-                <input id="quick-modality" placeholder="Presencial, remota o mixta" disabled />
-              </label>
-
-              <label class="field quick-panel-field quick-panel-field-wide">
-                <span>Porcentaje de avance</span>
-                <input id="quick-progress-percent" type="number" min="0" max="100" step="1" placeholder="0-100" disabled />
-              </label>
-
-              <label class="field quick-panel-field quick-panel-field-wide">
-                <span>Riesgos</span>
-                <textarea id="quick-risks" rows="2" placeholder="Riesgos detectados" disabled></textarea>
-              </label>
-
-              <label class="field quick-panel-field quick-panel-field-wide">
-                <span>Bloqueos</span>
-                <textarea id="quick-blockers" rows="2" placeholder="Bloqueos o dependencias" disabled></textarea>
-              </label>
-
-              <label class="field quick-panel-field quick-panel-field-wide">
-                <span>Necesidades</span>
-                <textarea id="quick-resources" rows="2" placeholder="Piezas, accesos o aprobaciones" disabled></textarea>
-              </label>
-
-              <label class="field quick-panel-field quick-panel-field-wide">
-                <span>Proximos pasos</span>
-                <textarea id="quick-next-steps" rows="2" placeholder="Siguiente paso o cierre esperado" disabled></textarea>
-              </label>
-
-              <label class="field quick-panel-field quick-panel-field-wide">
-                <span>Referencias</span>
-                <textarea id="quick-references" rows="3" placeholder="Manual, ficha tecnica, bitacora o URL" disabled></textarea>
-              </label>
-
+              <div id="quick-panel-fields" class="quick-panel-grid quick-panel-grid-compact"></div>
               <div class="quick-panel-actions-row quick-panel-actions-row-wide">
                 <button id="apply-quick-fields" type="button" disabled>Aplicar</button>
               </div>
-
               <div id="quick-panel-status" class="upload-status">Sin sesion activa</div>
             </div>
           </div>
@@ -347,7 +293,7 @@
       </div>
     </footer>
 
-    <script src="./config.js?v=1.1.42"></script>
-    <script src="./app.js?v=1.1.42"></script>
+    <script src="./config.js?v=1.1.43"></script>
+    <script src="./app.js?v=1.1.43"></script>
   </body>
 </html>

@@ -26,22 +26,9 @@ const downloadZipLink = document.getElementById("download-zip");
 const compileButton = document.getElementById("compile-report");
 const viewPdfButton = document.getElementById("view-pdf");
 const syncImagesButton = document.getElementById("sync-images");
-const quickPeriodStartInput = document.getElementById("quick-period-start");
-const quickPeriodEndInput = document.getElementById("quick-period-end");
-const quickWeekCurrentButton = document.getElementById("quick-week-current");
-const quickWeekPreviousButton = document.getElementById("quick-week-previous");
-const quickSecondaryActivityInput = document.getElementById("quick-secondary-activity");
-const suggestSecondaryActivityButton = document.getElementById("suggest-secondary-activity");
-const quickSecondarySuggestions = document.getElementById("quick-secondary-suggestions");
-const quickHoursRemoteInput = document.getElementById("quick-hours-remote");
-const quickHoursOnsiteInput = document.getElementById("quick-hours-onsite");
-const quickModalityInput = document.getElementById("quick-modality");
-const quickProgressPercentInput = document.getElementById("quick-progress-percent");
-const quickRisksInput = document.getElementById("quick-risks");
-const quickBlockersInput = document.getElementById("quick-blockers");
-const quickResourcesInput = document.getElementById("quick-resources");
-const quickNextStepsInput = document.getElementById("quick-next-steps");
-const quickReferencesInput = document.getElementById("quick-references");
+const quickPanelTitle = document.getElementById("quick-panel-title");
+const quickPanelDescription = document.getElementById("quick-panel-description");
+const quickPanelFields = document.getElementById("quick-panel-fields");
 const applyQuickFieldsButton = document.getElementById("apply-quick-fields");
 const quickPanelStatus = document.getElementById("quick-panel-status");
 const quickDrawer = document.getElementById("quick-drawer");
@@ -102,6 +89,8 @@ const REPORT_PROGRESS_END = "[[/progreso_reporte]]";
 const stateRequestedImages = new Map();
 const IMAGE_EXTENSION_PATTERN = "jpg|jpeg|png|webp|gif|bmp|tif|tiff|svg|heic|heif|avif|jfif";
 const IMAGE_EXTENSION_REGEX = /\.(jpg|jpeg|png|webp|gif|bmp|tif|tiff|svg|heic|heif|avif|jfif)$/i;
+const quickPanelInputRegistry = new Map();
+const quickPanelActionButtons = [];
 
 const WINDOWS_PATH_REGEX = /[A-Za-z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*/g;
 
@@ -111,20 +100,43 @@ loadAppVersion();
 initializeQuickPanel();
 initializeQuickDrawer();
 
-function buildEmptyQuickFields() {
+function getFormatDefinitionById(formatId) {
+  const normalizedId = String(formatId || "").trim();
+  return state.availableFormats.find((format) => format.id === normalizedId) || null;
+}
+
+function getCurrentFormatDefinition() {
+  const sessionFormatId = state.session?.reportFormat?.id || "";
+  return getFormatDefinitionById(sessionFormatId)
+    || getFormatDefinitionById(state.selectedFormatId)
+    || state.availableFormats[0]
+    || null;
+}
+
+function getCurrentQuickPanel() {
+  return getCurrentFormatDefinition()?.quickPanel || {
+    title: "Panel rapido",
+    description: "Campos segun el formato activo",
+    emptyStatus: "Sin sesion activa",
+    readyStatus: "Panel rapido listo",
+    saveSuccessText: "Panel rapido guardado",
+    applyingText: "Aplicando datos del panel al reporte...",
+    applySuccessText: "Panel aplicado al reporte",
+    fields: [],
+    actions: [],
+  };
+}
+
+function buildEmptyQuickFields(formatDefinition = getCurrentFormatDefinition()) {
+  const quickPanel = formatDefinition?.quickPanel;
+  const fields = Array.isArray(quickPanel?.fields) ? quickPanel.fields : [];
+  return Object.fromEntries(fields.map((field) => [field.key, ""]));
+}
+
+function buildNormalizedQuickFields(quickFields = {}, formatDefinition = getCurrentFormatDefinition()) {
   return {
-    periodStart: "",
-    periodEnd: "",
-    secondaryActivity: "",
-    hoursRemote: "",
-    hoursOnsite: "",
-    modality: "",
-    risks: "",
-    blockers: "",
-    nextSteps: "",
-    resourcesNeeded: "",
-    references: "",
-    progressPercent: "",
+    ...buildEmptyQuickFields(formatDefinition),
+    ...(quickFields || {}),
   };
 }
 
@@ -165,50 +177,143 @@ function initializeRibbon() {
 }
 
 function initializeQuickPanel() {
-  const quickInputs = [
-    quickPeriodStartInput,
-    quickPeriodEndInput,
-    quickSecondaryActivityInput,
-    quickHoursRemoteInput,
-    quickHoursOnsiteInput,
-    quickModalityInput,
-    quickProgressPercentInput,
-    quickRisksInput,
-    quickBlockersInput,
-    quickResourcesInput,
-    quickNextStepsInput,
-    quickReferencesInput,
-  ].filter(Boolean);
-
-  for (const input of quickInputs) {
-    input.addEventListener("input", () => scheduleQuickFieldsSave());
-    input.addEventListener("change", () => scheduleQuickFieldsSave());
-  }
-
-  quickPeriodStartInput?.addEventListener("change", () => {
-    if (!quickPeriodStartInput.value) {
-      return;
-    }
-
-    if (!quickPeriodEndInput.value || quickPeriodEndInput.value < quickPeriodStartInput.value) {
-      const endDate = new Date(`${quickPeriodStartInput.value}T00:00:00`);
-      endDate.setDate(endDate.getDate() + 6);
-      quickPeriodEndInput.value = formatDateInput(endDate);
-    }
-    scheduleQuickFieldsSave();
-  });
-
-  quickWeekCurrentButton?.addEventListener("click", () => {
-    applyWeekRange(0);
-  });
-
-  quickWeekPreviousButton?.addEventListener("click", () => {
-    applyWeekRange(-7);
-  });
-
+  renderQuickPanel(state.quickFields || buildEmptyQuickFields());
   applyQuickFieldsButton?.addEventListener("click", async () => {
     await applyQuickFieldsToReport();
   });
+}
+
+function renderQuickPanel(quickFields = {}, formatDefinition = getCurrentFormatDefinition()) {
+  if (!quickPanelFields) {
+    return;
+  }
+
+  const quickPanel = formatDefinition?.quickPanel || getCurrentQuickPanel();
+  const mergedFields = buildNormalizedQuickFields(quickFields, formatDefinition);
+  state.quickFields = mergedFields;
+  quickPanelInputRegistry.clear();
+  quickPanelActionButtons.length = 0;
+  quickPanelFields.innerHTML = "";
+
+  if (quickPanelTitle) {
+    quickPanelTitle.textContent = quickPanel.title || "Panel rapido";
+  }
+
+  if (quickPanelDescription) {
+    quickPanelDescription.textContent = quickPanel.description || "Campos segun el formato activo";
+  }
+
+  for (const field of quickPanel.fields || []) {
+    const fieldNode = createQuickFieldNode(field, mergedFields[field.key] || "");
+    if (fieldNode) {
+      quickPanelFields.append(fieldNode);
+    }
+  }
+
+  if ((quickPanel.actions || []).length) {
+    const actionsRow = document.createElement("div");
+    actionsRow.className = "quick-panel-actions-row quick-panel-actions-row-wide";
+    for (const action of quickPanel.actions) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "secondary-button";
+      button.textContent = action.label;
+      button.disabled = !state.session;
+      button.addEventListener("click", () => applyQuickAction(action));
+      quickPanelActionButtons.push(button);
+      actionsRow.append(button);
+    }
+    quickPanelFields.append(actionsRow);
+  }
+
+  setQuickPanelEnabled(Boolean(state.session));
+}
+
+function createQuickFieldNode(field, value) {
+  const wrapper = document.createElement("label");
+  wrapper.className = `field quick-panel-field ${field.width === "half" ? "quick-panel-field-half" : "quick-panel-field-full"}`;
+
+  const label = document.createElement("span");
+  label.textContent = field.label;
+  wrapper.append(label);
+
+  let control;
+  if (field.type === "textarea") {
+    control = document.createElement("textarea");
+    control.rows = Number(field.rows) || 3;
+  } else if (field.type === "select") {
+    control = document.createElement("select");
+    const emptyOption = document.createElement("option");
+    emptyOption.value = "";
+    emptyOption.textContent = field.placeholder || "Selecciona una opcion";
+    control.append(emptyOption);
+    for (const option of field.options || []) {
+      const optionNode = document.createElement("option");
+      optionNode.value = option.value;
+      optionNode.textContent = option.label;
+      control.append(optionNode);
+    }
+  } else {
+    control = document.createElement("input");
+    control.type = field.type || "text";
+  }
+
+  control.dataset.quickFieldKey = field.key;
+  control.disabled = !state.session;
+  control.value = value || "";
+
+  if (field.placeholder && field.type !== "select") {
+    control.placeholder = field.placeholder;
+  }
+
+  if (field.type === "number") {
+    if (field.min !== null && field.min !== undefined && field.min !== "") {
+      control.min = field.min;
+    }
+    if (field.max !== null && field.max !== undefined && field.max !== "") {
+      control.max = field.max;
+    }
+    if (field.step !== null && field.step !== undefined && field.step !== "") {
+      control.step = field.step;
+    }
+  }
+
+  control.addEventListener("input", () => handleQuickFieldChange(field));
+  control.addEventListener("change", () => handleQuickFieldChange(field));
+  quickPanelInputRegistry.set(field.key, control);
+  wrapper.append(control);
+  return wrapper;
+}
+
+function handleQuickFieldChange(field) {
+  if (field.autoRangeEndKey && field.autoRangeEndDays && field.type === "date") {
+    const startInput = quickPanelInputRegistry.get(field.key);
+    const endInput = quickPanelInputRegistry.get(field.autoRangeEndKey);
+    const startValue = startInput?.value || "";
+    if (startValue && endInput && (!endInput.value || endInput.value < startValue)) {
+      const endDate = new Date(`${startValue}T00:00:00`);
+      endDate.setDate(endDate.getDate() + Number(field.autoRangeEndDays || 0));
+      endInput.value = formatDateInput(endDate);
+    }
+  }
+  scheduleQuickFieldsSave();
+}
+
+function applyQuickAction(action) {
+  if (!action || action.type !== "weekRange") {
+    return;
+  }
+
+  const range = buildWeekRange(action.dayOffset || 0);
+  const startInput = quickPanelInputRegistry.get(action.startKey);
+  const endInput = quickPanelInputRegistry.get(action.endKey);
+  if (startInput) {
+    startInput.value = range.start;
+  }
+  if (endInput) {
+    endInput.value = range.end;
+  }
+  scheduleQuickFieldsSave();
 }
 
 function initializeQuickDrawer() {
@@ -1136,26 +1241,29 @@ function updateMessageContent(article, message) {
 
 function renderMeta(session) {
   state.participantProfile = session.participantProfile || state.participantProfile;
-  state.quickFields = { ...buildEmptyQuickFields(), ...(session.quickFields || state.quickFields || {}) };
+  state.quickFields = buildNormalizedQuickFields(session.quickFields || state.quickFields || {}, getCurrentFormatDefinition());
   state.selectedFormatId = session.reportFormat?.id || state.selectedFormatId;
   if (reportFormatSelect && state.selectedFormatId) {
     reportFormatSelect.value = state.selectedFormatId;
   }
-  populateQuickPanel(state.quickFields);
+  renderQuickPanel(state.quickFields, getCurrentFormatDefinition());
   sessionMeta.classList.remove("empty");
   const participantName = state.participantProfile?.name || "Pendiente de identificar";
   const participantArea = state.participantProfile?.area || "Pendiente";
   const reportFormat = session.reportFormat?.label || "Pendiente";
-  const periodText = state.quickFields?.periodStart && state.quickFields?.periodEnd
-    ? `${state.quickFields.periodStart} al ${state.quickFields.periodEnd}`
-    : "Pendiente";
-  sessionMeta.innerHTML = `
-    <strong>Proyecto:</strong> ${escapeHtml(session.name || "Sesion activa")}<br />
-    <strong>Formato:</strong> ${escapeHtml(reportFormat)}<br />
-    <strong>Participante:</strong> ${escapeHtml(participantName)}<br />
-    <strong>Area:</strong> ${escapeHtml(participantArea)}<br />
-    <strong>Periodo:</strong> ${escapeHtml(periodText)}
-  `;
+  const quickSummary = buildQuickMetaSummary();
+  const metaLines = [
+    `<strong>Proyecto:</strong> ${escapeHtml(session.name || "Sesion activa")}`,
+    `<strong>Formato:</strong> ${escapeHtml(reportFormat)}`,
+  ];
+
+  if (session.reportFormat?.usesParticipantProfiles) {
+    metaLines.push(`<strong>Participante:</strong> ${escapeHtml(participantName)}`);
+    metaLines.push(`<strong>Area:</strong> ${escapeHtml(participantArea)}`);
+  }
+
+  metaLines.push(`<strong>Resumen rapido:</strong> ${escapeHtml(quickSummary)}`);
+  sessionMeta.innerHTML = metaLines.join("<br />");
   downloadZipLink.href = buildApiUrl(`/sessions/${session.id}/download`);
   downloadZipLink.classList.remove("disabled");
   downloadZipLink.setAttribute("aria-disabled", "false");
@@ -1177,7 +1285,7 @@ function renderMeta(session) {
   if (stateRequestedImages.size === 0) {
     setRequestedImageStatus("Cuando el bot pida una imagen, aparecera aqui para subirla");
   }
-  setQuickPanelStatus("Panel rapido listo para completar datos de cierre");
+  setQuickPanelStatus(getCurrentQuickPanel().readyStatus || "Panel rapido listo para completar datos de cierre");
   setExperimentalStatus("Funciones experimentales listas para usar");
   if (!pdfLoadedOnce) {
     clearPdfViewer("Al crear el proyecto se intentara abrir el PDF automaticamente");
@@ -1449,9 +1557,9 @@ function hydrateSessionState(snapshot) {
   state.session = snapshot;
   state.selectedFormatId = snapshot?.reportFormat?.id || state.selectedFormatId;
   state.participantProfile = snapshot?.participantProfile || state.participantProfile;
-  state.quickFields = { ...buildEmptyQuickFields(), ...(snapshot?.quickFields || state.quickFields || {}) };
+  state.quickFields = buildNormalizedQuickFields(snapshot?.quickFields || state.quickFields || {}, getCurrentFormatDefinition());
   state.uploadedFiles = Array.isArray(snapshot?.uploadedFiles) ? [...snapshot.uploadedFiles] : [];
-  populateQuickPanel(state.quickFields);
+  renderQuickPanel(state.quickFields, getCurrentFormatDefinition());
 }
 
 function populateFormatOptions(formats, preferredFormatId = "") {
@@ -1488,10 +1596,19 @@ function populateFormatOptions(formats, preferredFormatId = "") {
     ? candidateId
     : state.availableFormats[0].id;
   state.selectedFormatId = reportFormatSelect.value;
+  if (!state.session) {
+    state.quickFields = buildEmptyQuickFields(getCurrentFormatDefinition());
+  }
+  renderQuickPanel(state.quickFields || buildEmptyQuickFields(getCurrentFormatDefinition()), getCurrentFormatDefinition());
 }
 
 reportFormatSelect?.addEventListener("change", () => {
   state.selectedFormatId = reportFormatSelect.value;
+  if (!state.session) {
+    state.quickFields = buildEmptyQuickFields(getCurrentFormatDefinition());
+    renderQuickPanel(state.quickFields, getCurrentFormatDefinition());
+    setQuickPanelStatus(getCurrentQuickPanel().readyStatus || "Panel rapido listo para el formato seleccionado");
+  }
 });
 
 function setReportProgress(meta) {
@@ -1510,36 +1627,26 @@ function setReportProgress(meta) {
     : `Avance del informe - ${Math.round(percent)}%`;
 }
 
-function populateQuickPanel(quickFields) {
-  const fields = { ...buildEmptyQuickFields(), ...(quickFields || {}) };
-  if (quickPeriodStartInput) quickPeriodStartInput.value = fields.periodStart || "";
-  if (quickPeriodEndInput) quickPeriodEndInput.value = fields.periodEnd || "";
-  if (quickHoursRemoteInput) quickHoursRemoteInput.value = fields.hoursRemote || "";
-  if (quickHoursOnsiteInput) quickHoursOnsiteInput.value = fields.hoursOnsite || "";
-  if (quickModalityInput) quickModalityInput.value = fields.modality || "";
-  if (quickProgressPercentInput) quickProgressPercentInput.value = fields.progressPercent || "";
-  if (quickRisksInput) quickRisksInput.value = fields.risks || "";
-  if (quickBlockersInput) quickBlockersInput.value = fields.blockers || "";
-  if (quickResourcesInput) quickResourcesInput.value = fields.resourcesNeeded || "";
-  if (quickNextStepsInput) quickNextStepsInput.value = fields.nextSteps || "";
-  if (quickReferencesInput) quickReferencesInput.value = fields.references || "";
+function buildQuickMetaSummary() {
+  const formatDefinition = getCurrentFormatDefinition();
+  const metaFields = (formatDefinition?.quickPanel?.fields || []).filter((field) => field.meta);
+  const summaryParts = metaFields
+    .map((field) => {
+      const value = String(state.quickFields?.[field.key] || "").trim();
+      return value ? `${field.label}: ${value}` : "";
+    })
+    .filter(Boolean)
+    .slice(0, 3);
+
+  return summaryParts.join(" | ") || "Pendiente";
 }
 
 function collectQuickFields() {
-  return {
-    periodStart: quickPeriodStartInput?.value || "",
-    periodEnd: quickPeriodEndInput?.value || "",
-    secondaryActivity: "",
-    hoursRemote: quickHoursRemoteInput?.value || "",
-    hoursOnsite: quickHoursOnsiteInput?.value || "",
-    modality: quickModalityInput?.value.trim() || "",
-    progressPercent: quickProgressPercentInput?.value || "",
-    risks: quickRisksInput?.value.trim() || "",
-    blockers: quickBlockersInput?.value.trim() || "",
-    resourcesNeeded: quickResourcesInput?.value.trim() || "",
-    nextSteps: quickNextStepsInput?.value.trim() || "",
-    references: quickReferencesInput?.value.trim() || "",
-  };
+  const quickFields = {};
+  for (const [key, input] of quickPanelInputRegistry.entries()) {
+    quickFields[key] = (input?.value || "").trim();
+  }
+  return buildNormalizedQuickFields(quickFields, getCurrentFormatDefinition());
 }
 
 function scheduleQuickFieldsSave() {
@@ -1569,9 +1676,9 @@ async function saveQuickFields(isSilent = false) {
     throw new Error(data.error || "No se pudo guardar el panel rapido.");
   }
 
-  state.quickFields = { ...buildEmptyQuickFields(), ...(data.quickFields || quickFields) };
+  state.quickFields = buildNormalizedQuickFields(data.quickFields || quickFields, getCurrentFormatDefinition());
   if (!isSilent) {
-    setQuickPanelStatus("Panel rapido guardado");
+    setQuickPanelStatus(getCurrentQuickPanel().saveSuccessText || "Panel rapido guardado");
   }
   return data;
 }
@@ -1582,7 +1689,7 @@ async function applyQuickFieldsToReport() {
   }
 
   applyQuickFieldsButton.disabled = true;
-  setQuickPanelStatus("Aplicando datos del panel al reporte...");
+  setQuickPanelStatus(getCurrentQuickPanel().applyingText || "Aplicando datos del panel al reporte...");
   state.activeMode = "quick-fields-apply";
   setThinking(true, "aplicando panel");
 
@@ -1598,8 +1705,10 @@ async function applyQuickFieldsToReport() {
       throw new Error(data.error || "No se pudo aplicar el panel rapido.");
     }
 
-    state.quickFields = { ...buildEmptyQuickFields(), ...(data.quickFields || quickFields) };
-    const visible = extractPageResponse(data.result?.assistantText || "").text || "Panel aplicado al reporte";
+    state.quickFields = buildNormalizedQuickFields(data.quickFields || quickFields, getCurrentFormatDefinition());
+    const visible = extractPageResponse(data.result?.assistantText || "").text
+      || getCurrentQuickPanel().applySuccessText
+      || "Panel aplicado al reporte";
     setQuickPanelStatus(visible);
   } catch (error) {
     setQuickPanelStatus(error.message || "No se pudo aplicar el panel rapido.", true);
@@ -1612,19 +1721,8 @@ async function applyQuickFieldsToReport() {
 
 function setQuickPanelEnabled(enabled) {
   const inputs = [
-    quickPeriodStartInput,
-    quickPeriodEndInput,
-    quickHoursRemoteInput,
-    quickHoursOnsiteInput,
-    quickModalityInput,
-    quickProgressPercentInput,
-    quickRisksInput,
-    quickBlockersInput,
-    quickResourcesInput,
-    quickNextStepsInput,
-    quickReferencesInput,
-    quickWeekCurrentButton,
-    quickWeekPreviousButton,
+    ...Array.from(quickPanelInputRegistry.values()),
+    ...quickPanelActionButtons,
     applyQuickFieldsButton,
   ].filter(Boolean);
 
@@ -1714,7 +1812,7 @@ experimentalActions?.addEventListener("click", async (event) => {
   await runExperimentalAction(String(button.dataset.experimentalAction || "").trim());
 });
 
-function applyWeekRange(dayOffset) {
+function buildWeekRange(dayOffset) {
   const baseDate = new Date();
   baseDate.setDate(baseDate.getDate() + dayOffset);
   const day = baseDate.getDay();
@@ -1723,9 +1821,10 @@ function applyWeekRange(dayOffset) {
   monday.setDate(baseDate.getDate() + mondayOffset);
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
-  if (quickPeriodStartInput) quickPeriodStartInput.value = formatDateInput(monday);
-  if (quickPeriodEndInput) quickPeriodEndInput.value = formatDateInput(sunday);
-  scheduleQuickFieldsSave();
+  return {
+    start: formatDateInput(monday),
+    end: formatDateInput(sunday),
+  };
 }
 
 function formatDateInput(date) {

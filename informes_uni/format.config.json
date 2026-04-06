@@ -1,0 +1,172 @@
+{
+  "id": "informes-uni",
+  "label": "Informes UNI",
+  "description": "Formato academico de informes UNI-FIM para trabajos tecnicos y de laboratorio.",
+  "default": false,
+  "workspace": {
+    "reportDir": "reporte",
+    "imagesDir": "imagenes",
+    "filesDir": "archivos",
+    "exportDir": "export",
+    "reportTexName": "reporte.tex",
+    "reportPdfName": "reporte.pdf"
+  },
+  "template": {
+    "sourceTex": "formato_informe/informe_uni_fim.tex",
+    "sourcePdf": "formato_informe/informe_uni_fim.pdf",
+    "assetsToImages": [
+      "formato_informe/escudo_uni_portada_crisp.png"
+    ],
+    "texReplacements": [
+      {
+        "search": "\\newcommand{\\unishieldpath}{escudo_uni_portada_crisp.png}",
+        "replace": "\\newcommand{\\unishieldpath}{../imagenes/escudo_uni_portada_crisp.png}"
+      }
+    ]
+  },
+  "bot": {
+    "instructionsFile": "bot.instructions.md",
+    "openingQuestion": "¿de que trata tu informe?",
+    "serviceName": "Contexto UNI"
+  },
+  "quickPanel": {
+    "title": "Panel de informe",
+    "description": "Datos estructurados para completar portada, desarrollo tecnico y cierre del informe UNI.",
+    "emptyStatus": "Sin sesion activa",
+    "readyStatus": "Panel del informe listo para completar datos academicos",
+    "saveSuccessText": "Panel del informe guardado",
+    "applyingText": "Aplicando datos del panel al informe...",
+    "applySuccessText": "Panel aplicado al informe",
+    "fields": [
+      {
+        "key": "reportCourse",
+        "label": "Curso",
+        "type": "text",
+        "width": "full",
+        "placeholder": "Ejemplo: Mecanica de Fluidos",
+        "meta": true
+      },
+      {
+        "key": "reportTopic",
+        "label": "Tema o practica",
+        "type": "text",
+        "width": "full",
+        "placeholder": "Tema exacto del informe",
+        "meta": true
+      },
+      {
+        "key": "teacherName",
+        "label": "Docente",
+        "type": "text",
+        "width": "full",
+        "placeholder": "Nombre del docente"
+      },
+      {
+        "key": "studentNames",
+        "label": "Estudiante(s) y codigo(s)",
+        "type": "textarea",
+        "width": "full",
+        "rows": 3,
+        "placeholder": "Un estudiante por linea o lista grupal"
+      },
+      {
+        "key": "sectionGroup",
+        "label": "Seccion o grupo",
+        "type": "text",
+        "width": "half",
+        "placeholder": "Ejemplo: B1"
+      },
+      {
+        "key": "reportDate",
+        "label": "Fecha",
+        "type": "text",
+        "width": "half",
+        "placeholder": "dd/mm/aaaa",
+        "meta": true
+      },
+      {
+        "key": "academicTerm",
+        "label": "Ciclo academico",
+        "type": "text",
+        "width": "half",
+        "placeholder": "Ejemplo: 2026-I"
+      },
+      {
+        "key": "reportType",
+        "label": "Tipo de informe",
+        "type": "select",
+        "width": "half",
+        "placeholder": "Selecciona el tipo",
+        "options": [
+          {
+            "value": "laboratorio",
+            "label": "Laboratorio"
+          },
+          {
+            "value": "tecnico",
+            "label": "Tecnico"
+          },
+          {
+            "value": "investigacion",
+            "label": "Investigacion"
+          }
+        ]
+      },
+      {
+        "key": "generalObjective",
+        "label": "Objetivo general",
+        "type": "textarea",
+        "width": "full",
+        "rows": 2,
+        "placeholder": "Objetivo principal del informe"
+      },
+      {
+        "key": "specificData",
+        "label": "Datos, mediciones o insumos clave",
+        "type": "textarea",
+        "width": "full",
+        "rows": 3,
+        "placeholder": "Datos experimentales, parametros o fuentes base"
+      },
+      {
+        "key": "theoryBase",
+        "label": "Ecuaciones, teoria o marco tecnico",
+        "type": "textarea",
+        "width": "full",
+        "rows": 3,
+        "placeholder": "Modelos, leyes, conceptos o supuestos"
+      },
+      {
+        "key": "observations",
+        "label": "Observaciones reales",
+        "type": "textarea",
+        "width": "full",
+        "rows": 3,
+        "placeholder": "Hechos vistos en la practica, incidencias o limitaciones"
+      },
+      {
+        "key": "conclusionFocus",
+        "label": "Conclusion o resultado que se quiere defender",
+        "type": "textarea",
+        "width": "full",
+        "rows": 3,
+        "placeholder": "Idea principal que debe sostener el cierre"
+      },
+      {
+        "key": "references",
+        "label": "Referencias APA 7 o fuentes base",
+        "type": "textarea",
+        "width": "full",
+        "rows": 3,
+        "placeholder": "Libros, manuales, papers, normas o enlaces confiables"
+      }
+    ],
+    "actions": []
+  },
+  "context": {
+    "formatFiles": [
+      "contexto_formato_informe/contexto_informes_uni.tex",
+      "formato_informe/informe_uni_fim.tex"
+    ]
+  }
+}

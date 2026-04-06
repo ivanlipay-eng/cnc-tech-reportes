@@ -1,0 +1,299 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[spanish]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{fontspec}
+\usepackage{setspace}
+\usepackage{enumitem}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{titlesec}
+
+\setmainfont{Times New Roman}
+\setsansfont{Arial}
+\setmonofont{Latin Modern Mono}
+\setstretch{1.18}
+
+\definecolor{UNIPrimary}{HTML}{711610}
+\definecolor{UNIInk}{HTML}{1F1A17}
+\definecolor{UNILine}{HTML}{D6CCC0}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=black,
+  pdftitle={Contexto Informes UNI},
+  pdfauthor={UNI FIM},
+  pdfsubject={Guia para completar formato de informe en Codex},
+  pdfcreator={Codex}
+}
+
+\titleformat{\section}
+  {\Large\bfseries\color{UNIPrimary}}
+  {\thesection}
+  {0.65em}
+  {}
+
+\titleformat{\subsection}
+  {\large\bfseries\color{UNIPrimary}}
+  {\thesubsection}
+  {0.65em}
+  {}
+
+\setlist[itemize]{leftmargin=1.5em}
+\setlist[enumerate]{leftmargin=1.6em}
+
+\begin{document}
+
+\begin{center}
+  {\bfseries\fontsize{18pt}{21pt}\selectfont CONTEXTO INFORMES UNI}\\[0.4cm]
+  {\large Gu\'ia para llenar el formato de informe con Codex}\\[0.3cm]
+  {\normalsize Universidad Nacional de Ingenier\'ia -- Facultad de Ingenier\'ia Mec\'anica}
+\end{center}
+
+\vspace{0.6cm}
+\hrule
+\vspace{0.4cm}
+
+\section{Objetivo del Documento}
+Este documento define c\'omo debe trabajar Codex al completar, corregir o estructurar informes t\'ecnicos de la UNI-FIM dentro del formato institucional actual. El objetivo es obtener informes consistentes, profesionales, editables en LaTeX y alineados con un flujo conversacional guiado.
+
+\section{Contexto del Proyecto}
+Codex debe asumir, salvo indicaci\'on contraria, el siguiente contexto de trabajo:
+\begin{itemize}
+  \item Carpeta principal de trabajo: \texttt{C:\textbackslash Users\textbackslash Ivan\textbackslash Desktop\textbackslash formato de informe fim}.
+  \item Archivo principal editable: \texttt{informe\_uni\_fim.tex}.
+  \item Documento de contexto y reglas: \texttt{contexto\_informes\_uni.tex} y su PDF asociado.
+  \item El proyecto trabaja principalmente sobre un \textbf{\'unico archivo \texttt{.tex}}.
+  \item La compilaci\'on PDF normalmente la ejecuta la web mediante un bot\'on; Codex no debe asumir que compilar es obligatorio en cada paso.
+\end{itemize}
+
+\subsection{Reconocimiento inicial de archivos}
+Antes de redactar o editar, Codex debe revisar la carpeta completa y distinguir:
+\begin{itemize}
+  \item \textbf{Archivos fuente}: \texttt{.tex} y, si existieran, bibliograf\'ias o recursos textuales.
+  \item \textbf{Archivos de salida}: \texttt{.pdf}, \texttt{.aux}, \texttt{.log}, \texttt{.out}, \texttt{.toc} y dem\'as auxiliares de compilaci\'on.
+  \item \textbf{Recursos gr\'aficos}: escudos, figuras, capturas, tablas exportadas o im\'agenes OCR.
+\end{itemize}
+
+\section{Alcance del Asistente}
+Codex debe trabajar como asistente t\'ecnico conversacional para toda clase de informe t\'ipico de la UNI, no solo informes de laboratorio. Debe ser capaz de:
+\begin{itemize}
+  \item Recibir bloques de informaci\'on desordenados y acomodarlos en el formato.
+  \item Buscar informaci\'on complementaria en la web para reforzar marco te\'orico, definiciones, conceptos, normas o contexto t\'ecnico.
+  \item Adaptarse a informes individuales o grupales.
+  \item Intentar llenar las secciones existentes del formato antes de proponer reestructuraciones.
+  \item Detenerse y esperar nuevas indicaciones si faltan datos cr\'iticos o si el usuario as\'i lo desea.
+\end{itemize}
+
+\section{Portada y Datos Institucionales}
+\begin{itemize}
+  \item La portada actual del archivo \texttt{informe\_uni\_fim.tex} es la referencia obligatoria.
+  \item Codex debe \textbf{leer, analizar y respetar} esa portada antes de editarla.
+  \item La portada debe mantenerse institucional, sobria y reconocible como formato de la UNI.
+  \item Si el informe es grupal, la zona de estudiantes y c\'odigos debe adaptarse sin romper la composici\'on.
+  \item La portada es la parte m\'as sensible del formato y debe modificarse solo si es estrictamente necesario.
+\end{itemize}
+
+\section{Preguntas que Codex Debe Hacer}
+\subsection{Datos de portada (obligatorio)}
+Si faltan campos, Codex debe preguntar de forma directa, concreta y adaptada a las respuestas ya entregadas:
+\begin{enumerate}
+  \item Curso exacto (ejemplo: F\'isica I, Mec\'anica de Fluidos, etc.).
+  \item Laboratorio o tema de la pr\'actica.
+  \item Docente.
+  \item Estudiante(s) y c\'odigo(s).
+  \item Secci\'on o grupo.
+  \item Fecha en formato num\'erico (\texttt{dd/mm/aaaa}).
+  \item Ciclo acad\'emico (ejemplo: \texttt{2026-I}).
+\end{enumerate}
+
+Si el usuario ya proporcion\'o alguno de estos datos, Codex no debe repetir la pregunta innecesariamente.
+
+\subsection{Contenido t\'ecnico (obligatorio)}
+\begin{enumerate}
+  \item Objetivo general y objetivos espec\'ificos.
+  \item Datos experimentales medidos.
+  \item Ecuaciones o modelo te\'orico que se usar\'a.
+  \item Supuestos o condiciones de ensayo.
+  \item Resultados num\'ericos esperados y unidades.
+  \item Observaciones reales del laboratorio.
+  \item Conclusiones que se desean defender.
+\end{enumerate}
+
+\subsection{Fuentes y bibliograf\'ia}
+\begin{enumerate}
+  \item Referencias m\'inimas (manual, libro, norma, paper o web confiable).
+  \item Confirmar si debe usarse APA 7.\textordfeminine~edici\'on (por defecto: s\'i).
+\end{enumerate}
+
+\subsection{Regla de conversaci\'on}
+Codex debe preguntar de forma progresiva. No tiene que interrogar siempre desde cero, pero s\'i debe completar informaci\'on faltante antes de redactar partes sensibles del informe. Si una respuesta es ambigua o insuficiente, debe pedir precisi\'on.
+
+\section{Uso de Informaci\'on Web}
+Codex puede buscar informaci\'on en la web para complementar:
+\begin{itemize}
+  \item fundamento te\'orico,
+  \item definiciones y conceptos,
+  \item normas t\'ecnicas,
+  \item formato APA 7,
+  \item referencias institucionales o acad\'emicas,
+  \item contexto t\'ecnico del tema tratado.
+\end{itemize}
+
+Codex no debe usar la web para inventar datos experimentales, resultados medidos ni valores no confirmados por el usuario.
+
+\section{Reglas de Formato que Codex Debe Respetar}
+\subsection{Reglas visuales}
+\begin{itemize}
+  \item Mantener estilo institucional moderno y sobrio.
+  \item No usar colores chillones ni combinaciones de bajo contraste.
+  \item Usar Times New Roman como fuente principal.
+  \item Mantener jerarqu\'ia clara: portada \textrightarrow{} secciones \textrightarrow{} subsecciones.
+  \item Evitar adornos innecesarios; priorizar legibilidad t\'ecnica.
+  \item Si detecta problemas de contraste, legibilidad o jerarqu\'ia, puede corregirlos con criterio institucional UNI.
+\end{itemize}
+
+\subsection{Reglas de contenido}
+\begin{itemize}
+  \item Escribir en espa\~nol formal t\'ecnico, con redacci\'on pensada en espa\~nol natural.
+  \item Revisar tildes, \~n y terminolog\'ia de ingenier\'ia.
+  \item Se permite redacci\'on impersonal del tipo ``se realiz\'o'', ``se observ\'o'', ``se determin\'o''.
+  \item No inventar datos de laboratorio ni resultados.
+  \item Mantener coherencia entre objetivos, c\'alculos y conclusiones.
+  \item Usar preferentemente unidades del SI y notaci\'on consistente.
+\end{itemize}
+
+\subsection{Reglas para tablas, figuras y ecuaciones}
+\begin{itemize}
+  \item Las tablas deben ir centradas y con bordes completos.
+  \item Los t\'itulos de tablas van arriba.
+  \item Los t\'itulos de figuras van abajo.
+  \item La numeraci\'on de tablas y figuras debe ser global.
+  \item No es obligatorio colocar ``fuente'' en tablas o figuras, salvo que el usuario lo solicite.
+  \item Ecuaciones con variables definidas y unidades claras.
+  \item Los resultados deben reportarse con \textbf{3 cifras significativas}, salvo instrucci\'on contraria.
+  \item El desarrollo de c\'alculos debe ser compacto: f\'ormula, breve paso a paso y resultado, idealmente en cajas o bloques destacados.
+\end{itemize}
+
+\subsection{Reglas de bibliograf\'ia (APA)}
+\begin{itemize}
+  \item Aplicar preferentemente formato APA 7.\textordfeminine~edici\'on.
+  \item Respetar las referencias entregadas por el usuario.
+  \item Se pueden sugerir mejoras formales, pero no inventar referencias ni sustituirlas sin indicarlo.
+  \item Se aceptan las fuentes que el usuario asigne si son pertinentes al trabajo.
+\end{itemize}
+
+\subsection{Normas y unidades}
+\begin{itemize}
+  \item Usar unidades SI preferentemente.
+  \item Si los datos est\'an en otras unidades, preguntar si se desea convertir.
+  \item Si el usuario no da unidades y el contexto lo permite, se puede asumirlas con cautela; si no, preguntar.
+  \item Usar \textbf{punto decimal}.
+  \item Usar espacio como separador de miles cuando sea necesario.
+\end{itemize}
+
+\subsection{Datos experimentales}
+\begin{itemize}
+  \item Los datos pueden llegar en texto libre, tabla, imagen, PDF, OCR o bloques desordenados.
+  \item Si la informaci\'on es insuficiente, Codex debe preguntar antes de redactar resultados.
+  \item Debe respetar preferentemente los datos proporcionados.
+  \item Si detecta valores extra\~nos o inconsistentes, debe \textbf{advertir}, no inventar correcciones.
+\end{itemize}
+
+\subsection{OCR y material visual}
+\begin{itemize}
+  \item Puede existir un flujo OCR activado desde la web.
+  \item Si se habilita OCR, se puede usar Tesseract instalado en la PC para mejorar lectura de tablas, capturas o escaneos.
+  \item Codex debe asumir que ese flujo puede integrarse por bot\'on, no necesariamente manualmente en cada conversaci\'on.
+\end{itemize}
+
+\section{Estructura del Informe}
+\begin{itemize}
+  \item El \indice del formato actual suele representar la estructura base del informe.
+  \item Esa estructura puede variar seg\'un el curso o tipo de trabajo.
+  \item Codex debe intentar completar primero las secciones existentes.
+  \item No debe asumir que siempre habr\'a resumen, abstract, lista de figuras o lista de tablas.
+  \item Los anexos deben reservarse para material complementario.
+\end{itemize}
+
+\section{Flujo de Trabajo Recomendado para Codex}
+\begin{enumerate}
+  \item Revisar la carpeta completa y distinguir fuentes, salidas y recursos.
+  \item Validar datos de portada.
+  \item Confirmar objetivo y alcance del informe.
+  \item Solicitar datos experimentales, ecuaciones base y supuestos.
+  \item Completar secciones en orden l\'ogico, adaptando preguntas seg\'un las respuestas ya recibidas.
+  \item Integrar bloques de informaci\'on desordenados en la secci\'on correspondiente.
+  \item Revisar consistencia t\'ecnica, ortogr\'afica y visual.
+  \item Verificar formato final: tablas, unidades, bibliograf\'ia y cierre argumental.
+  \item Si no corresponde compilar porque eso lo hace la web, indicarlo claramente.
+\end{enumerate}
+
+\subsection{Comportamiento conversacional esperado}
+\begin{itemize}
+  \item Si faltan datos, preguntar.
+  \item Si una respuesta es ambigua, pedir precisi\'on.
+  \item Si el usuario entrega archivos o capturas, usarlos como fuente prioritaria.
+  \item Si no se puede continuar sin un dato esencial, detenerse y explicarlo.
+  \item Se puede avanzar por bloques y esperar nuevas indicaciones.
+\end{itemize}
+
+\section{Checklist de Control de Calidad}
+\begin{tabular}{>{\bfseries}p{8.5cm} p{4.5cm}}
+\toprule
+Control & Estado \\
+\midrule
+Portada completa y correcta & [\ ] \\
+Fecha num\'erica y ciclo acad\'emico & [\ ] \\
+Objetivos claros y medibles & [\ ] \\
+Datos de laboratorio consistentes & [\ ] \\
+C\'alculos con unidades SI & [\ ] \\
+Conclusiones alineadas con resultados & [\ ] \\
+Bibliograf\'ia en APA & [\ ] \\
+Ortograf\'ia y redacci\'on profesional & [\ ] \\
+Sin errores relevantes de LaTeX & [\ ] \\
+Coherencia visual del documento & [\ ] \\
+\bottomrule
+\end{tabular}
+
+\subsection{Control final esperado}
+Cuando el informe est\'e por terminar, Codex debe revisar:
+\begin{itemize}
+  \item errores LaTeX,
+  \item coherencia entre objetivos, resultados y conclusiones,
+  \item contradicciones t\'ecnicas,
+  \item suficiencia de referencias,
+  \item calidad del espa\~nol,
+  \item consistencia visual del documento.
+\end{itemize}
+
+\section{Restricciones de Edici\'on}
+\begin{itemize}
+  \item La portada debe ser muy respetada.
+  \item Se puede mejorar legibilidad, espaciado, contraste o estabilidad si el cambio no rompe el formato institucional.
+  \item Se pueden reorganizar paquetes o macros si mejora compatibilidad con XeLaTeX.
+  \item Deben conservarse los comandos y la estructura general del archivo cuando sea posible.
+  \item Casi todo debe permanecer en un solo archivo \texttt{.tex}.
+\end{itemize}
+
+\section{Salida Esperada de Codex}
+Cuando termine una intervenci\'on importante, Codex debe entregar:
+\begin{enumerate}
+  \item Resumen de cambios realizados.
+  \item Lista de datos a\'un faltantes, si aplica.
+  \item Observaciones o advertencias t\'ecnicas detectadas, si aplica.
+  \item Confirmaci\'on de si el \texttt{.tex} qued\'o listo o corregido a nivel LaTeX.
+  \item Si la compilaci\'on depende de la web, debe decirlo expl\'icitamente.
+\end{enumerate}
+
+\section{Instrucci\'on Corta para Reusar en Codex}
+\textbf{Prompt sugerido:}
+
+\begin{quote}
+Completa el informe UNI-FIM con estilo profesional moderno. Revisa primero la carpeta, respeta la portada institucional del archivo actual, pregunta cualquier dato faltante de portada y contenido t\'ecnico, adapta el flujo a las respuestas del usuario y usa web solo para complementar teor\'ia o contexto sin inventar datos experimentales.
+\end{quote}
+
+\end{document}
