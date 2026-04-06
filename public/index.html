@@ -7,10 +7,10 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Asistente de Reportes CNC Tech</title>
-    <link rel="stylesheet" href="./styles.css?v=1.1.49" />
+    <link rel="stylesheet" href="./styles.css?v=1.1.50" />
   </head>
   <body>
-    <div id="app-version-badge" class="app-version-badge">Version 1.1.49</div>
+    <div id="app-version-badge" class="app-version-badge">Version 1.1.50</div>
     <div id="upload-overlay" class="download-overlay upload-overlay" hidden>
       <div id="upload-card" class="download-card upload-card">
         <div class="download-eyebrow">Subiendo archivo</div>
@@ -59,7 +59,7 @@
     <header class="ribbon-shell">
       <div class="ribbon-topline">
         <div class="topbar-brand">
-          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.48" alt="Logo real de CNC Tech" />
+          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.50" alt="Logo real de CNC Tech" />
           <div class="brand-copy">
             <span class="brand-kicker">CNC Tech</span>
             <strong class="brand-title">Centro de reportes</strong>
@@ -67,7 +67,10 @@
         </div>
 
         <nav class="ribbon-tab-row" aria-label="Herramientas">
-          <button type="button" class="ribbon-tab is-active" data-toolbar-target="session">Sesion</button>
+          <button type="button" class="ribbon-tab is-active" data-toolbar-target="session">Sesión</button>
+          <button id="theme-rose-toggle" type="button" class="ribbon-theme-button" aria-pressed="false">
+            Tema rosa
+          </button>
           <button type="button" class="ribbon-tab" data-toolbar-target="acciones">Acciones</button>
           <button type="button" class="ribbon-tab ribbon-tab-stacked" data-toolbar-target="evidencia">
             <span>Evidencia</span>
@@ -104,7 +107,7 @@
             </form>
 
             <div id="session-meta" class="meta top-meta empty toolbar-session-meta">
-              Todavia no hay una sesion activa.
+              Todavía no hay una sesión activa.
             </div>
           </div>
         </section>
@@ -125,7 +128,7 @@
             </button>
             <input id="upload-files" type="file" multiple hidden disabled />
           </div>
-          <div id="upload-status" class="upload-status">Sin sesion activa</div>
+          <div id="upload-status" class="upload-status">Sin sesión activa</div>
         </section>
 
         <section class="ribbon-panel" data-toolbar-panel="evidencia">
@@ -206,7 +209,7 @@
                 Compactar reporte
               </button>
             </div>
-            <div id="experimental-status" class="upload-status">Sin sesion activa</div>
+            <div id="experimental-status" class="upload-status">Sin sesión activa</div>
           </div>
         </section>
       </div>
@@ -236,7 +239,7 @@
               <div class="quick-panel-actions-row quick-panel-actions-row-wide">
                 <button id="apply-quick-fields" type="button" disabled>Aplicar</button>
               </div>
-              <div id="quick-panel-status" class="upload-status">Sin sesion activa</div>
+              <div id="quick-panel-status" class="upload-status">Sin sesión activa</div>
             </div>
           </div>
         </aside>
@@ -246,10 +249,10 @@
             <div>
               <strong>Chat de reporte</strong>
               <div id="chat-drop-hint" class="chat-drop-hint">
-                Puedes pegar imagenes con Ctrl+V o arrastrarlas aqui para subirlas a la sesion.
+                Puedes pegar imagenes con Ctrl+V o arrastrarlas aquí para subirlas a la sesión.
               </div>
             </div>
-            <span id="status-pill" class="status">Sin sesion</span>
+            <span id="status-pill" class="status">Sin sesión</span>
           </div>
 
           <div id="messages" class="messages"></div>
@@ -305,7 +308,7 @@
       </div>
     </footer>
 
-    <script src="./config.js?v=1.1.49"></script>
-    <script src="./app.js?v=1.1.49"></script>
+    <script src="./config.js?v=1.1.50"></script>
+    <script src="./app.js?v=1.1.50"></script>
   </body>
 </html>

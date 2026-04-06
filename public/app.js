@@ -49,6 +49,7 @@ const requestedImageStatus = document.getElementById("requested-image-status");
 const uploadedFilesList = document.getElementById("uploaded-files-list");
 const experimentalActions = document.getElementById("experimental-actions");
 const experimentalStatus = document.getElementById("experimental-status");
+const themeRoseToggle = document.getElementById("theme-rose-toggle");
 const ribbonTabs = Array.from(document.querySelectorAll("[data-toolbar-target]"));
 const ribbonPanels = Array.from(document.querySelectorAll("[data-toolbar-panel]"));
 const chatForm = document.getElementById("chat-form");
@@ -95,15 +96,41 @@ const IMAGE_EXTENSION_PATTERN = "jpg|jpeg|png|webp|gif|bmp|tif|tiff|svg|heic|hei
 const IMAGE_EXTENSION_REGEX = /\.(jpg|jpeg|png|webp|gif|bmp|tif|tiff|svg|heic|heif|avif|jfif)$/i;
 const quickPanelInputRegistry = new Map();
 const quickPanelActionButtons = [];
+const THEME_STORAGE_KEY = "cnc-tech-theme";
 
 const WINDOWS_PATH_REGEX = /[A-Za-z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*/g;
 
+initializeThemeToggle();
 initializeRibbon();
 initializeBrandLogo();
 loadAppVersion();
 initializeQuickPanel();
 initializeQuickDrawer();
 initializeParticipantAnimation();
+
+function initializeThemeToggle() {
+  const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+  applyTheme(savedTheme === "rose" ? "rose" : "default");
+
+  themeRoseToggle?.addEventListener("click", () => {
+    const nextTheme = document.body.classList.contains("theme-rose") ? "default" : "rose";
+    applyTheme(nextTheme);
+  });
+}
+
+function applyTheme(themeName) {
+  const isRose = themeName === "rose";
+  document.body.classList.toggle("theme-rose", isRose);
+  themeRoseToggle?.classList.toggle("is-active", isRose);
+  themeRoseToggle?.setAttribute("aria-pressed", isRose ? "true" : "false");
+  themeRoseToggle?.setAttribute("title", isRose ? "Volver al tema clasico" : "Activar tema rosa");
+
+  if (isRose) {
+    localStorage.setItem(THEME_STORAGE_KEY, "rose");
+  } else {
+    localStorage.removeItem(THEME_STORAGE_KEY);
+  }
+}
 
 function getFormatDefinitionById(formatId) {
   const normalizedId = String(formatId || "").trim();
@@ -122,7 +149,7 @@ function getCurrentQuickPanel() {
   return getCurrentFormatDefinition()?.quickPanel || {
     title: "Panel rapido",
     description: "Campos segun el formato activo",
-    emptyStatus: "Sin sesion activa",
+    emptyStatus: "Sin sesión activa",
     readyStatus: "Panel rapido listo",
     saveSuccessText: "Panel rapido guardado",
     applyingText: "Aplicando datos del panel al reporte...",
@@ -705,7 +732,7 @@ function connectEvents(sessionId) {
     if (state.activeMode === "chat") {
       setStatus("Contexto pensando...");
     } else {
-      setStatus("Sesion lista");
+      setStatus("Sesión lista");
     }
   };
 
@@ -720,7 +747,7 @@ function connectEvents(sessionId) {
       state.eventSource = null;
     }
     if (!state.reconnectTimer && state.session?.id) {
-      setStatus("Reconectando la sesion en tiempo real...");
+      setStatus("Reconectando la sesión en tiempo real...");
       state.reconnectTimer = setTimeout(() => {
         state.reconnectTimer = null;
         if (state.session?.id) {
@@ -910,7 +937,7 @@ function handleServerEvent(event) {
       hydrateSessionState(event.payload);
       renderMeta(event.payload);
       renderUploadedFiles(event.payload.uploadedFiles || []);
-      setStatus("Sesion lista");
+      setStatus("Sesión lista");
       break;
     case "session-updated":
       hydrateSessionState(event.payload);
@@ -1260,7 +1287,7 @@ function renderMeta(session) {
   const reportFormat = session.reportFormat?.label || "Pendiente";
   const quickSummary = buildQuickMetaSummary();
   const metaLines = [
-    `<strong>Proyecto:</strong> ${escapeHtml(session.name || "Sesion activa")}`,
+    `<strong>Proyecto:</strong> ${escapeHtml(session.name || "Sesión activa")}`,
     `<strong>Formato:</strong> ${escapeHtml(reportFormat)}`,
   ];
 
@@ -2466,9 +2493,9 @@ async function deleteUploadedFile(fileName, fileKind) {
     restoreRequestedImage(data.restoredRequest.fileName);
     setRequestedImageStatus("Imagen borrada. La solicitud vuelve a quedar pendiente.");
   } else if (fileKind === "imagen") {
-    setRequestedImageStatus("Imagen borrada de la sesion");
+    setRequestedImageStatus("Imagen borrada de la sesión");
   } else {
-    setUploadStatus("Archivo borrado de la sesion");
+    setUploadStatus("Archivo borrado de la sesión");
   }
 }
 
@@ -2602,7 +2629,7 @@ async function loadInitialPdfViewer() {
 
 async function refreshPdfViewer(force = false) {
   if (!state.session) {
-    clearPdfViewer("Sin sesion activa");
+    clearPdfViewer("Sin sesión activa");
     return;
   }
 
