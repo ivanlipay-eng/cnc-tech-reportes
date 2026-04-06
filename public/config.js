@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://property-declare-sunshine-zen.trycloudflare.com",
+  apiBaseUrl: "https://aruba-plan-fiber-misc.trycloudflare.com",
   brandLogoUrl: "",
 };
