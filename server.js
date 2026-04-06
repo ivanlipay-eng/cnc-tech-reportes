@@ -924,8 +924,8 @@ async function seedWorkspaceReportProject(workspacePath) {
 
   let texContent = await fs.readFile(templateTexPath, "utf8");
   texContent = texContent
-    .replace("\\newcommand{\\LogoCNC}{cnc_tech_logo_clean.png}", "\\newcommand{\\LogoCNC}{../archivos/cnc_tech_logo_clean.png}")
-    .replace("\\newcommand{\\LogoFormativo}{cnc_tech_formativo_logo_white.png}", "\\newcommand{\\LogoFormativo}{../archivos/cnc_tech_formativo_logo_white.png}")
+    .replace("\\newcommand{\\LogoCNC}{cnc_tech_logo_clean.png}", "\\newcommand{\\LogoCNC}{../imagenes/cnc_tech_logo_clean.png}")
+    .replace("\\newcommand{\\LogoFormativo}{cnc_tech_formativo_logo_white.png}", "\\newcommand{\\LogoFormativo}{../imagenes/cnc_tech_formativo_logo_white.png}")
     .replaceAll("\\SmartFigure{evidencia_01.jpg}", "\\SmartFigure{../imagenes/evidencia_01.jpg}")
     .replaceAll("\\SmartFigure{evidencia_02.jpg}", "\\SmartFigure{../imagenes/evidencia_02.jpg}")
     .replaceAll("\\SmartFigure{paso_1.jpg}", "\\SmartFigure{../imagenes/paso_1.jpg}")
@@ -937,14 +937,10 @@ async function seedWorkspaceReportProject(workspacePath) {
   for (const assetName of [
     "cnc_tech_logo_clean.png",
     "cnc_tech_formativo_logo_white.png",
-    "cnc_tech_formativo_logo_clean.png",
-    "cnc_tech_formativo_logo_clean2.png",
-    "cnc_tech_formativo_logo.png",
-    "cnc_tech_logo.png",
   ]) {
     const sourcePath = path.join(REPORT_TEMPLATE_DIR, assetName);
     if (await pathExists(sourcePath)) {
-      await fs.copyFile(sourcePath, path.join(filesDir, assetName));
+      await fs.copyFile(sourcePath, path.join(imagesDir, assetName));
     }
   }
 
