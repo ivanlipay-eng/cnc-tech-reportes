@@ -7,10 +7,10 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Asistente de Reportes CNC Tech Formativo</title>
-    <link rel="stylesheet" href="./styles.css?v=1.1.34" />
+    <link rel="stylesheet" href="./styles.css?v=1.1.36" />
   </head>
   <body>
-    <div id="app-version-badge" class="app-version-badge">Version 1.1.35</div>
+    <div id="app-version-badge" class="app-version-badge">Version 1.1.36</div>
     <div id="download-overlay" class="download-overlay" hidden>
       <div class="download-card">
         <div class="download-eyebrow">Descargando ZIP</div>
@@ -27,7 +27,7 @@
     <header class="ribbon-shell">
       <div class="ribbon-topline">
         <div class="topbar-brand">
-          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.34" alt="Logo real de CNC Tech" />
+          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.36" alt="Logo real de CNC Tech" />
           <div class="brand-copy">
             <span class="brand-kicker">CNC Tech</span>
             <strong class="brand-title">Centro de reportes</strong>
@@ -86,17 +86,30 @@
         </section>
 
         <section class="ribbon-panel" data-toolbar-panel="evidencia">
-          <div class="toolbar-evidence-row">
-            <label class="field compact-field evidence-field toolbar-field toolbar-field-wide">
-              <span>Imagen solicitada</span>
-              <select id="requested-image-select" disabled>
-                <option value="">Todavia no hay imagenes pendientes</option>
-              </select>
-            </label>
-            <button id="upload-requested-image-trigger" type="button" class="secondary-button upload-button disabled" aria-disabled="true" disabled>
-              Subir imagen solicitada
-            </button>
-            <input id="upload-requested-image" type="file" accept="image/*" hidden disabled />
+          <div class="toolbar-evidence-stack">
+            <div class="toolbar-evidence-row">
+              <label class="field compact-field evidence-field toolbar-field toolbar-field-wide">
+                <span>Imagen solicitada</span>
+                <select id="requested-image-select" disabled>
+                  <option value="">Todavia no hay imagenes pendientes</option>
+                </select>
+              </label>
+              <button id="upload-requested-image-trigger" type="button" class="secondary-button upload-button disabled" aria-disabled="true" disabled>
+                Subir imagen solicitada
+              </button>
+              <input id="upload-requested-image" type="file" accept="image/*" hidden disabled />
+            </div>
+            <div class="toolbar-evidence-row toolbar-evidence-row-secondary">
+              <label class="field compact-field evidence-field toolbar-field toolbar-field-wide">
+                <span>Usar imagen ya subida</span>
+                <select id="requested-image-existing-select" disabled>
+                  <option value="">No hay imagenes subidas disponibles</option>
+                </select>
+              </label>
+              <button id="associate-requested-image-trigger" type="button" class="secondary-button disabled" aria-disabled="true" disabled>
+                Asociar imagen ya subida
+              </button>
+            </div>
           </div>
           <div id="requested-image-status" class="upload-status">Sin imagen solicitada</div>
         </section>
@@ -238,7 +251,7 @@
       </section>
     </main>
 
-    <script src="./config.js?v=1.1.35"></script>
-    <script src="./app.js?v=1.1.35"></script>
+    <script src="./config.js?v=1.1.36"></script>
+    <script src="./app.js?v=1.1.36"></script>
   </body>
 </html>

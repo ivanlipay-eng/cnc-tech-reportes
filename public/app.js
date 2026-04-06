@@ -8,6 +8,7 @@ const state = {
   userMessageCount: 0,
   participantProfile: null,
   quickFields: null,
+  uploadedFiles: [],
   secondarySuggestions: [],
 };
 
@@ -51,6 +52,8 @@ const uploadStatus = document.getElementById("upload-status");
 const requestedImageSelect = document.getElementById("requested-image-select");
 const requestedImageTrigger = document.getElementById("upload-requested-image-trigger");
 const requestedImageInput = document.getElementById("upload-requested-image");
+const requestedImageExistingSelect = document.getElementById("requested-image-existing-select");
+const associateRequestedImageTrigger = document.getElementById("associate-requested-image-trigger");
 const requestedImageStatus = document.getElementById("requested-image-status");
 const uploadedFilesList = document.getElementById("uploaded-files-list");
 const ribbonTabs = Array.from(document.querySelectorAll("[data-toolbar-target]"));
@@ -495,6 +498,52 @@ requestedImageTrigger.addEventListener("click", () => {
     return;
   }
   openFilePicker(requestedImageInput);
+});
+
+associateRequestedImageTrigger?.addEventListener("click", async () => {
+  if (!state.session || associateRequestedImageTrigger.disabled) {
+    return;
+  }
+
+  const requestedName = requestedImageSelect.value.trim();
+  const existingName = requestedImageExistingSelect?.value.trim() || "";
+  if (!requestedName) {
+    setRequestedImageStatus("Elige primero una imagen solicitada por el bot.", true);
+    return;
+  }
+
+  if (!existingName) {
+    setRequestedImageStatus("Elige una imagen ya subida para asociarla.", true);
+    return;
+  }
+
+  const requestedImage = stateRequestedImages.get(requestedName);
+  associateRequestedImageTrigger.disabled = true;
+  associateRequestedImageTrigger.classList.add("disabled");
+  setRequestedImageStatus(`Asociando imagen ya subida a ${requestedImage?.label || requestedName}...`);
+
+  try {
+    const response = await fetch(
+      buildApiUrl(`/sessions/${state.session.id}/associate-uploaded-image?targetName=${encodeURIComponent(requestedName)}&sourceName=${encodeURIComponent(existingName)}`),
+      { method: "POST" }
+    );
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "No se pudo asociar la imagen ya subida.");
+    }
+
+    replaceUploadedFile(data.previousFileInfo, data.fileInfo);
+    completeRequestedImage(data.requestedName || requestedName);
+    setRequestedImageStatus(
+      data.texUpdated
+        ? `Imagen ya subida asociada a ${requestedImage?.label || requestedName} y TEX ajustado al tipo real`
+        : `Imagen ya subida asociada a ${requestedImage?.label || requestedName}`
+    );
+  } catch (error) {
+    setRequestedImageStatus(error.message || "No se pudo asociar la imagen ya subida.", true);
+  } finally {
+    renderAvailableRequestedImages();
+  }
 });
 
 function connectEvents(sessionId) {
@@ -1097,24 +1146,30 @@ function renderMeta(session) {
 }
 
 function renderUploadedFiles(files) {
+  state.uploadedFiles = Array.isArray(files) ? [...files] : [];
   uploadedFilesList.innerHTML = "";
-  if (!files.length) {
+  if (!state.uploadedFiles.length) {
     const empty = document.createElement("li");
     empty.className = "empty";
     empty.textContent = "Nada todavia";
     uploadedFilesList.append(empty);
+    renderAvailableRequestedImages();
     return;
   }
 
-  for (const file of files.slice(0, 12)) {
+  for (const file of state.uploadedFiles.slice(0, 12)) {
     uploadedFilesList.append(createUploadedFileItem(file));
   }
+
+  renderAvailableRequestedImages();
 }
 
 function addUploadedFile(file) {
   if (!file) {
     return;
   }
+
+  state.uploadedFiles = [file, ...state.uploadedFiles.filter((item) => item.path !== file.path)].slice(0, 12);
 
   const empty = uploadedFilesList.querySelector(".empty");
   if (empty) {
@@ -1134,6 +1189,20 @@ function addUploadedFile(file) {
   }
 
   pulseRibbonTab("subidos");
+  renderAvailableRequestedImages();
+}
+
+function replaceUploadedFile(previousFile, nextFile) {
+  if (!nextFile) {
+    return;
+  }
+
+  state.uploadedFiles = state.uploadedFiles
+    .filter((item) => item.path !== previousFile?.path && item.name !== previousFile?.name)
+    .filter((item) => item.path !== nextFile.path)
+    .slice(0, 11);
+  state.uploadedFiles.unshift(nextFile);
+  renderUploadedFiles(state.uploadedFiles);
 }
 
 function createUploadedFileItem(file) {
@@ -1277,6 +1346,10 @@ uploadedFilesList.addEventListener("click", async (event) => {
 });
 
 function removeUploadedFile(name, kind) {
+  state.uploadedFiles = state.uploadedFiles.filter(
+    (item) => !(item.name === name && String(item.kind || "archivo") === kind)
+  );
+
   const existing = Array.from(uploadedFilesList.children).find(
     (item) => item.dataset.name === name && item.dataset.kind === kind
   );
@@ -1291,6 +1364,8 @@ function removeUploadedFile(name, kind) {
     empty.textContent = "Nada todavia";
     uploadedFilesList.append(empty);
   }
+
+  renderAvailableRequestedImages();
 }
 
 function setStatus(text, isError = false) {
@@ -1325,6 +1400,7 @@ function hydrateSessionState(snapshot) {
   state.session = snapshot;
   state.participantProfile = snapshot?.participantProfile || state.participantProfile;
   state.quickFields = { ...buildEmptyQuickFields(), ...(snapshot?.quickFields || state.quickFields || {}) };
+  state.uploadedFiles = Array.isArray(snapshot?.uploadedFiles) ? [...snapshot.uploadedFiles] : [];
   populateQuickPanel(state.quickFields);
 }
 
@@ -1616,6 +1692,7 @@ function renderRequestedImages() {
     requestedImageTrigger.disabled = true;
     requestedImageTrigger.classList.add("disabled");
     requestedImageTrigger.setAttribute("aria-disabled", "true");
+    renderAvailableRequestedImages();
     return;
   }
 
@@ -1636,7 +1713,68 @@ function renderRequestedImages() {
     option.textContent = `Subir imagen de "${item.label}"`;
     requestedImageSelect.append(option);
   }
+
+  renderAvailableRequestedImages();
 }
+
+function renderAvailableRequestedImages() {
+  if (!requestedImageExistingSelect || !associateRequestedImageTrigger) {
+    return;
+  }
+
+  requestedImageExistingSelect.innerHTML = "";
+  const imageFiles = state.uploadedFiles.filter((file) => String(file?.kind || "") === "imagen");
+  const selectedRequest = requestedImageSelect?.value.trim() || "";
+  const disabled = stateRequestedImages.size === 0 || imageFiles.length === 0;
+
+  if (disabled) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = stateRequestedImages.size === 0
+      ? "Primero debe existir una imagen solicitada"
+      : "No hay imagenes subidas disponibles";
+    requestedImageExistingSelect.append(option);
+    requestedImageExistingSelect.disabled = true;
+    associateRequestedImageTrigger.disabled = true;
+    associateRequestedImageTrigger.classList.add("disabled");
+    associateRequestedImageTrigger.setAttribute("aria-disabled", "true");
+    return;
+  }
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = selectedRequest
+    ? "Elige una imagen ya subida"
+    : "Elige primero una imagen solicitada";
+  requestedImageExistingSelect.append(placeholder);
+
+  for (const file of imageFiles) {
+    const option = document.createElement("option");
+    option.value = file.name;
+    option.textContent = file.name;
+    requestedImageExistingSelect.append(option);
+  }
+
+  requestedImageExistingSelect.disabled = false;
+  associateRequestedImageTrigger.disabled = !selectedRequest || !requestedImageExistingSelect.value;
+  associateRequestedImageTrigger.classList.toggle("disabled", associateRequestedImageTrigger.disabled);
+  associateRequestedImageTrigger.setAttribute("aria-disabled", associateRequestedImageTrigger.disabled ? "true" : "false");
+}
+
+requestedImageSelect?.addEventListener("change", () => {
+  renderAvailableRequestedImages();
+});
+
+requestedImageExistingSelect?.addEventListener("change", () => {
+  if (!associateRequestedImageTrigger) {
+    return;
+  }
+
+  const enabled = Boolean(requestedImageSelect?.value.trim()) && Boolean(requestedImageExistingSelect.value.trim());
+  associateRequestedImageTrigger.disabled = !enabled;
+  associateRequestedImageTrigger.classList.toggle("disabled", !enabled);
+  associateRequestedImageTrigger.setAttribute("aria-disabled", enabled ? "false" : "true");
+});
 
 function completeRequestedImage(fileName) {
   if (!stateRequestedImages.has(fileName)) {

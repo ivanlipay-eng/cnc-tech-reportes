@@ -300,6 +300,16 @@ body {
   align-items: center;
 }
 
+.toolbar-evidence-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.toolbar-evidence-row-secondary {
+  padding-top: 10px;
+  border-top: 1px solid rgba(11, 46, 74, 0.08);
+}
+
 .quick-panel-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(240px, 1fr));

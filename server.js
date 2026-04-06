@@ -1904,6 +1904,88 @@ async function handleApi(request, response) {
     return;
   }
 
+  if (request.method === "POST" && segments[3] === "associate-uploaded-image") {
+    const requestedName = safeUploadName(url.searchParams.get("targetName"));
+    const sourceName = safeUploadName(url.searchParams.get("sourceName"));
+
+    if (!isImageFileName(sourceName)) {
+      json(response, 400, { error: "Solo puedes asociar archivos de imagen." });
+      return;
+    }
+
+    const imagesDir = session.imagesDir || session.workspacePath;
+    const filesDir = session.filesDir || session.workspacePath;
+    const candidatePaths = [
+      path.join(imagesDir, sourceName),
+      path.join(filesDir, sourceName),
+    ];
+    const sourcePath = candidatePaths.find((candidatePath) => fsSync.existsSync(candidatePath));
+    if (!sourcePath) {
+      json(response, 404, { error: "La imagen seleccionada ya no existe en la sesion." });
+      return;
+    }
+
+    const sourceAssignment = session.imageAssignments.find((item) => item.finalName === sourceName);
+    if (sourceAssignment && sourceAssignment.requestedName !== requestedName) {
+      json(response, 409, { error: "Esa imagen ya estaba asociada a otra solicitud." });
+      return;
+    }
+
+    const sourceExt = path.extname(sourceName);
+    const requestedParsed = path.parse(requestedName);
+    const requestedExt = requestedParsed.ext;
+    const desiredName =
+      sourceExt && sourceExt.toLowerCase() !== requestedExt.toLowerCase()
+        ? `${requestedParsed.name}${sourceExt}`
+        : requestedExt
+          ? requestedName
+          : `${requestedName}${sourceExt || ".jpg"}`;
+
+    let resolvedFinalName = desiredName;
+    let targetPath = path.join(imagesDir, resolvedFinalName);
+    if (targetPath !== sourcePath) {
+      const uploadTarget = await ensureUniqueFileTarget(imagesDir, desiredName);
+      resolvedFinalName = uploadTarget.fileName;
+      targetPath = uploadTarget.targetPath;
+      await fs.rename(sourcePath, targetPath);
+    }
+
+    const fileStat = await fs.stat(targetPath);
+    const texUpdated = await syncTexImageReference(session, requestedName, resolvedFinalName);
+    const previousFileInfo = session.unregisterUpload(sourcePath) || {
+      name: sourceName,
+      path: sourcePath,
+      size: fileStat.size,
+      uploadedAt: new Date().toISOString(),
+      kind: sourcePath.startsWith(imagesDir) ? "imagen" : "archivo",
+    };
+    const fileInfo = {
+      name: resolvedFinalName,
+      path: targetPath,
+      size: fileStat.size,
+      uploadedAt: new Date().toISOString(),
+      kind: "imagen",
+    };
+
+    session.registerImageAssignment({
+      requestedName,
+      finalName: resolvedFinalName,
+      originalName: sourceName,
+      texUpdated,
+    });
+    session.registerUpload(fileInfo);
+
+    json(response, 200, {
+      ok: true,
+      requestedName,
+      fileName: resolvedFinalName,
+      previousFileInfo,
+      fileInfo,
+      texUpdated,
+    });
+    return;
+  }
+
   if (request.method === "DELETE" && segments[3] === "uploaded-file") {
     const fileName = safeUploadName(url.searchParams.get("name"));
     const fileKind = String(url.searchParams.get("kind") || "archivo").trim().toLowerCase();
