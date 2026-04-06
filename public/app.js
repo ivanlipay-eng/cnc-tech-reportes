@@ -410,7 +410,7 @@ form.addEventListener("submit", async (event) => {
     syncImagesButton.disabled = false;
     setPdfViewButtonEnabled(true);
     try {
-      await refreshPdfViewer(true);
+      await loadInitialPdfViewer();
     } catch (error) {
       clearPdfViewer("El PDF inicial no estuvo disponible todavia");
     }
@@ -2571,6 +2571,33 @@ function setPdfViewButtonEnabled(enabled) {
   viewPdfButton.disabled = !enabled;
   viewPdfButton.classList.toggle("disabled", !enabled);
   viewPdfButton.setAttribute("aria-disabled", enabled ? "false" : "true");
+}
+
+function delay(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function loadInitialPdfViewer() {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    try {
+      pdfStatus.textContent = attempt === 1
+        ? "Cargando PDF inicial del proyecto..."
+        : `Reintentando carga del PDF inicial (${attempt}/4)...`;
+      await refreshPdfViewer(true);
+      return true;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 4) {
+        await delay(450);
+      }
+    }
+  }
+
+  throw lastError || new Error("No se pudo cargar el PDF inicial del proyecto.");
 }
 
 async function refreshPdfViewer(force = false) {
