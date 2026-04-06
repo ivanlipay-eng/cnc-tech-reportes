@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://dramatically-functional-saints-vegetable.trycloudflare.com",
+  apiBaseUrl: "https://hung-implies-hundred-considerations.trycloudflare.com",
   brandLogoUrl: "",
 };

@@ -745,6 +745,7 @@ function getQuickPanelFields(formatDefinition) {
 
 function normalizeFormatDefinition(formatDir, rawConfig = {}) {
   const templateConfig = rawConfig.template || {};
+  const compileConfig = rawConfig.compile || {};
   const workspaceConfig = rawConfig.workspace || {};
   const botConfig = rawConfig.bot || {};
   const context = buildParticipantContextDefinition(formatDir, rawConfig.context || {});
@@ -781,6 +782,9 @@ function normalizeFormatDefinition(formatDir, rawConfig = {}) {
               replace: String(entry.replace || ""),
             }))
         : [],
+    },
+    compile: {
+      latexmkEngine: normalizeLatexmkEngine(compileConfig.latexmkEngine),
     },
     bot: {
       instructionsPath: resolveConfigPath(formatDir, botConfig.instructionsFile || "bot.instructions.md"),
@@ -1655,11 +1659,13 @@ async function compileReportPdf(session) {
   const reportDir = session.reportProjectPath || path.dirname(session.reportTexPath || session.workspacePath);
   const reportTexPath = session.reportTexPath || path.join(reportDir, "reporte.tex");
   const reportPdfPath = session.reportPdfPath || path.join(reportDir, "reporte.pdf");
+  const latexmkEngine = session.formatDefinition?.compile?.latexmkEngine || "pdf";
+  const latexmkEngineArg = getLatexmkEngineArg(latexmkEngine);
 
   await new Promise((resolve, reject) => {
     const child = spawn(
       "latexmk",
-      ["-pdf", "-interaction=nonstopmode", "-halt-on-error", path.basename(reportTexPath)],
+      [latexmkEngineArg, "-interaction=nonstopmode", "-halt-on-error", path.basename(reportTexPath)],
       {
         cwd: reportDir,
         windowsHide: true,
@@ -1714,6 +1720,26 @@ async function compileReportPdf(session) {
     reportPdfPath,
     compiledAt: new Date().toISOString(),
   };
+}
+
+function normalizeLatexmkEngine(rawValue) {
+  const value = String(rawValue || "pdf").trim().toLowerCase();
+  if (["pdf", "xelatex", "lualatex"].includes(value)) {
+    return value;
+  }
+  return "pdf";
+}
+
+function getLatexmkEngineArg(engine) {
+  switch (normalizeLatexmkEngine(engine)) {
+    case "xelatex":
+      return "-xelatex";
+    case "lualatex":
+      return "-lualatex";
+    case "pdf":
+    default:
+      return "-pdf";
+  }
 }
 
 function json(response, statusCode, payload) {

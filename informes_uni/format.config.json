@@ -24,6 +24,9 @@
       }
     ]
   },
+  "compile": {
+    "latexmkEngine": "xelatex"
+  },
   "bot": {
     "instructionsFile": "bot.instructions.md",
     "openingQuestion": "¿de que trata tu informe?",
