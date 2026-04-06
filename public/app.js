@@ -17,7 +17,6 @@ const apiRoot = apiBaseUrl ? `${apiBaseUrl}/api` : "/api";
 
 const form = document.getElementById("session-form");
 const folderInput = document.getElementById("folder-name");
-const openVsCodeInput = document.getElementById("open-vscode");
 const sessionMeta = document.getElementById("session-meta");
 const downloadZipLink = document.getElementById("download-zip");
 const compileButton = document.getElementById("compile-report");
@@ -57,6 +56,7 @@ const sendButton = document.getElementById("send-message");
 const statusPill = document.getElementById("status-pill");
 const messages = document.getElementById("messages");
 const botThinking = document.getElementById("bot-thinking");
+const reportProgressBar = document.getElementById("report-progress-bar");
 const chatDropHint = document.getElementById("chat-drop-hint");
 const chatPanel = document.querySelector(".chat-panel");
 const reportPdfFrame = document.getElementById("report-pdf-frame");
@@ -76,6 +76,8 @@ const PAGE_RESPONSE_START = "--respuesta de pagina--";
 const PAGE_RESPONSE_END = "--finalice--";
 const QUICK_REPLIES_START = "[[respuestas_rapidas]]";
 const QUICK_REPLIES_END = "[[/respuestas_rapidas]]";
+const REPORT_PROGRESS_START = "[[progreso_reporte]]";
+const REPORT_PROGRESS_END = "[[/progreso_reporte]]";
 const stateRequestedImages = new Map();
 const IMAGE_EXTENSION_PATTERN = "jpg|jpeg|png|webp|gif|bmp|tif|tiff|svg|heic|heif|avif|jfif";
 const IMAGE_EXTENSION_REGEX = /\.(jpg|jpeg|png|webp|gif|bmp|tif|tiff|svg|heic|heif|avif|jfif)$/i;
@@ -226,7 +228,7 @@ form.addEventListener("submit", async (event) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: folderInput.value,
-        openInVsCode: openVsCodeInput.checked,
+        openInVsCode: true,
       }),
     });
 
@@ -243,6 +245,7 @@ form.addEventListener("submit", async (event) => {
     state.lastAssistantMessageId = null;
     state.userMessageCount = 0;
     messages.innerHTML = "";
+    setReportProgress({ percent: 0, status: "en_proceso" });
     clearPdfViewer("Cargando PDF inicial del proyecto...");
     renderUploadedFiles(data.uploadedFiles || []);
     renderRequestedImages();
@@ -878,6 +881,10 @@ function updateAssistantMessage(payload, completed = false) {
   if (!parsed.text) {
     return;
   }
+  const progressMeta = extractReportProgressMeta(parsed.text);
+  if (progressMeta) {
+    setReportProgress(progressMeta);
+  }
   const sanitizedText = sanitizeVisibleText(parsed.text);
   const lastMessage = messages.lastElementChild;
   if (
@@ -1306,6 +1313,22 @@ function hydrateSessionState(snapshot) {
   state.participantProfile = snapshot?.participantProfile || state.participantProfile;
   state.quickFields = { ...buildEmptyQuickFields(), ...(snapshot?.quickFields || state.quickFields || {}) };
   populateQuickPanel(state.quickFields);
+}
+
+function setReportProgress(meta) {
+  if (!reportProgressBar) {
+    return;
+  }
+
+  const percentValue = Number(meta?.percent);
+  const percent = Number.isFinite(percentValue) ? Math.max(0, Math.min(percentValue, 100)) : 0;
+  const hue = Math.round((percent / 100) * 120);
+  reportProgressBar.style.width = `${percent}%`;
+  reportProgressBar.style.background = `linear-gradient(90deg, hsl(${hue} 78% 46%) 0%, hsl(${Math.min(120, hue + 10)} 72% 42%) 100%)`;
+  reportProgressBar.style.opacity = percent > 0 ? "0.9" : "0.35";
+  reportProgressBar.title = meta?.status === "terminado"
+    ? `Informe terminado - ${Math.round(percent)}%`
+    : `Avance del informe - ${Math.round(percent)}%`;
 }
 
 function populateQuickPanel(quickFields) {
@@ -2006,10 +2029,30 @@ function shouldRenderQuickReplies() {
 
 function sanitizeVisibleText(value) {
   return String(value || "")
+    .replace(/\[\[progreso_reporte\]\][\s\S]*?\[\[\/progreso_reporte\]\]/gi, "")
     .replace(WINDOWS_PATH_REGEX, "archivo local")
     .replace(/\n[ \t]+/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+function extractReportProgressMeta(text) {
+  const match = String(text || "").match(/\[\[progreso_reporte\]\]([\s\S]*?)\[\[\/progreso_reporte\]\]/i);
+  if (!match?.[1]) {
+    return null;
+  }
+
+  const block = match[1];
+  const percentMatch = block.match(/porcentaje\s*:\s*(\d{1,3})/i);
+  const statusMatch = block.match(/estado\s*:\s*([a-z_]+)/i);
+  if (!percentMatch) {
+    return null;
+  }
+
+  return {
+    percent: Number(percentMatch[1]),
+    status: (statusMatch?.[1] || "en_proceso").toLowerCase(),
+  };
 }
 
 function parseQuickReplies(text) {

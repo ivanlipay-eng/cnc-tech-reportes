@@ -7,10 +7,10 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Asistente de Reportes CNC Tech Formativo</title>
-    <link rel="stylesheet" href="./styles.css?v=1.1.31" />
+    <link rel="stylesheet" href="./styles.css?v=1.1.32" />
   </head>
   <body>
-    <div id="app-version-badge" class="app-version-badge">Version 1.1.31</div>
+    <div id="app-version-badge" class="app-version-badge">Version 1.1.32</div>
     <div id="download-overlay" class="download-overlay" hidden>
       <div class="download-card">
         <div class="download-eyebrow">Descargando ZIP</div>
@@ -27,7 +27,7 @@
     <header class="ribbon-shell">
       <div class="ribbon-topline">
         <div class="topbar-brand">
-          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.31" alt="Logo real de CNC Tech" />
+          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.32" alt="Logo real de CNC Tech" />
           <div class="brand-copy">
             <span class="brand-kicker">CNC Tech</span>
             <strong class="brand-title">Centro de reportes</strong>
@@ -59,11 +59,6 @@
               <label class="field toolbar-field toolbar-field-wide">
                 <span>Nombre base</span>
                 <input id="folder-name" name="folderName" placeholder="mi-reporte-contexto" />
-              </label>
-
-              <label class="checkbox compact-checkbox toolbar-checkbox">
-                <input id="open-vscode" type="checkbox" checked />
-                <span>Abrir en VS Code</span>
               </label>
 
               <button id="create-session" type="submit">Crear proyecto</button>
@@ -213,6 +208,9 @@
 
           <div id="messages" class="messages"></div>
           <div id="bot-thinking" class="thinking-indicator" hidden>Contexto esta pensando...</div>
+          <div class="report-progress-shell" aria-hidden="true">
+            <div id="report-progress-bar" class="report-progress-bar"></div>
+          </div>
 
           <form id="chat-form" class="chat-form">
             <textarea
@@ -243,7 +241,7 @@
       </section>
     </main>
 
-    <script src="./config.js?v=1.1.31"></script>
-    <script src="./app.js?v=1.1.31"></script>
+    <script src="./config.js?v=1.1.32"></script>
+    <script src="./app.js?v=1.1.32"></script>
   </body>
 </html>

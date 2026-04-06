@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://pro-opinions-blanket-qualifying.trycloudflare.com",
+  apiBaseUrl: "https://strongly-textile-consequences-chest.trycloudflare.com",
   brandLogoUrl: "",
 };
