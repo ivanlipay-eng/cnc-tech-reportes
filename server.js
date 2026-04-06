@@ -14,11 +14,7 @@ const APP_ROOT = process.cwd();
 const PUBLIC_DIR = path.join(APP_ROOT, "public");
 const WORKSPACES_ROOT = path.join(APP_ROOT, "workspaces");
 const TEMP_ZIP_DIR = path.join(os.tmpdir(), "codex-web-bridge-zips");
-const REPORT_TEMPLATE_DIR = path.join(APP_ROOT, "reporte_cnc_tech_formativo");
-const PARTICIPANT_CONTEXT_DIR = "C:\\Users\\Ivan\\Desktop\\contexto\\10_perfiles_participantes";
-const SCHEDULE_CONTEXT_DIR = "C:\\Users\\Ivan\\Desktop\\contexto\\horarios";
-const PARTICIPANT_INDEX_TEX = path.join(PARTICIPANT_CONTEXT_DIR, "indice_participantes_cnc.tex");
-const PARTICIPANT_INDEX_PDF = path.join(PARTICIPANT_CONTEXT_DIR, "indice_participantes_cnc.pdf");
+const FORMAT_CONFIG_FILE = "format.config.json";
 const MAX_HISTORY_EVENTS = 500;
 const SSE_HEARTBEAT_MS = 15000;
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
@@ -30,14 +26,24 @@ const GRAPHVIZ_DOT_COMMAND = resolveGraphvizDotCommand();
 const CODEX_COMMAND = resolveCodexCommand();
 
 const sessions = new Map();
-let participantRegistryCache = null;
+const participantRegistryCache = new Map();
+const reportFormats = new Map();
+let defaultReportFormatId = "";
 
 class CodexSession extends EventEmitter {
-  constructor({ id, name, workspacePath }) {
+  constructor({ id, name, workspacePath, formatDefinition }) {
     super();
     this.id = id;
     this.name = name;
     this.workspacePath = workspacePath;
+    this.formatDefinition = formatDefinition || null;
+    this.reportFormat = formatDefinition
+      ? {
+          id: formatDefinition.id,
+          label: formatDefinition.label,
+          description: formatDefinition.description,
+        }
+      : null;
     this.threadId = null;
     this.codexProcess = null;
     this.buffer = "";
@@ -55,9 +61,17 @@ class CodexSession extends EventEmitter {
     this.participantProfile = null;
     this.quickFields = buildDefaultQuickFields();
     this.currentTurnMeta = { visible: true, mode: "chat" };
+    this.openingQuestion = formatDefinition?.bot?.openingQuestion || "Quien eres?";
+    this.serviceName = formatDefinition?.bot?.serviceName || "Contexto";
   }
 
-  async start(customDeveloperInstructions = "") {
+  async start(options = {}) {
+    const developerInstructions = String(options.developerInstructions || "");
+    const openingQuestion = String(options.openingQuestion || this.openingQuestion || "Quien eres?").trim();
+    const serviceName = String(options.serviceName || this.serviceName || "Contexto").trim();
+
+    this.openingQuestion = openingQuestion || "Quien eres?";
+    this.serviceName = serviceName || "Contexto";
     this.codexProcess = await spawnCodexProcess(this.workspacePath);
 
     this.codexProcess.stdout.setEncoding("utf8");
@@ -94,9 +108,9 @@ class CodexSession extends EventEmitter {
       approvalPolicy: "never",
       sandbox: "danger-full-access",
       personality: "friendly",
-      developerInstructions: customDeveloperInstructions ||
+      developerInstructions: developerInstructions ||
         "Estas siendo usado desde una interfaz web local. Responde de forma clara y util.",
-      serviceName: "Contexto",
+      serviceName: this.serviceName,
     });
 
     this.threadId = started.thread.id;
@@ -122,7 +136,8 @@ class CodexSession extends EventEmitter {
       uploadedFiles: this.uploadedFiles,
       participantProfile: this.participantProfile,
       quickFields: this.quickFields,
-      openingQuestion: "Quien eres?",
+      reportFormat: this.reportFormat,
+      openingQuestion: this.openingQuestion || "Quien eres?",
       history: includeHistory ? this.history : undefined,
     };
   }
@@ -427,6 +442,139 @@ async function pathExists(targetPath) {
   }
 }
 
+function resolveConfigPath(baseDir, targetPath) {
+  if (!targetPath) {
+    return "";
+  }
+
+  return path.isAbsolute(targetPath)
+    ? path.normalize(targetPath)
+    : path.join(baseDir, targetPath);
+}
+
+function formatPublicSummary(formatDefinition) {
+  return {
+    id: formatDefinition.id,
+    label: formatDefinition.label,
+    description: formatDefinition.description,
+  };
+}
+
+function getAvailableFormatSummaries() {
+  return Array.from(reportFormats.values()).map(formatPublicSummary);
+}
+
+function getDefaultFormatDefinition() {
+  return reportFormats.get(defaultReportFormatId) || Array.from(reportFormats.values())[0] || null;
+}
+
+function getFormatDefinition(formatId) {
+  return reportFormats.get(String(formatId || "").trim()) || getDefaultFormatDefinition();
+}
+
+function buildParticipantContextDefinition(formatDir, contextConfig = {}) {
+  const participantProfilesDir = resolveConfigPath(formatDir, contextConfig.participantProfilesDir || "");
+  const scheduleDir = resolveConfigPath(formatDir, contextConfig.scheduleDir || "");
+  const scheduleRegistryMd = contextConfig.scheduleRegistryMd || "registro_horarios_participantes.md";
+  const schedulePdf = contextConfig.schedulePdf || "horarios_participantes.pdf";
+  const participantIndexTex = contextConfig.participantIndexTex || "indice_participantes.tex";
+  const participantIndexPdf = contextConfig.participantIndexPdf || "indice_participantes.pdf";
+
+  return {
+    formatFiles: Array.isArray(contextConfig.formatFiles)
+      ? contextConfig.formatFiles.map((entry) => resolveConfigPath(formatDir, entry))
+      : [],
+    participantProfilesDir,
+    scheduleDir,
+    scheduleRegistryMdPath: participantProfilesDir ? path.join(participantProfilesDir, scheduleRegistryMd) : "",
+    schedulePdfPath: scheduleDir ? path.join(scheduleDir, schedulePdf) : "",
+    participantIndexTexPath: participantProfilesDir ? path.join(participantProfilesDir, participantIndexTex) : "",
+    participantIndexPdfPath: participantProfilesDir ? path.join(participantProfilesDir, participantIndexPdf) : "",
+  };
+}
+
+function normalizeFormatDefinition(formatDir, rawConfig = {}) {
+  const templateConfig = rawConfig.template || {};
+  const workspaceConfig = rawConfig.workspace || {};
+  const botConfig = rawConfig.bot || {};
+  const context = buildParticipantContextDefinition(formatDir, rawConfig.context || {});
+  const id = String(rawConfig.id || path.basename(formatDir)).trim();
+  const label = String(rawConfig.label || id).trim();
+
+  if (!id) {
+    throw new Error(`Formato invalido en ${formatDir}: falta id.`);
+  }
+
+  return {
+    id,
+    label,
+    description: String(rawConfig.description || "").trim(),
+    isDefault: rawConfig.default === true,
+    formatDir,
+    workspace: {
+      reportDir: workspaceConfig.reportDir || "reporte",
+      imagesDir: workspaceConfig.imagesDir || "imagenes",
+      filesDir: workspaceConfig.filesDir || "archivos",
+      exportDir: workspaceConfig.exportDir || "export",
+      reportTexName: workspaceConfig.reportTexName || "reporte.tex",
+      reportPdfName: workspaceConfig.reportPdfName || "reporte.pdf",
+    },
+    template: {
+      sourceTexPath: resolveConfigPath(formatDir, templateConfig.sourceTex || ""),
+      sourcePdfPath: resolveConfigPath(formatDir, templateConfig.sourcePdf || ""),
+      assetsToImages: Array.isArray(templateConfig.assetsToImages) ? [...templateConfig.assetsToImages] : [],
+      texReplacements: Array.isArray(templateConfig.texReplacements)
+        ? templateConfig.texReplacements
+            .filter((entry) => entry && typeof entry.search === "string")
+            .map((entry) => ({
+              search: String(entry.search),
+              replace: String(entry.replace || ""),
+            }))
+        : [],
+    },
+    bot: {
+      instructionsPath: resolveConfigPath(formatDir, botConfig.instructionsFile || "bot.instructions.md"),
+      openingQuestion: String(botConfig.openingQuestion || "Quien eres?").trim() || "Quien eres?",
+      serviceName: String(botConfig.serviceName || "Contexto").trim() || "Contexto",
+    },
+    context,
+  };
+}
+
+async function loadReportFormats() {
+  reportFormats.clear();
+  defaultReportFormatId = "";
+
+  const entries = await fs.readdir(APP_ROOT, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    const formatDir = path.join(APP_ROOT, entry.name);
+    const configPath = path.join(formatDir, FORMAT_CONFIG_FILE);
+    if (!(await pathExists(configPath))) {
+      continue;
+    }
+
+    const rawConfig = JSON.parse(await fs.readFile(configPath, "utf8"));
+    const formatDefinition = normalizeFormatDefinition(formatDir, rawConfig);
+
+    if (!formatDefinition.template.sourceTexPath || !formatDefinition.template.sourcePdfPath) {
+      throw new Error(`Formato ${formatDefinition.id} invalido: faltan archivos de plantilla.`);
+    }
+
+    reportFormats.set(formatDefinition.id, formatDefinition);
+    if (formatDefinition.isDefault || !defaultReportFormatId) {
+      defaultReportFormatId = formatDefinition.id;
+    }
+  }
+
+  if (!reportFormats.size) {
+    throw new Error("No se encontro ningun formato configurado.");
+  }
+}
+
 function resolveCodexCommand() {
   const candidatePaths = [
     process.env.CODEX_PATH,
@@ -634,11 +782,16 @@ function inferAreaFromText(text) {
   return "";
 }
 
-async function getParticipantRegistry() {
-  if (!participantRegistryCache) {
-    participantRegistryCache = await buildParticipantRegistry();
+async function getParticipantRegistry(formatDefinition) {
+  if (!formatDefinition?.context?.participantProfilesDir) {
+    return [];
   }
-  return participantRegistryCache;
+
+  if (!participantRegistryCache.has(formatDefinition.id)) {
+    participantRegistryCache.set(formatDefinition.id, await buildParticipantRegistry(formatDefinition));
+  }
+
+  return participantRegistryCache.get(formatDefinition.id) || [];
 }
 
 function scoreParticipantAliasMatch(input, alias) {
@@ -659,8 +812,8 @@ function scoreParticipantAliasMatch(input, alias) {
   return 0;
 }
 
-async function findParticipantMatch(input) {
-  const registry = await getParticipantRegistry();
+async function findParticipantMatch(input, formatDefinition) {
+  const registry = await getParticipantRegistry(formatDefinition);
   let bestMatch = null;
 
   for (const participant of registry) {
@@ -719,7 +872,11 @@ async function maybeResolveParticipantProfile(session, inputText) {
     return session.participantProfile;
   }
 
-  const participant = await findParticipantMatch(inputText);
+  if (!session.formatDefinition?.context?.participantProfilesDir) {
+    return null;
+  }
+
+  const participant = await findParticipantMatch(inputText, session.formatDefinition);
   if (!participant) {
     return null;
   }
@@ -756,11 +913,17 @@ function parseScheduleParticipants(markdown) {
   return participants;
 }
 
-async function buildParticipantRegistry() {
-  const scheduleMdPath = path.join(PARTICIPANT_CONTEXT_DIR, "registro_horarios_participantes.md");
+async function buildParticipantRegistry(formatDefinition) {
+  const participantContext = formatDefinition?.context;
+  const participantProfilesDir = participantContext?.participantProfilesDir;
+  if (!participantProfilesDir) {
+    return [];
+  }
+
+  const scheduleMdPath = participantContext.scheduleRegistryMdPath;
   const scheduleMarkdown = await fs.readFile(scheduleMdPath, "utf8");
   const participants = parseScheduleParticipants(scheduleMarkdown);
-  const directoryEntries = await fs.readdir(PARTICIPANT_CONTEXT_DIR);
+  const directoryEntries = await fs.readdir(participantProfilesDir);
 
   return participants.map((participant) => {
     const slug = slugFromName(participant.name);
@@ -796,12 +959,12 @@ async function buildParticipantRegistry() {
       aliases: aliasesForName(participant.name),
       slug,
       area: inferAreaFromText([contextMd, contextTex, taskTex].filter(Boolean).join(" ")),
-      contextMd: contextMd ? path.join(PARTICIPANT_CONTEXT_DIR, contextMd) : null,
-      contextTex: contextTex ? path.join(PARTICIPANT_CONTEXT_DIR, contextTex) : null,
-      contextPdf: contextPdf ? path.join(PARTICIPANT_CONTEXT_DIR, contextPdf) : null,
-      taskMd: taskMd ? path.join(PARTICIPANT_CONTEXT_DIR, taskMd) : null,
-      taskTex: taskTex ? path.join(PARTICIPANT_CONTEXT_DIR, taskTex) : null,
-      taskPdf: taskPdf ? path.join(PARTICIPANT_CONTEXT_DIR, taskPdf) : null,
+      contextMd: contextMd ? path.join(participantProfilesDir, contextMd) : null,
+      contextTex: contextTex ? path.join(participantProfilesDir, contextTex) : null,
+      contextPdf: contextPdf ? path.join(participantProfilesDir, contextPdf) : null,
+      taskMd: taskMd ? path.join(participantProfilesDir, taskMd) : null,
+      taskTex: taskTex ? path.join(participantProfilesDir, taskTex) : null,
+      taskPdf: taskPdf ? path.join(participantProfilesDir, taskPdf) : null,
     };
   });
 }
@@ -814,9 +977,14 @@ function escapeLatex(value) {
     .replace(/\^/g, "\\textasciicircum{}");
 }
 
-async function ensureParticipantIndex() {
-  const participants = await buildParticipantRegistry();
-  participantRegistryCache = participants;
+async function ensureParticipantIndex(formatDefinition) {
+  const participantContext = formatDefinition?.context;
+  if (!participantContext?.participantProfilesDir) {
+    return { participants: [] };
+  }
+
+  const participants = await buildParticipantRegistry(formatDefinition);
+  participantRegistryCache.set(formatDefinition.id, participants);
 
   const body = participants
     .map((participant) => {
@@ -865,8 +1033,8 @@ async function ensureParticipantIndex() {
 Este archivo debe leerse al inicio para identificar participantes, reconocer sus apodos o formas de referencia y decidir que PDF o TEX leer despues segun la persona mencionada por el usuario.
 
 \\section*{Fuentes base}
-\\textbf{Horarios PDF}: \\texttt{${escapeLatex(path.join(SCHEDULE_CONTEXT_DIR, "horarios_participantes.pdf"))}}\\\\
-\\textbf{Registro de horarios MD}: \\texttt{${escapeLatex(path.join(PARTICIPANT_CONTEXT_DIR, "registro_horarios_participantes.md"))}}
+\\textbf{Horarios PDF}: \\texttt{${escapeLatex(participantContext.schedulePdfPath || "Pendiente")}}\\\\
+\\textbf{Registro de horarios MD}: \\texttt{${escapeLatex(participantContext.scheduleRegistryMdPath || "Pendiente")}}
 
 \\section*{Participantes}
 ${body}
@@ -874,14 +1042,14 @@ ${body}
 \\end{document}
 `.trim();
 
-  await fs.writeFile(PARTICIPANT_INDEX_TEX, texContent, "utf8");
+  await fs.writeFile(participantContext.participantIndexTexPath, texContent, "utf8");
 
   await new Promise((resolve, reject) => {
     const child = spawn(
       "latexmk",
-      ["-pdf", "-interaction=nonstopmode", "-halt-on-error", path.basename(PARTICIPANT_INDEX_TEX)],
+      ["-pdf", "-interaction=nonstopmode", "-halt-on-error", path.basename(participantContext.participantIndexTexPath)],
       {
-        cwd: PARTICIPANT_CONTEXT_DIR,
+        cwd: participantContext.participantProfilesDir,
         windowsHide: true,
         stdio: ["ignore", "pipe", "pipe"],
       }
@@ -906,39 +1074,31 @@ ${body}
   return { participants };
 }
 
-async function seedWorkspaceReportProject(workspacePath) {
-  const reportDir = path.join(workspacePath, "reporte");
-  const imagesDir = path.join(workspacePath, "imagenes");
-  const filesDir = path.join(workspacePath, "archivos");
-  const exportDir = path.join(workspacePath, "export");
+async function seedWorkspaceReportProject(workspacePath, formatDefinition) {
+  const workspaceConfig = formatDefinition.workspace;
+  const reportDir = path.join(workspacePath, workspaceConfig.reportDir);
+  const imagesDir = path.join(workspacePath, workspaceConfig.imagesDir);
+  const filesDir = path.join(workspacePath, workspaceConfig.filesDir);
+  const exportDir = path.join(workspacePath, workspaceConfig.exportDir);
 
   await fs.mkdir(reportDir, { recursive: true });
   await fs.mkdir(imagesDir, { recursive: true });
   await fs.mkdir(filesDir, { recursive: true });
   await fs.mkdir(exportDir, { recursive: true });
 
-  const templateTexPath = path.join(REPORT_TEMPLATE_DIR, "reporte_cnc_tech_formativo.tex");
-  const templatePdfPath = path.join(REPORT_TEMPLATE_DIR, "reporte_cnc_tech_formativo.pdf");
-  const targetTexPath = path.join(reportDir, "reporte.tex");
-  const targetPdfPath = path.join(reportDir, "reporte.pdf");
+  const targetTexPath = path.join(reportDir, workspaceConfig.reportTexName);
+  const targetPdfPath = path.join(reportDir, workspaceConfig.reportPdfName);
 
-  let texContent = await fs.readFile(templateTexPath, "utf8");
-  texContent = texContent
-    .replace("\\newcommand{\\LogoCNC}{cnc_tech_logo_clean.png}", "\\newcommand{\\LogoCNC}{../imagenes/cnc_tech_logo_clean.png}")
-    .replace("\\newcommand{\\LogoFormativo}{cnc_tech_formativo_logo_white.png}", "\\newcommand{\\LogoFormativo}{../imagenes/cnc_tech_formativo_logo_white.png}")
-    .replaceAll("\\SmartFigure{evidencia_01.jpg}", "\\SmartFigure{../imagenes/evidencia_01.jpg}")
-    .replaceAll("\\SmartFigure{evidencia_02.jpg}", "\\SmartFigure{../imagenes/evidencia_02.jpg}")
-    .replaceAll("\\SmartFigure{paso_1.jpg}", "\\SmartFigure{../imagenes/paso_1.jpg}")
-    .replaceAll("\\SmartFigure{paso_2.jpg}", "\\SmartFigure{../imagenes/paso_2.jpg}");
+  let texContent = await fs.readFile(formatDefinition.template.sourceTexPath, "utf8");
+  for (const replacement of formatDefinition.template.texReplacements) {
+    texContent = texContent.replaceAll(replacement.search, replacement.replace);
+  }
 
   await fs.writeFile(targetTexPath, texContent, "utf8");
-  await fs.copyFile(templatePdfPath, targetPdfPath);
+  await fs.copyFile(formatDefinition.template.sourcePdfPath, targetPdfPath);
 
-  for (const assetName of [
-    "cnc_tech_logo_clean.png",
-    "cnc_tech_formativo_logo_white.png",
-  ]) {
-    const sourcePath = path.join(REPORT_TEMPLATE_DIR, assetName);
+  for (const assetName of formatDefinition.template.assetsToImages) {
+    const sourcePath = path.join(formatDefinition.formatDir, assetName);
     if (await pathExists(sourcePath)) {
       await fs.copyFile(sourcePath, path.join(imagesDir, assetName));
     }
@@ -954,133 +1114,67 @@ async function seedWorkspaceReportProject(workspacePath) {
   };
 }
 
-function buildReportBotInstructions(sessionWorkspacePath, reportProjectPath) {
-  const graphvizInstructions = GRAPHVIZ_DOT_COMMAND
+function renderInstructionTemplate(template, replacements) {
+  let output = String(template || "");
+  for (const [key, value] of Object.entries(replacements)) {
+    output = output.replaceAll(`{{${key}}}`, String(value || ""));
+  }
+  return output;
+}
+
+function buildGraphvizInstructions(sessionWorkspacePath, reportProjectPath, formatDefinition) {
+  const reportTexPath = path.join(reportProjectPath, formatDefinition.workspace.reportTexName);
+  const filesDir = path.join(sessionWorkspacePath, formatDefinition.workspace.filesDir);
+  const imagesDir = path.join(sessionWorkspacePath, formatDefinition.workspace.imagesDir);
+
+  return (GRAPHVIZ_DOT_COMMAND
     ? [
         `Graphviz disponible en esta PC: ${GRAPHVIZ_DOT_COMMAND}`,
-        `Si generas un diagrama, guarda primero el archivo fuente .dot en ${path.join(sessionWorkspacePath, "archivos")}.`,
-        `Renderiza luego el diagrama como .png o .svg dentro de ${path.join(sessionWorkspacePath, "imagenes")} y referencialo en ${path.join(reportProjectPath, "reporte.tex")} cuando aporte claridad.`,
+        `Si generas un diagrama, guarda primero el archivo fuente .dot en ${filesDir}.`,
+        `Renderiza luego el diagrama como .png o .svg dentro de ${imagesDir} y referencialo en ${reportTexPath} cuando aporte claridad.`,
       ]
     : [
         "Si el caso necesita diagrama, primero intenta localizar dot.exe de Graphviz en esta PC y usalo si esta disponible.",
-      ];
+      ]).join("\n");
+}
 
-  const lines = [
-    "Esta sesion esta dedicada unicamente a crear, actualizar, revisar y cerrar reportes CNC Tech Formativo.",
-    "El chat puede ser libre, pero siempre debes reconducirlo hacia la generacion del reporte semanal institucional usando la plantilla oficial.",
-    "Debes leer primero estos archivos de contexto antes de responder en serio:",
-    `1. ${path.join(REPORT_TEMPLATE_DIR, "contexto_formato_reporte", "contexto_reporte_cnc_tech.tex")}`,
-    `2. ${path.join(REPORT_TEMPLATE_DIR, "reporte_cnc_tech_formativo.tex")}`,
-    `3. ${PARTICIPANT_INDEX_TEX}`,
+function buildParticipantContextBlock(formatDefinition) {
+  const participantContext = formatDefinition.context;
+  if (!participantContext?.participantProfilesDir) {
+    return "Este formato no requiere indice de participantes ni contexto personal previo.";
+  }
+
+  const nextIndex = (participantContext.formatFiles || []).length + 1;
+  return [
+    `${nextIndex}. ${participantContext.participantIndexTexPath}`,
     "Luego, cuando el usuario diga quien es o se identifique, debes buscar a esa persona en el indice y leer su TEX asociado y su PDF asociado si existen.",
-    "La primera respuesta del usuario a 'Quien eres?' solo debe usarse para identificarlo en el contexto; desde ahi debes recuperar nombre, area, trabajo actual, disponibilidad y habilidades desde los archivos de contexto ya registrados.",
+    `La primera respuesta del usuario a '${formatDefinition.bot.openingQuestion}' solo debe usarse para identificarlo en el contexto; desde ahi debes recuperar nombre, area, trabajo actual, disponibilidad y habilidades desde los archivos de contexto ya registrados.`,
     "No debes volver a preguntar el area si ya puede inferirse de ese contexto; solo pide confirmacion de nombre y area manualmente si la identificacion falla.",
-    `Tambien puedes consultar material en: ${PARTICIPANT_CONTEXT_DIR}`,
-    `Y el PDF de horarios en: ${path.join(SCHEDULE_CONTEXT_DIR, "horarios_participantes.pdf")}`,
-    "El estilo de conversacion debe ser ping pong, con preguntas cortas y utiles, no en rondas numeradas.",
-    "La unica constante de arranque es identificar primero a la persona; una forma valida y simple de hacerlo es preguntar: 'Quien eres?'.",
-    "Despues de identificarla, ve directo al avance principal de la semana y adapta las preguntas a lo que esa persona realmente hizo.",
-    "El avance principal debe entenderse con al menos dos rondas: primero una pregunta general abierta y luego una pregunta mas extensa, especifica y tecnica que puede incluir varias subpreguntas relacionadas.",
-    "La actividad secundaria no debe preguntarse al inicio. Primero debes entender bien la actividad principal.",
-    "Una vez entendida la actividad principal, puedes proponer opciones de actividad secundaria generadas desde ese entendimiento, pero la persona siempre puede responder libremente por chat.",
-    "El resumen corto no se pregunta directamente; debe salir del entendimiento total acumulado.",
-    "El periodo del reporte normalmente llega desde el panel rapido de la interfaz, no desde el chat. No lo preguntes al inicio salvo que falte por completo.",
-    "Horas, modalidad, riesgos, bloqueos, recursos, referencias, porcentaje de avance y proximos pasos suelen completarse al final, ya sea desde el panel rapido o con preguntas personalizadas si todavia faltan.",
-    "No repitas siempre la misma secuencia ni el mismo orden de preguntas.",
-    "Si la persona responde poco, propone un resumen tentativo abierto a correcciones para ayudar a reconstruir el avance real.",
-    "Si la persona se dispersa o responde demasiado, resume lo entendido y valida antes de seguir.",
-    "Haz pequenos bloques de preguntas relacionadas y reacciona a lo dicho; no conviertas el chat en un formulario fijo.",
-    "No debes abrir conversaciones genericas; debes trabajar como copiloto de reportes CNC Tech Formativo.",
-    "Cuando falte contexto, pregunta una sola cosa a la vez o un bloque corto muy relacionado, segun lo que ayude mas a esa persona.",
-    "Debes trabajar sobre la plantilla copiada dentro del workspace de esta sesion.",
-    `Workspace de trabajo: ${sessionWorkspacePath}`,
-    `Carpeta del reporte: ${reportProjectPath}`,
-    `Archivo editable principal: ${path.join(reportProjectPath, "reporte.tex")}`,
-    `PDF visible para el usuario: ${path.join(reportProjectPath, "reporte.pdf")}`,
-    `Carpeta para imagenes del reporte: ${path.join(sessionWorkspacePath, "imagenes")}`,
-    `Carpeta para archivos de apoyo: ${path.join(sessionWorkspacePath, "archivos")}`,
-    "Cuando necesites una imagen, debes pedirla explicitamente por nombre de archivo esperado.",
-    "Hazlo con una forma humana y una forma tecnica en la misma frase.",
-    "El nombre tecnico del archivo debe ir encerrado entre ** y ** dentro del bloque visible para la pagina.",
-    "Ejemplo correcto: 'Sube la imagen de motor a pasos como **evidencia_motor_pasos.jpg**'.",
-    "Pide imagenes o evidencias solo cuando ya hayas entendido bien el caso; no las pidas demasiado pronto.",
-    "Las imagenes solicitadas deben guardarse en la carpeta imagenes.",
-    "El usuario puede subir la imagen con cualquier nombre original; el sistema la renombrara al nombre logico pedido y conservara la extension real del archivo subido.",
-    "Debes tratar esa imagen renombrada como la evidencia correcta y adaptar el TEX a la extension real cuando corresponda.",
-    "Los archivos de apoyo no visuales deben guardarse en la carpeta archivos.",
-    "El tamano del reporte debe adaptarse a lo pedido por el usuario y a la densidad real del trabajo: si pide algo breve, condensa; si pide algo mas desarrollado, amplia sin rellenar.",
-    "Salvo que el usuario pida otra cosa, el objetivo normal es que el cuerpo del reporte ocupe aproximadamente 2 paginas despues de la portada y de la hoja de datos/avance.",
-    "Para llegar a esa extension con contenido real, debes hacer las preguntas suficientes sobre trabajo realizado, validaciones, evidencia, referencias y pasos tecnicos.",
-    "No cierres el reporte demasiado pronto si aun faltan evidencias clave, referencias utiles o pasos del proceso que claramente deberian estar.",
-    "Antes de considerar terminado el reporte, verifica si ya pediste al menos la evidencia principal y las referencias tecnicas necesarias cuando apliquen.",
-    "Si faltan referencias, debes buscarlas en internet cuando el tema tecnico ya este claro y agregar fuentes confiables relevantes al reporte.",
-    "Debes favorecer el uso de graficos tecnicos cuando ayuden a explicar flujos, arquitectura, secuencias, relaciones entre componentes, decisiones o procesos del trabajo semanal.",
-    "Antes de generar un grafico, haz preguntas breves para completar nodos, etapas, conexiones, etiquetas, decisiones o direcciones de flujo que todavia no esten claras.",
-    "Si despues de esas preguntas ya tienes estructura suficiente, genera el diagrama en lugar de dejar solo texto descriptivo.",
-    "Cuando el caso lo permita, intenta primero resolver esquemas y flujos con Graphviz antes que con una imagen manual.",
-    ...graphvizInstructions,
-    "Si generas un grafico con Graphviz, tratalo como evidencia tecnica del reporte y mencionaselo al usuario de forma natural.",
-    "El entregable final esperado para el usuario es el zip completo del proyecto de la sesion.",
-    "No recompiles el PDF automaticamente tras cada cambio menor.",
-    "Debes compilar el PDF cuando el usuario lo pida explicitamente o cuando el sistema vaya a descargar el proyecto en ZIP.",
-    "Cuando recibas una solicitud de compilacion, actualiza solamente el PDF a partir del TEX actual.",
-    "Si el usuario menciona una persona, no inventes su perfil: verifica primero en el indice y en los archivos asociados.",
-    "El contexto personal del participante sirve solo como apoyo interno para entender el caso, no para copiarlo o volcarlo textualmente en el reporte.",
-    "Del contexto personal solo debes extraer hechos puntuales y verificables, como nombre, area, rol, herramientas, proyecto asignado o datos objetivos claramente confirmados.",
-    "Si el usuario solo responde algo minimo, por ejemplo 'Nicole', solo debes actualizar los campos directamente sostenidos por esa respuesta y por hechos objetivos ya verificados; el resto del reporte debe permanecer igual.",
-    "No pidas horas presenciales o remotas al inicio salvo que el usuario las entregue espontaneamente; normalmente van al final, cuando ya entendiste el trabajo semanal.",
-    "No conviertas opiniones, descripciones largas, explicaciones biograficas ni contexto acumulado en texto principal del reporte.",
-    "Antes de compilar o cuando sientas que el reporte ya quedo suficientemente cerrado, elimina del TEX los puntos, secciones, placeholders, figuras o bullets no usados o no sustentados.",
-    "No dejes secciones de relleno con texto genericamente vacio como 'agregar URL', 'resultado de pruebas' o 'paso 1' si no fueron realmente completadas.",
-    "Si una seccion del formato no aporta o no fue sustentada, debes fusionarla, recortarla o eliminarla para que el documento final quede limpio.",
-    "El reporte final debe leerse como un documento coherente escrito con una sola voz institucional.",
-    "Usa el contexto acumulado para mejorar preguntas, consistencia y precision desde abajo, pero no para cambiar por arriba el tono ni rellenar secciones sin confirmacion.",
-    "Todas tus respuestas visibles para la pagina deben usar este formato exacto:",
-    "--respuesta de pagina--",
-    "Aqui va un mensaje normal, breve y natural, enfocado solo en la creacion del reporte.",
-    "[[progreso_reporte]]",
-    "porcentaje: 0",
-    "estado: en_proceso",
-    "[[/progreso_reporte]]",
-    "--finalice--",
-    "La pagina solo mostrara el contenido entre --respuesta de pagina-- y --finalice--.",
-    "En todas las respuestas visibles debes incluir exactamente un bloque oculto [[progreso_reporte]] ... [[/progreso_reporte]].",
-    "Ese bloque oculto siempre debe llevar dos lineas: 'porcentaje: N' con un entero de 0 a 100, y 'estado: en_proceso' o 'estado: terminado'.",
-    "El porcentaje debe reflejar tu mejor estimacion actual del avance global del informe y puede subir o bajar si nueva informacion cambia el alcance real.",
-    "Si consideras que el informe ya esta suficientemente completo, marca 'estado: terminado' y en el texto visible dilo de forma explicita con un mensaje directo de informe terminado.",
-    "En cada turno del usuario debes producir una sola respuesta visible final para la pagina.",
-    "No emitas varias respuestas visibles seguidas ni varias preguntas separadas en mensajes distintos dentro del mismo turno.",
-    "Piensa internamente todo lo necesario y al final entrega una unica respuesta condensada.",
-    "Si necesitas preguntar, formula una sola pregunta central o un bloque muy corto de preguntas estrechamente relacionadas dentro de ese unico mensaje final.",
-    "La respuesta final debe sonar como una sintesis de lo que entendiste o de lo que pensaste, seguida solo por la pregunta o confirmacion mas util para avanzar.",
-    "Debes distinguir con claridad entre dos tipos de pregunta: preguntas de contexto sin opciones y preguntas de respuesta rapida con opciones.",
-    "Las preguntas de contexto sin opciones sirven para abrir tema, reconstruir lo que se hizo, pedir explicacion tecnica, entender decisiones, obtener detalles, matices, problemas, resultados o cualquier informacion no predecible.",
-    "Las preguntas de respuesta rapida con opciones sirven solo para elegir entre alternativas cortas, previsibles y concretas cuando el contexto ya este razonablemente encaminado.",
-    "Regla obligatoria: la primera pregunta despues de identificar a la persona debe ser una pregunta de contexto sin opciones, porque todavia se esta abriendo el panorama de lo que hizo en la semana.",
-    "En esa primera pregunta de contexto no uses [[respuestas_rapidas]] ni conviertas el avance principal en un menu de botones.",
-    "Solo despues de que la persona ya haya contado al menos una parte real de lo que hizo puedes usar respuestas rapidas para afinar, clasificar, confirmar o acelerar el llenado.",
-    "Si recien se esta descubriendo el trabajo hecho, prioriza pregunta abierta sin opciones.",
-    "Puedes hacer un bloque corto de 2 o 3 preguntas de contexto en un mismo mensaje si son muy cercanas entre si y ayudan a recopilar informacion de una sola vez sin confundir.",
-    "Cuando hagas multiples preguntas en un solo mensaje, deben ser de contexto, no de opcion multiple, y deben apuntar a reconstruir trabajo real, resultados, problemas o evidencias.",
-    "No uses respuestas rapidas para preguntas amplias como 'que hiciste', 'cual fue tu avance principal', 'que resolviste', 'en que consistio el trabajo' o equivalentes de apertura.",
-    "Cuando esperes una respuesta corta, obvia o muy probable, puedes sugerir respuestas rapidas para que la pagina las convierta en botones clicables.",
-    "En esos casos, deja la pregunta normal y al final del bloque visible agrega exactamente este formato:",
-    "[[respuestas_rapidas]]",
-    "Opcion 1",
-    "Opcion 2",
-    "[[/respuestas_rapidas]]",
-    "Usa entre 2 y 5 opciones, cada una en su propia linea, breves, claras y listas para ser pulsadas tal como estan escritas.",
-    "Usa respuestas rapidas solo cuando ayuden a recopilar informacion de forma comoda despues de que ya exista algo de contexto, por ejemplo para confirmar tipo de actividad, estado, modalidad, prioridad, nivel de avance o una seleccion simple.",
-    "Si necesitas contexto, explicacion tecnica, narrativa, matices o detalles no previsibles, no uses ese bloque y haz una pregunta abierta normal.",
-    "No mezcles dos bloques [[respuestas_rapidas]] en una misma respuesta visible.",
-    "No pongas numeracion, guiones, viñetas ni texto extra dentro del bloque; solo una opcion por linea.",
-    "Combina preguntas rapidas y preguntas abiertas con criterio para recopilar la mayor cantidad de informacion util con el menor esfuerzo para la persona.",
-    "No pongas dentro de ese bloque rutas de esta PC, nombres de archivos locales, planes internos, pensamientos, ni frases como que estas buscando o leyendo contexto.",
-    "Dentro de ese bloque solo deben aparecer respuestas normales para el usuario sobre el reporte, preguntas concretas, confirmaciones breves o bloqueos redactados de forma simple.",
-    "Cuando la interfaz te envie datos del panel rapido, usalos para actualizar el TEX y evita re-preguntar esos mismos campos salvo que esten vacios, ambiguos o contradigan claramente lo ya entendido.",
-  ];
+    `Tambien puedes consultar material en: ${participantContext.participantProfilesDir}`,
+    participantContext.schedulePdfPath ? `Y el PDF de horarios en: ${participantContext.schedulePdfPath}` : "",
+  ].filter(Boolean).join("\n");
+}
 
-  return lines.join("\n");
+async function buildReportBotInstructions(sessionWorkspacePath, projectLayout, formatDefinition) {
+  const instructionTemplate = await fs.readFile(formatDefinition.bot.instructionsPath, "utf8");
+  const participantContext = formatDefinition.context;
+  const formatContextFiles = (participantContext.formatFiles || []).length
+    ? participantContext.formatFiles.map((filePath, index) => `${index + 1}. ${filePath}`).join("\n")
+    : "1. Sin archivos de contexto registrados para este formato.";
+
+  return renderInstructionTemplate(instructionTemplate, {
+    FORMAT_LABEL: formatDefinition.label,
+    OPENING_QUESTION: formatDefinition.bot.openingQuestion,
+    FORMAT_CONTEXT_FILES: formatContextFiles,
+    PARTICIPANT_CONTEXT_BLOCK: buildParticipantContextBlock(formatDefinition),
+    GRAPHVIZ_INSTRUCTIONS: buildGraphvizInstructions(sessionWorkspacePath, projectLayout.reportProjectPath, formatDefinition),
+    WORKSPACE_PATH: sessionWorkspacePath,
+    REPORT_PROJECT_PATH: projectLayout.reportProjectPath,
+    REPORT_TEX_PATH: projectLayout.reportTexPath,
+    REPORT_PDF_PATH: projectLayout.reportPdfPath,
+    IMAGES_DIR: projectLayout.imagesDir,
+    FILES_DIR: projectLayout.filesDir,
+  });
 }
 
 function buildParticipantProfileSummary(profile) {
@@ -1618,11 +1712,11 @@ async function revertTexImageReference(session, finalName, requestedName) {
   return true;
 }
 
-async function createWorkspaceFolder(requestedName) {
+async function createWorkspaceFolder(requestedName, formatDefinition) {
   const folderName = `${safeName(requestedName)}-${Date.now()}`;
   const workspacePath = path.join(WORKSPACES_ROOT, folderName);
   await fs.mkdir(workspacePath, { recursive: true });
-  const projectLayout = await seedWorkspaceReportProject(workspacePath);
+  const projectLayout = await seedWorkspaceReportProject(workspacePath, formatDefinition);
   return { folderName, workspacePath, ...projectLayout };
 }
 
@@ -1773,17 +1867,27 @@ async function handleApi(request, response) {
   const segments = url.pathname.split("/").filter(Boolean);
 
   if (request.method === "GET" && url.pathname === "/api/health") {
+    const defaultFormat = getDefaultFormatDefinition();
     json(response, 200, {
       ok: true,
       version: APP_VERSION,
       sessions: sessions.size,
       workspacesRoot: WORKSPACES_ROOT,
+      formats: getAvailableFormatSummaries(),
+      defaultFormatId: defaultFormat?.id || "",
     });
     return;
   }
 
   if (request.method === "POST" && url.pathname === "/api/sessions") {
     const body = await readRequestBody(request);
+    const formatDefinition = getFormatDefinition(body.formatId);
+    if (!formatDefinition) {
+      json(response, 400, { error: "Formato no encontrado." });
+      return;
+    }
+
+    await ensureParticipantIndex(formatDefinition);
     const {
       folderName,
       workspacePath,
@@ -1793,7 +1897,7 @@ async function handleApi(request, response) {
       imagesDir,
       filesDir,
       exportDir,
-    } = await createWorkspaceFolder(body.name);
+    } = await createWorkspaceFolder(body.name, formatDefinition);
     if (body.openInVsCode) {
       openWorkspaceInVsCode(workspacePath);
     }
@@ -1802,6 +1906,7 @@ async function handleApi(request, response) {
       id: randomUUID(),
       name: folderName,
       workspacePath,
+      formatDefinition,
     });
     session.reportProjectPath = reportProjectPath;
     session.reportTexPath = reportTexPath;
@@ -1810,9 +1915,22 @@ async function handleApi(request, response) {
     session.filesDir = filesDir;
     session.exportDir = exportDir;
     sessions.set(session.id, session);
-    const snapshot = await session.start(
-      buildReportBotInstructions(workspacePath, reportProjectPath)
+    const developerInstructions = await buildReportBotInstructions(
+      workspacePath,
+      {
+        reportProjectPath,
+        reportTexPath,
+        reportPdfPath,
+        imagesDir,
+        filesDir,
+      },
+      formatDefinition
     );
+    const snapshot = await session.start({
+      developerInstructions,
+      openingQuestion: formatDefinition.bot.openingQuestion,
+      serviceName: formatDefinition.bot.serviceName,
+    });
     json(response, 201, snapshot);
     return;
   }
@@ -2253,7 +2371,14 @@ const server = http.createServer(async (request, response) => {
     }
 
     if (request.url === "/brand/cnc-logo.png") {
-      const logoPath = path.join(REPORT_TEMPLATE_DIR, "cnc_tech_logo_clean.png");
+      const defaultFormat = getDefaultFormatDefinition();
+      const logoPath = defaultFormat
+        ? path.join(defaultFormat.formatDir, "cnc_tech_logo_clean.png")
+        : "";
+      if (!logoPath || !(await pathExists(logoPath))) {
+        json(response, 404, { error: "Logo no encontrado." });
+        return;
+      }
       const content = await fs.readFile(logoPath);
       response.writeHead(200, {
         "Content-Type": "image/png",
@@ -2276,7 +2401,7 @@ const server = http.createServer(async (request, response) => {
 async function bootstrap() {
   await fs.mkdir(WORKSPACES_ROOT, { recursive: true });
   await fs.mkdir(TEMP_ZIP_DIR, { recursive: true });
-  await ensureParticipantIndex();
+  await loadReportFormats();
   server.listen(PORT, HOST, () => {
     console.log(`Contexto listo en http://${HOST}:${PORT}`);
   });

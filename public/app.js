@@ -10,6 +10,8 @@ const state = {
   quickFields: null,
   uploadedFiles: [],
   secondarySuggestions: [],
+  availableFormats: [],
+  selectedFormatId: "",
 };
 
 const appConfig = window.CNC_TECH_CONFIG || {};
@@ -18,6 +20,7 @@ const apiRoot = apiBaseUrl ? `${apiBaseUrl}/api` : "/api";
 
 const form = document.getElementById("session-form");
 const folderInput = document.getElementById("folder-name");
+const reportFormatSelect = document.getElementById("report-format");
 const sessionMeta = document.getElementById("session-meta");
 const downloadZipLink = document.getElementById("download-zip");
 const compileButton = document.getElementById("compile-report");
@@ -261,6 +264,7 @@ form.addEventListener("submit", async (event) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: folderInput.value,
+        formatId: reportFormatSelect?.value || state.selectedFormatId || "",
         openInVsCode: true,
       }),
     });
@@ -1133,15 +1137,21 @@ function updateMessageContent(article, message) {
 function renderMeta(session) {
   state.participantProfile = session.participantProfile || state.participantProfile;
   state.quickFields = { ...buildEmptyQuickFields(), ...(session.quickFields || state.quickFields || {}) };
+  state.selectedFormatId = session.reportFormat?.id || state.selectedFormatId;
+  if (reportFormatSelect && state.selectedFormatId) {
+    reportFormatSelect.value = state.selectedFormatId;
+  }
   populateQuickPanel(state.quickFields);
   sessionMeta.classList.remove("empty");
   const participantName = state.participantProfile?.name || "Pendiente de identificar";
   const participantArea = state.participantProfile?.area || "Pendiente";
+  const reportFormat = session.reportFormat?.label || "Pendiente";
   const periodText = state.quickFields?.periodStart && state.quickFields?.periodEnd
     ? `${state.quickFields.periodStart} al ${state.quickFields.periodEnd}`
     : "Pendiente";
   sessionMeta.innerHTML = `
     <strong>Proyecto:</strong> ${escapeHtml(session.name || "Sesion activa")}<br />
+    <strong>Formato:</strong> ${escapeHtml(reportFormat)}<br />
     <strong>Participante:</strong> ${escapeHtml(participantName)}<br />
     <strong>Area:</strong> ${escapeHtml(participantArea)}<br />
     <strong>Periodo:</strong> ${escapeHtml(periodText)}
@@ -1437,11 +1447,52 @@ function setExperimentalStatus(text, isError = false) {
 
 function hydrateSessionState(snapshot) {
   state.session = snapshot;
+  state.selectedFormatId = snapshot?.reportFormat?.id || state.selectedFormatId;
   state.participantProfile = snapshot?.participantProfile || state.participantProfile;
   state.quickFields = { ...buildEmptyQuickFields(), ...(snapshot?.quickFields || state.quickFields || {}) };
   state.uploadedFiles = Array.isArray(snapshot?.uploadedFiles) ? [...snapshot.uploadedFiles] : [];
   populateQuickPanel(state.quickFields);
 }
+
+function populateFormatOptions(formats, preferredFormatId = "") {
+  if (!reportFormatSelect) {
+    return;
+  }
+
+  state.availableFormats = Array.isArray(formats) ? [...formats] : [];
+  const candidateId = state.selectedFormatId || preferredFormatId || state.availableFormats[0]?.id || "";
+
+  reportFormatSelect.innerHTML = "";
+  if (!state.availableFormats.length) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "No hay formatos disponibles";
+    reportFormatSelect.append(option);
+    reportFormatSelect.disabled = true;
+    state.selectedFormatId = "";
+    return;
+  }
+
+  for (const format of state.availableFormats) {
+    const option = document.createElement("option");
+    option.value = format.id;
+    option.textContent = format.label;
+    if (format.description) {
+      option.title = format.description;
+    }
+    reportFormatSelect.append(option);
+  }
+
+  reportFormatSelect.disabled = false;
+  reportFormatSelect.value = state.availableFormats.some((format) => format.id === candidateId)
+    ? candidateId
+    : state.availableFormats[0].id;
+  state.selectedFormatId = reportFormatSelect.value;
+}
+
+reportFormatSelect?.addEventListener("change", () => {
+  state.selectedFormatId = reportFormatSelect.value;
+});
 
 function setReportProgress(meta) {
   if (!reportProgressBar) {
@@ -2396,6 +2447,7 @@ async function loadAppVersion() {
       return;
     }
     const data = await response.json();
+    populateFormatOptions(data.formats || [], data.defaultFormatId || "");
     if (data.version) {
       appVersionBadge.textContent = frontendVersion || `Version ${data.version}`;
       appVersionBadge.title = `Frontend ${frontendVersion || "desconocido"} | Backend ${data.version}`;

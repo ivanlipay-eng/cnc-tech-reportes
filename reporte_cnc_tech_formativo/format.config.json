@@ -1,0 +1,65 @@
+{
+  "id": "cnc-tech-formativo",
+  "label": "CNC Tech Formativo",
+  "description": "Formato semanal institucional para el programa formativo de CNC Tech.",
+  "default": true,
+  "workspace": {
+    "reportDir": "reporte",
+    "imagesDir": "imagenes",
+    "filesDir": "archivos",
+    "exportDir": "export",
+    "reportTexName": "reporte.tex",
+    "reportPdfName": "reporte.pdf"
+  },
+  "template": {
+    "sourceTex": "reporte_cnc_tech_formativo.tex",
+    "sourcePdf": "reporte_cnc_tech_formativo.pdf",
+    "assetsToImages": [
+      "cnc_tech_logo_clean.png",
+      "cnc_tech_formativo_logo_white.png"
+    ],
+    "texReplacements": [
+      {
+        "search": "\\newcommand{\\LogoCNC}{cnc_tech_logo_clean.png}",
+        "replace": "\\newcommand{\\LogoCNC}{../imagenes/cnc_tech_logo_clean.png}"
+      },
+      {
+        "search": "\\newcommand{\\LogoFormativo}{cnc_tech_formativo_logo_white.png}",
+        "replace": "\\newcommand{\\LogoFormativo}{../imagenes/cnc_tech_formativo_logo_white.png}"
+      },
+      {
+        "search": "\\SmartFigure{evidencia_01.jpg}",
+        "replace": "\\SmartFigure{../imagenes/evidencia_01.jpg}"
+      },
+      {
+        "search": "\\SmartFigure{evidencia_02.jpg}",
+        "replace": "\\SmartFigure{../imagenes/evidencia_02.jpg}"
+      },
+      {
+        "search": "\\SmartFigure{paso_1.jpg}",
+        "replace": "\\SmartFigure{../imagenes/paso_1.jpg}"
+      },
+      {
+        "search": "\\SmartFigure{paso_2.jpg}",
+        "replace": "\\SmartFigure{../imagenes/paso_2.jpg}"
+      }
+    ]
+  },
+  "bot": {
+    "instructionsFile": "bot.instructions.md",
+    "openingQuestion": "Quien eres?",
+    "serviceName": "Contexto"
+  },
+  "context": {
+    "formatFiles": [
+      "contexto_formato_reporte/contexto_reporte_cnc_tech.tex",
+      "reporte_cnc_tech_formativo.tex"
+    ],
+    "participantProfilesDir": "C:\\Users\\Ivan\\Desktop\\contexto\\10_perfiles_participantes",
+    "scheduleDir": "C:\\Users\\Ivan\\Desktop\\contexto\\horarios",
+    "participantIndexTex": "indice_participantes_cnc.tex",
+    "participantIndexPdf": "indice_participantes_cnc.pdf",
+    "scheduleRegistryMd": "registro_horarios_participantes.md",
+    "schedulePdf": "horarios_participantes.pdf"
+  }
+}
