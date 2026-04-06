@@ -1713,7 +1713,12 @@ function maybeTriggerRubenAnimationFromText(visibleText) {
     return;
   }
 
-  if (!textMentionsRubenPinas(visibleText)) {
+  const textMentionsIdentity = textMentionsRubenPinas(visibleText);
+  const firstReplyAfterIdentification = state.userMessageCount === 1
+    && isRubenPinasProfile(state.participantProfile)
+    && collectProfileIdentityTokens(state.participantProfile).some((token) => token && normalizeIdentityToken(visibleText).includes(token));
+
+  if (!textMentionsIdentity && !firstReplyAfterIdentification) {
     return;
   }
 
