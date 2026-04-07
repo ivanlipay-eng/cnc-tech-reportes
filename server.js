@@ -934,9 +934,14 @@ function aliasesForName(fullName) {
   }
 
   const aliases = new Set();
-  aliases.add(tokens[0]);
+  for (const token of tokens) {
+    aliases.add(token);
+  }
   if (tokens.length > 1) {
     aliases.add(`${tokens[0]} ${tokens[1]}`);
+  }
+  if (tokens.length > 2) {
+    aliases.add(`${tokens[1]} ${tokens[2]}`);
   }
   aliases.add(tokens.join(" "));
 
@@ -1359,6 +1364,9 @@ function cleanupTexInline(text) {
 
 function inferAreaFromText(text) {
   const normalized = normalizeSearchText(text);
+  if (normalized.includes("administrativa") || normalized.includes("auditoria") || normalized.includes("auditora")) {
+    return "Administrativa / Auditoria";
+  }
   if (normalized.includes("electronica") || normalized.includes("pcb tech")) {
     return "Electronica";
   }
@@ -1367,9 +1375,6 @@ function inferAreaFromText(text) {
   }
   if (normalized.includes("programacion") || normalized.includes("software")) {
     return "Programacion";
-  }
-  if (normalized.includes("administrativa") || normalized.includes("auditoria") || normalized.includes("auditora")) {
-    return "Administrativa / Auditoria";
   }
   return "";
 }
@@ -1506,6 +1511,125 @@ function parseScheduleParticipants(markdown) {
   return participants;
 }
 
+function parseParticipantNameFromContextMarkdown(markdown) {
+  const headingMatch = String(markdown || "").match(/^#\s+Contexto\s+especifico:\s*(.+)$/im);
+  return headingMatch?.[1]?.trim() || "";
+}
+
+function prettifyParticipantNameFromSlug(slug) {
+  return String(slug || "")
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
+    .trim();
+}
+
+function toSlugLike(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function slugSequenceMatches(fileSlug, candidateSlug) {
+  const fileTokens = String(fileSlug || "").split("_").filter(Boolean);
+  const candidateTokens = String(candidateSlug || "").split("_").filter(Boolean);
+  if (!fileTokens.length || !candidateTokens.length) {
+    return false;
+  }
+
+  for (let index = 0; index <= fileTokens.length - candidateTokens.length; index += 1) {
+    let matches = true;
+    for (let offset = 0; offset < candidateTokens.length; offset += 1) {
+      if (fileTokens[index + offset] !== candidateTokens[offset]) {
+        matches = false;
+        break;
+      }
+    }
+
+    if (matches) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function matchesParticipantFile(fileName, participantSlug, aliases = []) {
+  const fileSlug = toSlugLike(
+    String(fileName || "")
+      .replace(/\.(md|tex|pdf|aux|log|out|fdb_latexmk|fls)$/i, "")
+      .replace(/^(contexto|tarea)_/i, "")
+  );
+
+  const candidateSlugs = [participantSlug, ...aliases.map((alias) => toSlugLike(alias))]
+    .filter(Boolean);
+
+  return candidateSlugs.some((candidateSlug) => (
+    fileSlug === candidateSlug
+    || fileSlug.startsWith(`${candidateSlug}_`)
+    || slugSequenceMatches(fileSlug, candidateSlug)
+  ));
+}
+
+async function discoverParticipantsFromContextFiles(participantProfilesDir, directoryEntries) {
+  const discovered = [];
+  const groupedFiles = new Map();
+
+  for (const fileName of directoryEntries) {
+    const normalizedFile = String(fileName || "");
+    const groupedSlug = normalizedFile
+      .replace(/\.(md|tex|pdf|aux|log|out|fdb_latexmk|fls)$/i, "")
+      .replace(/^(contexto|tarea)_/i, "")
+      .replace(/_(auditoria|formativo|admin|administrativa|pcb|tech|mecanica|programacion)(?:_[a-z0-9]+)*$/i, "");
+
+    if (!groupedSlug) {
+      continue;
+    }
+
+    const bucket = groupedFiles.get(groupedSlug) || [];
+    bucket.push(normalizedFile);
+    groupedFiles.set(groupedSlug, bucket);
+  }
+
+  for (const fileName of directoryEntries) {
+    if (!fileName.startsWith("contexto_") || !fileName.endsWith(".md")) {
+      continue;
+    }
+
+    const filePath = path.join(participantProfilesDir, fileName);
+    const markdown = await fs.readFile(filePath, "utf8").catch(() => "");
+    const rawSlug = fileName.replace(/^contexto_/i, "").replace(/\.md$/i, "");
+    const participantSlug = rawSlug.replace(/_(auditoria|formativo|admin|administrativa|pcb|tech|mecanica|programacion)(?:_[a-z0-9]+)*$/i, "");
+    const resolvedName = parseParticipantNameFromContextMarkdown(markdown) || prettifyParticipantNameFromSlug(participantSlug || rawSlug);
+    const relatedFiles = groupedFiles.get(participantSlug || rawSlug) || [];
+    const contextTex = relatedFiles.find((item) => item.endsWith(".tex") && item.startsWith("contexto_"));
+    const contextPdf = relatedFiles.find((item) => item.endsWith(".pdf") && item.startsWith("contexto_"));
+    const taskMd = relatedFiles.find((item) => item.endsWith(".md") && item.startsWith("tarea_"));
+    const taskTex = relatedFiles.find((item) => item.endsWith(".tex") && item.startsWith("tarea_"));
+    const taskPdf = relatedFiles.find((item) => item.endsWith(".pdf") && item.startsWith("tarea_"));
+    if (!resolvedName) {
+      continue;
+    }
+
+    discovered.push({
+      name: resolvedName,
+      schedule: "Flexible o no registrado",
+      contextMd: filePath,
+      contextTex: contextTex ? path.join(participantProfilesDir, contextTex) : null,
+      contextPdf: contextPdf ? path.join(participantProfilesDir, contextPdf) : null,
+      taskMd: taskMd ? path.join(participantProfilesDir, taskMd) : null,
+      taskTex: taskTex ? path.join(participantProfilesDir, taskTex) : null,
+      taskPdf: taskPdf ? path.join(participantProfilesDir, taskPdf) : null,
+    });
+  }
+
+  return discovered;
+}
+
 async function buildParticipantRegistry(formatDefinition) {
   const participantContext = formatDefinition?.context;
   const participantProfilesDir = participantContext?.participantProfilesDir;
@@ -1514,50 +1638,59 @@ async function buildParticipantRegistry(formatDefinition) {
   }
 
   const scheduleMdPath = participantContext.scheduleRegistryMdPath;
-  const scheduleMarkdown = await fs.readFile(scheduleMdPath, "utf8");
-  const participants = parseScheduleParticipants(scheduleMarkdown);
   const directoryEntries = await fs.readdir(participantProfilesDir);
+  const scheduleMarkdown = scheduleMdPath
+    ? await fs.readFile(scheduleMdPath, "utf8").catch(() => "")
+    : "";
+  const participants = parseScheduleParticipants(scheduleMarkdown);
+  const discoveredParticipants = await discoverParticipantsFromContextFiles(participantProfilesDir, directoryEntries);
+  const participantMap = new Map();
 
-  return participants.map((participant) => {
-    const slug = slugFromName(participant.name);
-    const nameTokens = slug.split("_").filter(Boolean);
-    const profilePrefix = nameTokens[0] || slug;
+  for (const participant of [...participants, ...discoveredParticipants]) {
+    const key = normalizeSearchText(participant.name);
+    if (!key) {
+      continue;
+    }
 
-    const matchedFiles = directoryEntries.filter((fileName) => {
-      const lower = fileName.toLowerCase();
-      return (
-        lower.includes(profilePrefix) ||
-        lower.includes(slug) ||
-        aliasesForName(participant.name).some((alias) =>
-          lower.includes(
-            alias
-              .normalize("NFKD")
-              .replace(/[\u0300-\u036f]/g, "")
-              .toLowerCase()
-              .replace(/[^a-z0-9]+/g, "_")
-          )
-        )
-      );
+    const existing = participantMap.get(key);
+    participantMap.set(key, {
+      name: participant.name,
+      schedule: participant.schedule || existing?.schedule || "Flexible o no registrado",
+      contextMd: participant.contextMd || existing?.contextMd || null,
+      contextTex: participant.contextTex || existing?.contextTex || null,
+      contextPdf: participant.contextPdf || existing?.contextPdf || null,
+      taskMd: participant.taskMd || existing?.taskMd || null,
+      taskTex: participant.taskTex || existing?.taskTex || null,
+      taskPdf: participant.taskPdf || existing?.taskPdf || null,
     });
+  }
 
-    const contextTex = matchedFiles.find((fileName) => fileName.endsWith(".tex") && fileName.startsWith("contexto_"));
-    const contextPdf = matchedFiles.find((fileName) => fileName.endsWith(".pdf") && fileName.startsWith("contexto_"));
-    const contextMd = matchedFiles.find((fileName) => fileName.endsWith(".md") && fileName.startsWith("contexto_"));
-    const taskTex = matchedFiles.find((fileName) => fileName.endsWith(".tex") && fileName.startsWith("tarea_"));
-    const taskPdf = matchedFiles.find((fileName) => fileName.endsWith(".pdf") && fileName.startsWith("tarea_"));
-    const taskMd = matchedFiles.find((fileName) => fileName.endsWith(".md") && fileName.startsWith("tarea_"));
+  return Array.from(participantMap.values()).map((participant) => {
+    const slug = slugFromName(participant.name);
+    const aliases = aliasesForName(participant.name);
+
+    const matchedFiles = participant.contextMd || participant.contextTex || participant.contextPdf || participant.taskMd || participant.taskTex || participant.taskPdf
+      ? []
+      : directoryEntries.filter((fileName) => matchesParticipantFile(fileName, slug, aliases));
+
+    const contextTex = participant.contextTex || matchedFiles.find((fileName) => fileName.endsWith(".tex") && fileName.startsWith("contexto_"));
+    const contextPdf = participant.contextPdf || matchedFiles.find((fileName) => fileName.endsWith(".pdf") && fileName.startsWith("contexto_"));
+    const contextMd = participant.contextMd || matchedFiles.find((fileName) => fileName.endsWith(".md") && fileName.startsWith("contexto_"));
+    const taskTex = participant.taskTex || matchedFiles.find((fileName) => fileName.endsWith(".tex") && fileName.startsWith("tarea_"));
+    const taskPdf = participant.taskPdf || matchedFiles.find((fileName) => fileName.endsWith(".pdf") && fileName.startsWith("tarea_"));
+    const taskMd = participant.taskMd || matchedFiles.find((fileName) => fileName.endsWith(".md") && fileName.startsWith("tarea_"));
 
     return {
       ...participant,
-      aliases: aliasesForName(participant.name),
+      aliases,
       slug,
       area: inferAreaFromText([contextMd, contextTex, taskTex].filter(Boolean).join(" ")),
-      contextMd: contextMd ? path.join(participantProfilesDir, contextMd) : null,
-      contextTex: contextTex ? path.join(participantProfilesDir, contextTex) : null,
-      contextPdf: contextPdf ? path.join(participantProfilesDir, contextPdf) : null,
-      taskMd: taskMd ? path.join(participantProfilesDir, taskMd) : null,
-      taskTex: taskTex ? path.join(participantProfilesDir, taskTex) : null,
-      taskPdf: taskPdf ? path.join(participantProfilesDir, taskPdf) : null,
+      contextMd: contextMd && path.isAbsolute(contextMd) ? contextMd : (contextMd ? path.join(participantProfilesDir, contextMd) : null),
+      contextTex: contextTex && path.isAbsolute(contextTex) ? contextTex : (contextTex ? path.join(participantProfilesDir, contextTex) : null),
+      contextPdf: contextPdf && path.isAbsolute(contextPdf) ? contextPdf : (contextPdf ? path.join(participantProfilesDir, contextPdf) : null),
+      taskMd: taskMd && path.isAbsolute(taskMd) ? taskMd : (taskMd ? path.join(participantProfilesDir, taskMd) : null),
+      taskTex: taskTex && path.isAbsolute(taskTex) ? taskTex : (taskTex ? path.join(participantProfilesDir, taskTex) : null),
+      taskPdf: taskPdf && path.isAbsolute(taskPdf) ? taskPdf : (taskPdf ? path.join(participantProfilesDir, taskPdf) : null),
     };
   });
 }

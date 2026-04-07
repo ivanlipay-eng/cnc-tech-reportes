@@ -1307,10 +1307,11 @@ function updateMessageContent(article, message) {
 }
 
 function renderMeta(session) {
-  state.participantProfile = session.participantProfile || state.participantProfile;
+  state.participantProfile = session.participantProfile || null;
   state.quickFields = buildNormalizedQuickFields(session.quickFields || state.quickFields || {}, getCurrentFormatDefinition());
   state.reportProgress = session.reportProgress || state.reportProgress;
   state.selectedFormatId = session.reportFormat?.id || state.selectedFormatId;
+  syncTheme();
   if (reportFormatSelect && state.selectedFormatId) {
     reportFormatSelect.value = state.selectedFormatId;
   }
@@ -1628,7 +1629,7 @@ function hydrateSessionState(snapshot) {
   }
   state.session = snapshot;
   state.selectedFormatId = snapshot?.reportFormat?.id || state.selectedFormatId;
-  state.participantProfile = snapshot?.participantProfile || state.participantProfile;
+  state.participantProfile = snapshot?.participantProfile || null;
   state.quickFields = buildNormalizedQuickFields(snapshot?.quickFields || state.quickFields || {}, getCurrentFormatDefinition());
   state.reportProgress = snapshot?.reportProgress || state.reportProgress;
   state.uploadedFiles = Array.isArray(snapshot?.uploadedFiles) ? [...snapshot.uploadedFiles] : [];
