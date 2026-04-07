@@ -14,6 +14,7 @@ const state = {
   availableFormats: [],
   selectedFormatId: "",
   rubenAnimationShownForSessionId: "",
+  forcedProfileTheme: "",
   manualTheme: "default",
 };
 
@@ -146,7 +147,9 @@ function isSteysiProfile(profile) {
 }
 
 function syncTheme() {
-  const effectiveTheme = isSteysiProfile(state.participantProfile) ? "rose" : state.manualTheme;
+  const effectiveTheme = isSteysiProfile(state.participantProfile) || state.forcedProfileTheme === "rose"
+    ? "rose"
+    : state.manualTheme;
   const isRose = effectiveTheme === "rose";
   const isDark = effectiveTheme === "dark";
   document.body.classList.toggle("theme-rose", isRose);
@@ -1308,6 +1311,7 @@ function updateMessageContent(article, message) {
 
 function renderMeta(session) {
   state.participantProfile = session.participantProfile || null;
+  state.forcedProfileTheme = isSteysiProfile(state.participantProfile) ? "rose" : "";
   state.quickFields = buildNormalizedQuickFields(session.quickFields || state.quickFields || {}, getCurrentFormatDefinition());
   state.reportProgress = session.reportProgress || state.reportProgress;
   state.selectedFormatId = session.reportFormat?.id || state.selectedFormatId;
@@ -1626,10 +1630,14 @@ function setExperimentalStatus(text, isError = false) {
 function hydrateSessionState(snapshot) {
   if (snapshot?.id && snapshot.id !== state.session?.id) {
     state.rubenAnimationShownForSessionId = "";
+    state.forcedProfileTheme = "";
   }
   state.session = snapshot;
   state.selectedFormatId = snapshot?.reportFormat?.id || state.selectedFormatId;
   state.participantProfile = snapshot?.participantProfile || null;
+  if (isSteysiProfile(state.participantProfile)) {
+    state.forcedProfileTheme = "rose";
+  }
   state.quickFields = buildNormalizedQuickFields(snapshot?.quickFields || state.quickFields || {}, getCurrentFormatDefinition());
   state.reportProgress = snapshot?.reportProgress || state.reportProgress;
   state.uploadedFiles = Array.isArray(snapshot?.uploadedFiles) ? [...snapshot.uploadedFiles] : [];
@@ -1764,6 +1772,43 @@ function textMentionsRubenPinas(value) {
 
     return sentence.includes("ruben") && sentence.includes("pinas");
   });
+}
+
+function textMentionsSteyciIdentification(value) {
+  const rawText = String(value || "");
+  const normalized = normalizeIdentityToken(rawText);
+  if (!normalized) {
+    return false;
+  }
+
+  const identityCues = [
+    "perfecto",
+    "participante identificado",
+    "identificado como",
+    "ya te tengo identificado",
+    "te tengo identificado",
+    "quedaste identificado",
+    "ya esta identificado",
+    "para construir bien tu reporte",
+    "para reconstruir bien tu reporte",
+  ];
+
+  const mentionsSteyci = /steyci|steysi|steicy|steisy/i.test(rawText)
+    || normalized.includes("steyci")
+    || normalized.includes("steysi");
+
+  return mentionsSteyci && identityCues.some((cue) => normalized.includes(normalizeIdentityToken(cue)));
+}
+
+function maybeActivateSteyciThemeFromText(visibleText) {
+  if (!textMentionsSteyciIdentification(visibleText)) {
+    return;
+  }
+
+  if (state.forcedProfileTheme !== "rose") {
+    state.forcedProfileTheme = "rose";
+    syncTheme();
+  }
 }
 
 function maybeTriggerRubenAnimationFromText(visibleText) {
@@ -2245,6 +2290,7 @@ function collectAssistantSignals(rawText) {
     return;
   }
 
+  maybeActivateSteyciThemeFromText(visibleText);
   maybeTriggerRubenAnimationFromText(visibleText);
 }
 
