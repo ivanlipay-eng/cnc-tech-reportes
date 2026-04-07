@@ -13,6 +13,7 @@ const state = {
   availableFormats: [],
   selectedFormatId: "",
   rubenAnimationShownForSessionId: "",
+  manualTheme: "default",
 };
 
 const appConfig = window.CNC_TECH_CONFIG || {};
@@ -49,8 +50,7 @@ const requestedImageStatus = document.getElementById("requested-image-status");
 const uploadedFilesList = document.getElementById("uploaded-files-list");
 const experimentalActions = document.getElementById("experimental-actions");
 const experimentalStatus = document.getElementById("experimental-status");
-const themeRoseToggle = document.getElementById("theme-rose-toggle");
-const themeDarkToggle = document.getElementById("theme-dark-toggle");
+const themeToggle = document.getElementById("theme-toggle");
 const ribbonTabs = Array.from(document.querySelectorAll("[data-toolbar-target]"));
 const ribbonPanels = Array.from(document.querySelectorAll("[data-toolbar-panel]"));
 const chatForm = document.getElementById("chat-form");
@@ -111,35 +111,52 @@ initializeParticipantAnimation();
 
 function initializeThemeToggle() {
   const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-  applyTheme(savedTheme === "rose" || savedTheme === "dark" ? savedTheme : "default");
+  state.manualTheme = savedTheme === "dark" ? "dark" : "default";
+  syncTheme();
 
-  themeRoseToggle?.addEventListener("click", () => {
-    const nextTheme = document.body.classList.contains("theme-rose") ? "default" : "rose";
-    applyTheme(nextTheme);
-  });
-
-  themeDarkToggle?.addEventListener("click", () => {
-    const nextTheme = document.body.classList.contains("theme-dark") ? "default" : "dark";
-    applyTheme(nextTheme);
+  themeToggle?.addEventListener("click", () => {
+    state.manualTheme = state.manualTheme === "dark" ? "default" : "dark";
+    syncTheme();
+    persistManualTheme();
   });
 }
 
-function applyTheme(themeName) {
-  const isRose = themeName === "rose";
-  const isDark = themeName === "dark";
-  document.body.classList.toggle("theme-rose", isRose);
-  document.body.classList.toggle("theme-dark", isDark);
-  themeRoseToggle?.classList.toggle("is-active", isRose);
-  themeRoseToggle?.setAttribute("aria-pressed", isRose ? "true" : "false");
-  themeRoseToggle?.setAttribute("title", isRose ? "Volver al tema clasico" : "Activar tema rosa");
-  themeDarkToggle?.classList.toggle("is-active", isDark);
-  themeDarkToggle?.setAttribute("aria-pressed", isDark ? "true" : "false");
-  themeDarkToggle?.setAttribute("title", isDark ? "Volver al tema clasico" : "Activar tema oscuro");
-
-  if (isRose || isDark) {
-    localStorage.setItem(THEME_STORAGE_KEY, themeName);
+function persistManualTheme() {
+  if (state.manualTheme === "dark") {
+    localStorage.setItem(THEME_STORAGE_KEY, "dark");
   } else {
     localStorage.removeItem(THEME_STORAGE_KEY);
+  }
+}
+
+function isSteysiProfile(profile) {
+  const tokens = collectProfileIdentityTokens(profile);
+  return tokens.some(
+    (normalized) => normalized
+      && (normalized.includes("steysi")
+        || normalized.includes("steyci")
+        || normalized.includes("steisy")
+        || normalized.includes("steicy"))
+  );
+}
+
+function syncTheme() {
+  const effectiveTheme = isSteysiProfile(state.participantProfile) ? "rose" : state.manualTheme;
+  const isRose = effectiveTheme === "rose";
+  const isDark = effectiveTheme === "dark";
+  document.body.classList.toggle("theme-rose", isRose);
+  document.body.classList.toggle("theme-dark", isDark);
+
+  if (themeToggle) {
+    const darkSelected = state.manualTheme === "dark";
+    themeToggle.classList.toggle("is-active", darkSelected);
+    themeToggle.setAttribute("aria-pressed", darkSelected ? "true" : "false");
+    themeToggle.textContent = darkSelected ? "Tema claro" : "Tema oscuro";
+    if (isRose) {
+      themeToggle.setAttribute("title", "Tema rosa activado automaticamente para Steysi");
+    } else {
+      themeToggle.setAttribute("title", darkSelected ? "Volver al tema claro" : "Activar tema oscuro");
+    }
   }
 }
 
@@ -1607,6 +1624,7 @@ function hydrateSessionState(snapshot) {
   state.participantProfile = snapshot?.participantProfile || state.participantProfile;
   state.quickFields = buildNormalizedQuickFields(snapshot?.quickFields || state.quickFields || {}, getCurrentFormatDefinition());
   state.uploadedFiles = Array.isArray(snapshot?.uploadedFiles) ? [...snapshot.uploadedFiles] : [];
+  syncTheme();
   renderQuickPanel(state.quickFields, getCurrentFormatDefinition());
 }
 

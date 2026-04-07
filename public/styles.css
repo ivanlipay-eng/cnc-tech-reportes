@@ -227,12 +227,7 @@ body.theme-dark .ribbon-theme-button {
   color: #dff4ff;
 }
 
-body.theme-dark .ribbon-theme-button-dark {
-  background: linear-gradient(135deg, rgba(22, 54, 79, 0.98) 0%, rgba(16, 38, 58, 0.98) 100%);
-}
-
-body.theme-dark .ribbon-theme-button.is-active,
-body.theme-dark .ribbon-theme-button-dark.is-active {
+body.theme-dark .ribbon-theme-button.is-active {
   background: linear-gradient(135deg, #49c0f4 0%, #1d8bc1 100%);
   color: #06131e;
   border-color: rgba(84, 200, 255, 0.28);
@@ -297,12 +292,6 @@ body.theme-dark .report-progress-shell {
 body.theme-dark .download-progress-bar,
 body.theme-dark .report-progress-bar {
   background: linear-gradient(90deg, #54c8ff 0%, #9ae6ff 100%);
-}
-
-.ribbon-theme-button-dark {
-  background: linear-gradient(135deg, rgba(16, 38, 58, 0.96) 0%, rgba(11, 26, 40, 0.96) 100%);
-  border-color: rgba(11, 46, 74, 0.12);
-  color: #eef6ff;
 }
 
 .participant-animation-overlay {
@@ -574,9 +563,9 @@ body.theme-dark .report-progress-bar {
 }
 
 .ribbon-theme-button.is-active {
-  background: linear-gradient(135deg, #ff9ac7 0%, #ff6cab 100%);
-  color: #fff8fc;
-  border-color: rgba(154, 47, 99, 0.18);
+  background: linear-gradient(135deg, #164a71 0%, #0c2d47 100%);
+  color: #f5fbff;
+  border-color: rgba(11, 46, 74, 0.18);
 }
 
 body.theme-rose .ribbon-theme-button {
@@ -586,8 +575,9 @@ body.theme-rose .ribbon-theme-button {
 }
 
 body.theme-rose .ribbon-theme-button.is-active {
-  background: linear-gradient(135deg, #ffaad0 0%, #ff86ba 100%);
-  color: #7d214e;
+  background: linear-gradient(135deg, #164a71 0%, #0c2d47 100%);
+  color: #f5fbff;
+  border-color: rgba(11, 46, 74, 0.16);
 }
 
 body.theme-rose .ribbon-tab {
