@@ -32,27 +32,32 @@ body {
 }
 
 body.theme-rose {
-  --bg: #fffdff;
-  --panel: rgba(251, 254, 255, 0.92);
-  --panel-border: rgba(11, 46, 74, 0.12);
+  --bg: #fffafb;
+  --panel: rgba(255, 248, 252, 0.94);
+  --panel-border: rgba(214, 105, 152, 0.12);
   --ink: #531b36;
   --muted: #7c5367;
   --accent: #ff7eb6;
   --accent-strong: #9a2f63;
-  --assistant: #ffffff;
+  --assistant: rgba(255, 251, 253, 0.98);
   --user: #9a2f63;
   --user-text: #fff7fb;
-  --system: #fff4f8;
+  --system: rgba(255, 243, 248, 0.98);
   --shadow: 0 24px 70px rgba(11, 46, 74, 0.12);
   background:
-    radial-gradient(circle at top left, rgba(31, 182, 255, 0.24), transparent 26%),
-    radial-gradient(circle at top right, rgba(11, 46, 74, 0.12), transparent 30%),
-    linear-gradient(180deg, #f7fbff 0%, #edf4fa 48%, #e4edf5 100%);
+    radial-gradient(circle at top left, rgba(255, 206, 226, 0.22), transparent 24%),
+    radial-gradient(circle at top right, rgba(255, 227, 239, 0.18), transparent 28%),
+    linear-gradient(180deg, #fffdfd 0%, #fff7fa 50%, #fff2f7 100%);
 }
 
 body.theme-rose .ribbon-shell {
   border-top-color: #ff8fbd;
-  background: linear-gradient(180deg, rgba(255, 250, 253, 0.98) 0%, rgba(248, 240, 246, 0.96) 100%);
+  background: linear-gradient(180deg, rgba(255, 251, 253, 0.99) 0%, rgba(255, 244, 249, 0.97) 100%);
+}
+
+body.theme-rose .ribbon-panel {
+  border-color: rgba(214, 105, 152, 0.12);
+  background: rgba(255, 249, 252, 0.96);
 }
 
 body.theme-rose input,
@@ -63,16 +68,20 @@ body.theme-rose textarea {
 }
 
 body.theme-rose .secondary-button {
-  background: rgba(255, 250, 252, 0.99);
+  background: rgba(255, 248, 252, 0.99);
   color: var(--accent-strong);
   border-color: rgba(154, 47, 99, 0.14);
 }
 
 body.theme-rose .app-version-badge {
   border-color: rgba(154, 47, 99, 0.12);
-  background: rgba(255, 249, 252, 0.94);
+  background: rgba(255, 246, 250, 0.96);
   box-shadow: 0 16px 44px rgba(154, 47, 99, 0.12);
   color: var(--accent-strong);
+}
+
+body.theme-rose .meta {
+  background: rgba(255, 245, 249, 0.9);
 }
 
 body.theme-rose .site-footer-inner {
