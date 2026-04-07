@@ -521,6 +521,26 @@ body.theme-rose .thinking-indicator {
   color: #9c6a80;
 }
 
+body.theme-rose .message.user {
+  background: linear-gradient(180deg, rgba(240, 116, 170, 0.96) 0%, rgba(214, 83, 143, 0.96) 100%);
+  color: #fff9fc;
+}
+
+body.theme-rose .message.assistant {
+  background: rgba(255, 252, 253, 0.98);
+  border: 1px solid rgba(230, 191, 209, 0.6);
+}
+
+body.theme-rose .message.system {
+  background: rgba(255, 244, 248, 0.98);
+  border: 1px solid rgba(232, 188, 209, 0.62);
+}
+
+body.theme-rose .message.user .label,
+body.theme-rose .message.user .text {
+  color: #fff9fc;
+}
+
 body.theme-rose .quick-reply-button {
   border-color: rgba(154, 47, 99, 0.12);
   background: rgba(255, 249, 252, 0.9);

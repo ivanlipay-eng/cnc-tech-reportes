@@ -1606,6 +1606,8 @@ function initializeParticipantAnimation() {
   if (!participantAnimationVideo) {
     return;
   }
+  participantAnimationVideo.muted = true;
+  participantAnimationVideo.load();
   participantAnimationVideo.pause();
   participantAnimationVideo.addEventListener("ended", hideParticipantAnimation);
 }
@@ -1652,6 +1654,18 @@ function isRubenPinasProfile(profile) {
   });
 }
 
+function textContainsRubenFullName(value) {
+  const rawText = String(value || "");
+  const normalized = normalizeIdentityToken(rawText);
+  if (!normalized) {
+    return false;
+  }
+
+  return /\brub[eé]n\s+pi(?:ñ|n)as(?:\s+rafael)?\b/iu.test(rawText)
+    || normalized.includes("ruben pinas rafael")
+    || normalized.includes("ruben pinas");
+}
+
 function textMentionsRubenPinas(value) {
   const normalized = normalizeIdentityToken(value);
   if (!normalized) {
@@ -1679,6 +1693,16 @@ function textMentionsRubenPinas(value) {
     "identifique a",
     "identificado como",
     "corresponde a",
+    "ya te tengo identificado",
+    "te tengo identificado",
+    "ya quedo identificado",
+    "ya quedaste identificado",
+    "quedo identificado",
+    "quedaste identificado",
+    "ya esta identificado",
+    "ya esta identificado en el reporte",
+    "ya te deje identificado",
+    "ya te deje tu area",
   ];
 
   const sentences = normalized
@@ -1713,12 +1737,16 @@ function maybeTriggerRubenAnimationFromText(visibleText) {
     return;
   }
 
+  const normalizedVisibleText = normalizeIdentityToken(visibleText);
+  const profileTokens = collectProfileIdentityTokens(state.participantProfile);
   const textMentionsIdentity = textMentionsRubenPinas(visibleText);
-  const firstReplyAfterIdentification = state.userMessageCount === 1
-    && isRubenPinasProfile(state.participantProfile)
-    && collectProfileIdentityTokens(state.participantProfile).some((token) => token && normalizeIdentityToken(visibleText).includes(token));
+  const mentionsProfileToken = profileTokens.some((token) => token && normalizedVisibleText.includes(token));
+  const mentionsRubenFullName = textContainsRubenFullName(visibleText);
+  const looksLikeIdentificationReply = /\bidentificad[oa]|corresponde a|autor del reporte|autor es|participante identificado\b/i.test(normalizedVisibleText);
+  const firstReplyAfterIdentification = isRubenPinasProfile(state.participantProfile)
+    && (mentionsProfileToken || mentionsRubenFullName);
 
-  if (!textMentionsIdentity && !firstReplyAfterIdentification) {
+  if (!textMentionsIdentity && !(mentionsRubenFullName && looksLikeIdentificationReply) && !firstReplyAfterIdentification) {
     return;
   }
 
