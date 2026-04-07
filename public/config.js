@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://arlington-jurisdiction-campaigns-criteria.trycloudflare.com",
+  apiBaseUrl: "https://ralph-statement-billy-examines.trycloudflare.com",
   brandLogoUrl: "",
 };

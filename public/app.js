@@ -8,6 +8,7 @@ const state = {
   userMessageCount: 0,
   participantProfile: null,
   quickFields: null,
+  reportProgress: null,
   uploadedFiles: [],
   secondarySuggestions: [],
   availableFormats: [],
@@ -60,6 +61,10 @@ const statusPill = document.getElementById("status-pill");
 const messages = document.getElementById("messages");
 const botThinking = document.getElementById("bot-thinking");
 const reportProgressBar = document.getElementById("report-progress-bar");
+const reportProgressLabel = document.getElementById("report-progress-label");
+const reportProgressPercent = document.getElementById("report-progress-percent");
+const reportProgressNote = document.getElementById("report-progress-note");
+const reportProgressChecklist = document.getElementById("report-progress-checklist");
 const chatDropHint = document.getElementById("chat-drop-hint");
 const chatPanel = document.querySelector(".chat-panel");
 const reportPdfFrame = document.getElementById("report-pdf-frame");
@@ -1304,6 +1309,7 @@ function updateMessageContent(article, message) {
 function renderMeta(session) {
   state.participantProfile = session.participantProfile || state.participantProfile;
   state.quickFields = buildNormalizedQuickFields(session.quickFields || state.quickFields || {}, getCurrentFormatDefinition());
+  state.reportProgress = session.reportProgress || state.reportProgress;
   state.selectedFormatId = session.reportFormat?.id || state.selectedFormatId;
   if (reportFormatSelect && state.selectedFormatId) {
     reportFormatSelect.value = state.selectedFormatId;
@@ -1326,6 +1332,7 @@ function renderMeta(session) {
 
   metaLines.push(`<strong>Resumen rapido:</strong> ${escapeHtml(quickSummary)}`);
   sessionMeta.innerHTML = metaLines.join("<br />");
+  renderReportProgressAudit(state.reportProgress, getCurrentFormatDefinition());
   downloadZipLink.href = buildApiUrl(`/sessions/${session.id}/download`);
   downloadZipLink.classList.remove("disabled");
   downloadZipLink.setAttribute("aria-disabled", "false");
@@ -1623,6 +1630,7 @@ function hydrateSessionState(snapshot) {
   state.selectedFormatId = snapshot?.reportFormat?.id || state.selectedFormatId;
   state.participantProfile = snapshot?.participantProfile || state.participantProfile;
   state.quickFields = buildNormalizedQuickFields(snapshot?.quickFields || state.quickFields || {}, getCurrentFormatDefinition());
+  state.reportProgress = snapshot?.reportProgress || state.reportProgress;
   state.uploadedFiles = Array.isArray(snapshot?.uploadedFiles) ? [...snapshot.uploadedFiles] : [];
   syncTheme();
   renderQuickPanel(state.quickFields, getCurrentFormatDefinition());
@@ -1864,13 +1872,137 @@ function setReportProgress(meta) {
 
   const percentValue = Number(meta?.percent);
   const percent = Number.isFinite(percentValue) ? Math.max(0, Math.min(percentValue, 100)) : 0;
+  const status = String(meta?.status || "en_proceso").toLowerCase() === "terminado"
+    ? "terminado"
+    : "en_proceso";
   const hue = Math.round((percent / 100) * 120);
   reportProgressBar.style.width = `${percent}%`;
   reportProgressBar.style.background = `linear-gradient(90deg, hsl(${hue} 78% 46%) 0%, hsl(${Math.min(120, hue + 10)} 72% 42%) 100%)`;
   reportProgressBar.style.opacity = percent > 0 ? "0.9" : "0.35";
-  reportProgressBar.title = meta?.status === "terminado"
+  reportProgressBar.title = status === "terminado"
     ? `Informe terminado - ${Math.round(percent)}%`
     : `Avance del informe - ${Math.round(percent)}%`;
+
+  if (!state.reportProgress || Number(state.reportProgress.percent) !== percent || String(state.reportProgress.status || "") !== status) {
+    state.reportProgress = buildFallbackReportProgress({ percent, status }, getCurrentFormatDefinition());
+  }
+
+  renderReportProgressAudit(state.reportProgress, getCurrentFormatDefinition());
+}
+
+function getReportProgressStages() {
+  return [
+    { index: 0, min: 0, max: 9, label: "Etapa 0", title: "Arranque" },
+    { index: 1, min: 10, max: 24, label: "Etapa 1", title: "Base confirmada" },
+    { index: 2, min: 25, max: 44, label: "Etapa 2", title: "Panorama entendido" },
+    { index: 3, min: 45, max: 64, label: "Etapa 3", title: "Desarrollo tecnico" },
+    { index: 4, min: 65, max: 79, label: "Etapa 4", title: "Cuerpo casi cerrado" },
+    { index: 5, min: 80, max: 89, label: "Etapa 5", title: "Cierre de contenido" },
+    { index: 6, min: 90, max: 96, label: "Etapa 6", title: "Revision tecnica" },
+    { index: 7, min: 97, max: 99, label: "Etapa 7", title: "Revision final integral" },
+    { index: 8, min: 100, max: 100, label: "Etapa 8", title: "Listo para entrega" },
+  ];
+}
+
+function getReportProgressStage(percent) {
+  const clamped = Math.max(0, Math.min(Number(percent) || 0, 100));
+  return getReportProgressStages().find((stage) => clamped >= stage.min && clamped <= stage.max)
+    || getReportProgressStages()[0];
+}
+
+function getReportChecklistBlueprint(formatDefinition) {
+  if (formatDefinition?.id === "informes-uni") {
+    return [
+      { key: "context", threshold: 10, label: "Portada y tema base confirmados" },
+      { key: "scope", threshold: 25, label: "Objetivo y enfoque entendidos" },
+      { key: "body", threshold: 45, label: "Desarrollo tecnico con sustento" },
+      { key: "support", threshold: 80, label: "Datos, resultados y referencias reunidos" },
+      { key: "final", threshold: 97, label: "Revision final integral" },
+    ];
+  }
+
+  return [
+    { key: "context", threshold: 10, label: "Identificacion y contexto base confirmados" },
+    { key: "scope", threshold: 25, label: "Avance principal entendido" },
+    { key: "body", threshold: 45, label: "Desarrollo tecnico con sustento" },
+    { key: "support", threshold: 80, label: "Evidencia, cierre y referencias reunidas" },
+    { key: "final", threshold: 97, label: "Revision final integral" },
+  ];
+}
+
+function buildFallbackReportProgress(meta, formatDefinition) {
+  const percent = Math.max(0, Math.min(Number(meta?.percent) || 0, 100));
+  const status = String(meta?.status || "en_proceso").toLowerCase() === "terminado" ? "terminado" : "en_proceso";
+  const stage = getReportProgressStage(percent);
+  const checklistBlueprint = getReportChecklistBlueprint(formatDefinition);
+  const firstPendingIndex = checklistBlueprint.findIndex((item) => percent < item.threshold);
+  const checklist = checklistBlueprint.map((item, index) => ({
+    key: item.key,
+    label: item.label,
+    threshold: item.threshold,
+    status: percent >= item.threshold ? "done" : (firstPendingIndex === index ? "current" : "pending"),
+    detail: percent >= item.threshold ? "Cumplido" : (firstPendingIndex === index ? "Es la siguiente etapa a consolidar." : "Pendiente"),
+  }));
+
+  return {
+    percent,
+    status,
+    stageIndex: stage.index,
+    stageLabel: stage.label,
+    stageTitle: stage.title,
+    stageRange: `${stage.min}-${stage.max}`,
+    adjusted: false,
+    blockers: [],
+    checklist,
+    summary: status === "terminado"
+      ? "Informe marcado como terminado."
+      : `Progreso ubicado en ${stage.label} (${stage.min}-${stage.max}).`,
+  };
+}
+
+function renderReportProgressAudit(progressAudit, formatDefinition = getCurrentFormatDefinition()) {
+  if (!reportProgressLabel || !reportProgressPercent || !reportProgressNote || !reportProgressChecklist) {
+    return;
+  }
+
+  const audit = progressAudit || buildFallbackReportProgress({ percent: 0, status: "en_proceso" }, formatDefinition);
+  const stageLabel = `${audit.stageLabel || "Etapa"} · ${audit.stageTitle || "Arranque"}`;
+  reportProgressLabel.textContent = stageLabel;
+  reportProgressPercent.textContent = `${Math.round(Number(audit.percent) || 0)}%`;
+
+  const blockerText = Array.isArray(audit.blockers) && audit.blockers.length
+    ? audit.blockers.map((item) => item.message || item.detail || "Bloqueo pendiente").slice(0, 2).join(". ")
+    : "";
+  reportProgressNote.textContent = blockerText || audit.summary || "Sin avance registrado todavia.";
+  reportProgressNote.classList.toggle("is-warning", Boolean(blockerText || audit.adjusted));
+
+  reportProgressChecklist.innerHTML = "";
+  const checklist = Array.isArray(audit.checklist) && audit.checklist.length
+    ? audit.checklist
+    : buildFallbackReportProgress(audit, formatDefinition).checklist;
+
+  for (const item of checklist) {
+    const entry = document.createElement("li");
+    entry.className = `report-progress-item is-${item.status || "pending"}`;
+
+    const bullet = document.createElement("span");
+    bullet.className = "report-progress-bullet";
+    bullet.setAttribute("aria-hidden", "true");
+
+    const content = document.createElement("div");
+    content.className = "report-progress-item-content";
+
+    const title = document.createElement("strong");
+    title.textContent = item.label || "Paso";
+
+    const detail = document.createElement("span");
+    detail.className = "report-progress-item-detail";
+    detail.textContent = item.detail || "Pendiente";
+
+    content.append(title, detail);
+    entry.append(bullet, content);
+    reportProgressChecklist.append(entry);
+  }
 }
 
 function buildQuickMetaSummary() {

@@ -84,6 +84,11 @@ body.theme-rose .meta {
   background: rgba(255, 245, 249, 0.9);
 }
 
+body.theme-rose .report-progress-card {
+  background: rgba(255, 247, 251, 0.94);
+  border-color: rgba(154, 47, 99, 0.12);
+}
+
 body.theme-rose .site-footer-inner {
   color: rgba(111, 49, 77, 0.68);
 }
@@ -246,6 +251,20 @@ body.theme-dark .message.system {
 body.theme-dark .message.user {
   background: linear-gradient(180deg, rgba(23, 114, 162, 0.98) 0%, rgba(12, 85, 128, 0.98) 100%);
   color: #f4fbff;
+}
+
+body.theme-dark .report-progress-card {
+  background: rgba(12, 25, 38, 0.94);
+  border-color: rgba(121, 166, 198, 0.16);
+}
+
+body.theme-dark .report-progress-bullet {
+  box-shadow: inset 0 0 0 1px rgba(121, 166, 198, 0.18);
+}
+
+body.theme-dark .report-progress-note.is-warning,
+body.theme-dark .report-progress-item.is-blocked .report-progress-item-detail {
+  color: #ffb77c;
 }
 
 body.theme-dark .message .label,
@@ -1249,6 +1268,95 @@ button:disabled {
   background: linear-gradient(90deg, #c53a2f 0%, #b92f27 100%);
   opacity: 0.35;
   transition: width 280ms ease, background 280ms ease, opacity 280ms ease;
+}
+
+.report-progress-card {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(245, 251, 255, 0.9);
+  border: 1px solid rgba(11, 46, 74, 0.1);
+}
+
+.report-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.report-progress-percent {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+
+.report-progress-note {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.report-progress-note.is-warning {
+  color: #a34818;
+}
+
+.report-progress-checklist {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.report-progress-item {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.report-progress-bullet {
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: rgba(86, 112, 134, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(11, 46, 74, 0.08);
+}
+
+.report-progress-item.is-done .report-progress-bullet {
+  background: #1d9d58;
+  box-shadow: none;
+}
+
+.report-progress-item.is-current .report-progress-bullet {
+  background: #1fb6ff;
+  box-shadow: 0 0 0 4px rgba(31, 182, 255, 0.18);
+}
+
+.report-progress-item.is-blocked .report-progress-bullet {
+  background: #d46a1f;
+  box-shadow: 0 0 0 4px rgba(212, 106, 31, 0.16);
+}
+
+.report-progress-item-content {
+  display: grid;
+  gap: 2px;
+}
+
+.report-progress-item-content strong {
+  font-size: 0.93rem;
+}
+
+.report-progress-item-detail {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.report-progress-item.is-blocked .report-progress-item-detail {
+  color: #a34818;
 }
 
 .chat-panel.drag-active {

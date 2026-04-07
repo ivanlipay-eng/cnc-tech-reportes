@@ -29,6 +29,17 @@ const sessions = new Map();
 const participantRegistryCache = new Map();
 const reportFormats = new Map();
 let defaultReportFormatId = "";
+const REPORT_PROGRESS_STAGES = [
+  { index: 0, min: 0, max: 9, label: "Etapa 0", title: "Arranque" },
+  { index: 1, min: 10, max: 24, label: "Etapa 1", title: "Base confirmada" },
+  { index: 2, min: 25, max: 44, label: "Etapa 2", title: "Panorama entendido" },
+  { index: 3, min: 45, max: 64, label: "Etapa 3", title: "Desarrollo tecnico" },
+  { index: 4, min: 65, max: 79, label: "Etapa 4", title: "Cuerpo casi cerrado" },
+  { index: 5, min: 80, max: 89, label: "Etapa 5", title: "Cierre de contenido" },
+  { index: 6, min: 90, max: 96, label: "Etapa 6", title: "Revision tecnica" },
+  { index: 7, min: 97, max: 99, label: "Etapa 7", title: "Revision final integral" },
+  { index: 8, min: 100, max: 100, label: "Etapa 8", title: "Listo para entrega" },
+];
 
 class CodexSession extends EventEmitter {
   constructor({ id, name, workspacePath, formatDefinition }) {
@@ -55,6 +66,7 @@ class CodexSession extends EventEmitter {
     this.participantProfile = null;
     this.pendingParticipantFullNameAnnouncement = "";
     this.quickFields = buildDefaultQuickFields(formatDefinition);
+    this.reportProgressAudit = buildEmptyReportProgressAudit(formatDefinition, this.quickFields);
     this.currentTurnMeta = { visible: true, mode: "chat" };
     this.openingQuestion = formatDefinition?.bot?.openingQuestion || "Quien eres?";
     this.serviceName = formatDefinition?.bot?.serviceName || "Contexto";
@@ -131,6 +143,7 @@ class CodexSession extends EventEmitter {
       uploadedFiles: this.uploadedFiles,
       participantProfile: this.participantProfile,
       quickFields: this.quickFields,
+      reportProgress: this.reportProgressAudit,
       reportFormat: this.reportFormat,
       openingQuestion: this.openingQuestion || "Quien eres?",
       history: includeHistory ? this.history : undefined,
@@ -398,9 +411,14 @@ class CodexSession extends EventEmitter {
         internal: !this.currentTurnMeta.visible,
         interactionMode: this.currentTurnMeta.mode,
       };
+      const auditedProgress = auditAssistantReportProgress(this, payload.assistantText);
+      payload.assistantText = auditedProgress.assistantText;
+      payload.reportProgress = auditedProgress.audit;
+      this.reportProgressAudit = auditedProgress.audit;
       this.currentTurnId = null;
       this.currentTurnMeta = { visible: true, mode: "chat" };
       this.#emitEvent("status", { status: this.status, busy: this.busy });
+      this.#emitEvent("session-updated", this.snapshot(false));
       this.#emitEvent("turn-complete", payload);
       return;
     }
@@ -964,6 +982,325 @@ function sanitizeQuickFields(fields = {}, formatDefinition) {
   return Object.fromEntries(
     Object.keys(currentDefaults).map((key) => [key, String(fields[key] ?? currentDefaults[key] ?? "").trim()])
   );
+}
+
+function normalizeReportProgressStatus(status) {
+  return String(status || "en_proceso").trim().toLowerCase() === "terminado"
+    ? "terminado"
+    : "en_proceso";
+}
+
+function clampReportPercent(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return 0;
+  }
+  return Math.max(0, Math.min(100, Math.round(number)));
+}
+
+function getReportProgressStage(percent) {
+  const clamped = clampReportPercent(percent);
+  return REPORT_PROGRESS_STAGES.find((stage) => clamped >= stage.min && clamped <= stage.max)
+    || REPORT_PROGRESS_STAGES[0];
+}
+
+function getReportChecklistBlueprint(formatDefinition) {
+  if (formatDefinition?.id === "informes-uni") {
+    return [
+      { key: "context", threshold: 10, label: "Portada y tema base confirmados" },
+      { key: "scope", threshold: 25, label: "Objetivo y enfoque entendidos" },
+      { key: "body", threshold: 45, label: "Desarrollo tecnico con sustento" },
+      { key: "support", threshold: 80, label: "Datos, resultados y referencias reunidos" },
+      { key: "final", threshold: 97, label: "Revision final integral" },
+    ];
+  }
+
+  return [
+    { key: "context", threshold: 10, label: "Identificacion y contexto base confirmados" },
+    { key: "scope", threshold: 25, label: "Avance principal entendido" },
+    { key: "body", threshold: 45, label: "Desarrollo tecnico con sustento" },
+    { key: "support", threshold: 80, label: "Evidencia, cierre y referencias reunidas" },
+    { key: "final", threshold: 97, label: "Revision final integral" },
+  ];
+}
+
+function buildEmptyReportProgressAudit(formatDefinition, quickFields = {}) {
+  const meta = {
+    percent: 0,
+    status: "en_proceso",
+  };
+  const stage = getReportProgressStage(meta.percent);
+  const checklist = getReportChecklistBlueprint(formatDefinition).map((item, index) => ({
+    key: item.key,
+    label: item.label,
+    threshold: item.threshold,
+    status: index === 0 ? "current" : "pending",
+    detail: index === 0 ? "Falta contexto suficiente para empezar a cerrar el informe." : "Pendiente",
+  }));
+
+  return {
+    ...meta,
+    stageIndex: stage.index,
+    stageLabel: stage.label,
+    stageTitle: stage.title,
+    stageRange: `${stage.min}-${stage.max}`,
+    adjusted: false,
+    blockers: [],
+    checklist,
+    summary: Object.keys(quickFields || {}).length ? "Sin avance registrado todavia." : "Sin avance registrado todavia.",
+  };
+}
+
+function extractReportProgressMetaFromText(text) {
+  const match = String(text || "").match(/\[\[progreso_reporte\]\]([\s\S]*?)\[\[\/progreso_reporte\]\]/i);
+  if (!match?.[1]) {
+    return null;
+  }
+
+  const block = match[1];
+  const percentMatch = block.match(/porcentaje\s*:\s*(\d{1,3})/i);
+  const statusMatch = block.match(/estado\s*:\s*([a-z_]+)/i);
+  if (!percentMatch) {
+    return null;
+  }
+
+  return {
+    percent: clampReportPercent(percentMatch[1]),
+    status: normalizeReportProgressStatus(statusMatch?.[1] || "en_proceso"),
+  };
+}
+
+function safeReadSessionTex(reportTexPath) {
+  try {
+    if (!reportTexPath || !fsSync.existsSync(reportTexPath)) {
+      return "";
+    }
+    return fsSync.readFileSync(reportTexPath, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+function hasMeaningfulReferences(session, texSource) {
+  const referencesText = String(session?.quickFields?.references || "").trim();
+  if (referencesText) {
+    return true;
+  }
+
+  const tex = String(texSource || "");
+  return /\\bibitem\s*\{/i.test(tex)
+    || /\\addbibresource\s*\{/i.test(tex)
+    || /\\printbibliography/i.test(tex)
+    || /https?:\/\//i.test(tex)
+    || /doi\s*[:=]/i.test(tex);
+}
+
+function hasPlaceholderArtifacts(texSource) {
+  const tex = String(texSource || "");
+  return /TODO|pendiente|agregar\s+url|lorem ipsum|xxx+|evidencia_0[12]\.jpg|paso_[12]\.jpg|sube aqui|placeholder|ejemplo/i.test(tex);
+}
+
+function hasMinimumReportContext(session) {
+  const quickFields = sanitizeQuickFields(session.quickFields, session.formatDefinition);
+  if (session.formatDefinition?.id === "informes-uni") {
+    return Boolean(quickFields.reportTopic || quickFields.generalObjective || quickFields.specificData || quickFields.theoryBase);
+  }
+
+  return Boolean(session.participantProfile?.name);
+}
+
+function buildCompletionBlockers(session, meta, texSource) {
+  const blockers = [];
+  const quickFields = sanitizeQuickFields(session.quickFields, session.formatDefinition);
+  const plainTex = cleanupTexInline(texSource);
+  const plainLength = plainTex.length;
+
+  if (!hasMinimumReportContext(session)) {
+    blockers.push({
+      key: "context",
+      cap: 24,
+      message: session.formatDefinition?.id === "informes-uni"
+        ? "todavia falta confirmar mejor el tema, objetivo o base del informe"
+        : "todavia falta identificar correctamente al participante o el contexto base",
+    });
+  }
+
+  if (session.formatDefinition?.id === "informes-uni") {
+    if ((meta.percent >= 25 || meta.status === "terminado") && !quickFields.reportTopic) {
+      blockers.push({
+        key: "scope",
+        cap: 44,
+        message: "todavia falta dejar claro el tema exacto del informe",
+      });
+    }
+    if ((meta.percent >= 80 || meta.status === "terminado") && !quickFields.studentNames && !/alumno|estudiante|codigo/i.test(texSource)) {
+      blockers.push({
+        key: "support",
+        cap: 79,
+        message: "todavia faltan datos de portada o identificacion academica del informe",
+      });
+    }
+  } else if ((meta.percent >= 80 || meta.status === "terminado") && (!quickFields.periodStart || !quickFields.periodEnd)) {
+    blockers.push({
+      key: "support",
+      cap: 79,
+      message: "todavia falta cerrar correctamente el periodo del reporte",
+    });
+  }
+
+  if (meta.percent >= 45 && plainLength < 380) {
+    blockers.push({
+      key: "body",
+      cap: 44,
+      message: "todavia no hay cuerpo tecnico suficiente para sostener ese avance",
+    });
+  }
+
+  if (meta.percent >= 65 && plainLength < 800) {
+    blockers.push({
+      key: "body",
+      cap: 64,
+      message: "el desarrollo del informe aun luce demasiado corto para declararlo casi cerrado",
+    });
+  }
+
+  if (meta.percent >= 90 && !hasMeaningfulReferences(session, texSource)) {
+    blockers.push({
+      key: "support",
+      cap: 89,
+      message: "faltan referencias tecnicas o bibliograficas verificables para subir a 90 o mas",
+    });
+  }
+
+  if (meta.percent >= 97 && hasPlaceholderArtifacts(texSource)) {
+    blockers.push({
+      key: "final",
+      cap: 96,
+      message: "todavia quedan placeholders, evidencias genericas o restos del formato sin limpiar",
+    });
+  }
+
+  return blockers;
+}
+
+function buildProgressChecklist(session, percent, blockers) {
+  const blockerMap = new Map(blockers.map((item) => [item.key, item.message]));
+  const blueprint = getReportChecklistBlueprint(session.formatDefinition);
+  const firstPendingIndex = blueprint.findIndex((item) => percent < item.threshold && !blockerMap.has(item.key));
+
+  return blueprint.map((item, index) => {
+    const blockerMessage = blockerMap.get(item.key);
+    if (blockerMessage) {
+      return {
+        key: item.key,
+        label: item.label,
+        threshold: item.threshold,
+        status: "blocked",
+        detail: blockerMessage,
+      };
+    }
+
+    if (percent >= item.threshold) {
+      return {
+        key: item.key,
+        label: item.label,
+        threshold: item.threshold,
+        status: "done",
+        detail: "Cumplido",
+      };
+    }
+
+    return {
+      key: item.key,
+      label: item.label,
+      threshold: item.threshold,
+      status: firstPendingIndex === index ? "current" : "pending",
+      detail: firstPendingIndex === index ? "Es la siguiente etapa a consolidar." : "Pendiente",
+    };
+  });
+}
+
+function replaceReportProgressBlock(text, meta) {
+  const replacement = [
+    "[[progreso_reporte]]",
+    `porcentaje: ${clampReportPercent(meta.percent)}`,
+    `estado: ${normalizeReportProgressStatus(meta.status)}`,
+    "[[/progreso_reporte]]",
+  ].join("\n");
+
+  return String(text || "").replace(/\[\[progreso_reporte\]\][\s\S]*?\[\[\/progreso_reporte\]\]/i, replacement);
+}
+
+function injectProgressAuditNotice(text, notice) {
+  const visibleText = String(notice || "").trim();
+  if (!visibleText) {
+    return text;
+  }
+
+  const source = String(text || "");
+  const startIndex = source.indexOf("--respuesta de pagina--");
+  const progressIndex = source.indexOf("[[progreso_reporte]]");
+  if (startIndex < 0 || progressIndex < 0 || progressIndex <= startIndex) {
+    return text;
+  }
+
+  const prefix = source.slice(0, progressIndex).trimEnd();
+  const suffix = source.slice(progressIndex);
+  return `${prefix}\n${visibleText}\n${suffix}`;
+}
+
+function auditAssistantReportProgress(session, assistantText) {
+  const parsedMeta = extractReportProgressMetaFromText(assistantText);
+  if (!parsedMeta) {
+    return {
+      assistantText,
+      audit: session.reportProgressAudit || buildEmptyReportProgressAudit(session.formatDefinition, session.quickFields),
+    };
+  }
+
+  const texSource = safeReadSessionTex(session.reportTexPath);
+  const blockers = buildCompletionBlockers(session, parsedMeta, texSource);
+  const lowestCap = blockers.length ? Math.min(...blockers.map((item) => item.cap)) : 100;
+  const adjustedMeta = {
+    percent: clampReportPercent(Math.min(parsedMeta.percent, lowestCap)),
+    status: blockers.length && (parsedMeta.status === "terminado" || parsedMeta.percent > lowestCap)
+      ? "en_proceso"
+      : normalizeReportProgressStatus(parsedMeta.status),
+  };
+  const adjusted = adjustedMeta.percent !== parsedMeta.percent || adjustedMeta.status !== parsedMeta.status;
+  const adjustedStage = getReportProgressStage(adjustedMeta.percent);
+  const checklist = buildProgressChecklist(session, adjustedMeta.percent, blockers);
+  const summary = adjusted
+    ? `Cierre frenado por validacion: ${blockers.map((item) => item.message).slice(0, 2).join("; ")}.`
+    : adjustedMeta.status === "terminado"
+      ? "Informe marcado como terminado y coherente con la rubricacion actual."
+      : `Progreso ubicado en ${adjustedStage.label} (${adjustedStage.min}-${adjustedStage.max}).`;
+
+  let nextAssistantText = assistantText;
+  if (adjusted) {
+    nextAssistantText = replaceReportProgressBlock(nextAssistantText, adjustedMeta);
+    nextAssistantText = injectProgressAuditNotice(
+      nextAssistantText,
+      `Nota de cierre: el informe sigue en proceso porque ${blockers.map((item) => item.message).slice(0, 2).join(" y ")}.`
+    );
+  }
+
+  return {
+    assistantText: nextAssistantText,
+    audit: {
+      ...adjustedMeta,
+      stageIndex: adjustedStage.index,
+      stageLabel: adjustedStage.label,
+      stageTitle: adjustedStage.title,
+      stageRange: `${adjustedStage.min}-${adjustedStage.max}`,
+      adjusted,
+      blockers: blockers.map((item) => ({ key: item.key, message: item.message, cap: item.cap })),
+      checklist,
+      summary,
+      originalPercent: parsedMeta.percent,
+      originalStatus: parsedMeta.status,
+    },
+  };
 }
 
 function parseMarkdownSections(markdown) {

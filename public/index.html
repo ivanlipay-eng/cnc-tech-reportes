@@ -7,10 +7,10 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Asistente de Reportes CNC Tech</title>
-    <link rel="stylesheet" href="./styles.css?v=1.1.63" />
+    <link rel="stylesheet" href="./styles.css?v=1.1.65" />
   </head>
   <body>
-    <div id="app-version-badge" class="app-version-badge">Version 1.1.63</div>
+    <div id="app-version-badge" class="app-version-badge">Version 1.1.65</div>
     <div id="upload-overlay" class="download-overlay upload-overlay" hidden>
       <div id="upload-card" class="download-card upload-card">
         <div class="download-eyebrow">Subiendo archivo</div>
@@ -59,7 +59,7 @@
     <header class="ribbon-shell">
       <div class="ribbon-topline">
         <div class="topbar-brand">
-          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.63" alt="Logo real de CNC Tech" />
+          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.65" alt="Logo real de CNC Tech" />
           <div class="brand-copy">
             <span class="brand-kicker">CNC Tech</span>
             <strong class="brand-title">Centro de reportes</strong>
@@ -260,6 +260,14 @@
           <div class="report-progress-shell" aria-hidden="true">
             <div id="report-progress-bar" class="report-progress-bar"></div>
           </div>
+          <div class="report-progress-card" aria-live="polite">
+            <div class="report-progress-meta">
+              <strong id="report-progress-label">Etapa 0 · Arranque</strong>
+              <span id="report-progress-percent" class="report-progress-percent">0%</span>
+            </div>
+            <div id="report-progress-note" class="report-progress-note">Sin avance registrado todavia.</div>
+            <ul id="report-progress-checklist" class="report-progress-checklist"></ul>
+          </div>
 
           <form id="chat-form" class="chat-form">
             <textarea
@@ -308,7 +316,7 @@
       </div>
     </footer>
 
-    <script src="./config.js?v=1.1.63"></script>
-    <script src="./app.js?v=1.1.63"></script>
+    <script src="./config.js?v=1.1.65"></script>
+    <script src="./app.js?v=1.1.65"></script>
   </body>
 </html>
