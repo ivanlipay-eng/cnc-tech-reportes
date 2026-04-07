@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://head-maui-lime-footage.trycloudflare.com",
+  apiBaseUrl: "https://physiology-trust-messages-clip.trycloudflare.com",
   brandLogoUrl: "",
 };
