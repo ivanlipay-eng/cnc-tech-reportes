@@ -50,6 +50,7 @@ const uploadedFilesList = document.getElementById("uploaded-files-list");
 const experimentalActions = document.getElementById("experimental-actions");
 const experimentalStatus = document.getElementById("experimental-status");
 const themeRoseToggle = document.getElementById("theme-rose-toggle");
+const themeDarkToggle = document.getElementById("theme-dark-toggle");
 const ribbonTabs = Array.from(document.querySelectorAll("[data-toolbar-target]"));
 const ribbonPanels = Array.from(document.querySelectorAll("[data-toolbar-panel]"));
 const chatForm = document.getElementById("chat-form");
@@ -110,23 +111,33 @@ initializeParticipantAnimation();
 
 function initializeThemeToggle() {
   const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-  applyTheme(savedTheme === "rose" ? "rose" : "default");
+  applyTheme(savedTheme === "rose" || savedTheme === "dark" ? savedTheme : "default");
 
   themeRoseToggle?.addEventListener("click", () => {
     const nextTheme = document.body.classList.contains("theme-rose") ? "default" : "rose";
+    applyTheme(nextTheme);
+  });
+
+  themeDarkToggle?.addEventListener("click", () => {
+    const nextTheme = document.body.classList.contains("theme-dark") ? "default" : "dark";
     applyTheme(nextTheme);
   });
 }
 
 function applyTheme(themeName) {
   const isRose = themeName === "rose";
+  const isDark = themeName === "dark";
   document.body.classList.toggle("theme-rose", isRose);
+  document.body.classList.toggle("theme-dark", isDark);
   themeRoseToggle?.classList.toggle("is-active", isRose);
   themeRoseToggle?.setAttribute("aria-pressed", isRose ? "true" : "false");
   themeRoseToggle?.setAttribute("title", isRose ? "Volver al tema clasico" : "Activar tema rosa");
+  themeDarkToggle?.classList.toggle("is-active", isDark);
+  themeDarkToggle?.setAttribute("aria-pressed", isDark ? "true" : "false");
+  themeDarkToggle?.setAttribute("title", isDark ? "Volver al tema clasico" : "Activar tema oscuro");
 
-  if (isRose) {
-    localStorage.setItem(THEME_STORAGE_KEY, "rose");
+  if (isRose || isDark) {
+    localStorage.setItem(THEME_STORAGE_KEY, themeName);
   } else {
     localStorage.removeItem(THEME_STORAGE_KEY);
   }

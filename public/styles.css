@@ -139,6 +139,172 @@ body.theme-rose .uploaded-file-delete {
   color: #a1265e;
 }
 
+body.theme-dark {
+  color-scheme: dark;
+  --bg: #08131d;
+  --panel: rgba(10, 21, 33, 0.9);
+  --panel-border: rgba(121, 166, 198, 0.16);
+  --ink: #eef6ff;
+  --muted: #9ab1c7;
+  --accent: #54c8ff;
+  --accent-strong: #dff4ff;
+  --assistant: rgba(14, 30, 44, 0.96);
+  --user: #0f5b84;
+  --user-text: #f4fbff;
+  --system: rgba(24, 42, 58, 0.96);
+  --shadow: 0 28px 80px rgba(0, 0, 0, 0.34);
+  background:
+    radial-gradient(circle at top left, rgba(84, 200, 255, 0.16), transparent 24%),
+    radial-gradient(circle at top right, rgba(33, 91, 128, 0.2), transparent 28%),
+    linear-gradient(180deg, #09131c 0%, #0d1c2b 52%, #09121c 100%);
+}
+
+body.theme-dark .ribbon-shell {
+  border-top-color: #54c8ff;
+  border-bottom-color: rgba(121, 166, 198, 0.16);
+  background: linear-gradient(180deg, rgba(10, 21, 33, 0.98) 0%, rgba(13, 28, 42, 0.96) 100%);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+}
+
+body.theme-dark .ribbon-panel,
+body.theme-dark .panel,
+body.theme-dark .meta,
+body.theme-dark .report-frame,
+body.theme-dark .download-card {
+  border-color: rgba(121, 166, 198, 0.16);
+  background: rgba(10, 21, 33, 0.9);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+}
+
+body.theme-dark .app-version-badge {
+  border-color: rgba(121, 166, 198, 0.18);
+  background: rgba(11, 24, 36, 0.92);
+  color: #dff4ff;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.28);
+}
+
+body.theme-dark .ribbon-tab {
+  background: linear-gradient(135deg, rgba(18, 43, 63, 0.96) 0%, rgba(13, 34, 52, 0.96) 100%);
+  border-color: rgba(121, 166, 198, 0.16);
+  color: #dff4ff;
+}
+
+body.theme-dark .ribbon-tab.is-active {
+  background: linear-gradient(135deg, rgba(23, 57, 82, 0.98) 0%, rgba(18, 44, 64, 0.98) 100%);
+  border-color: rgba(84, 200, 255, 0.26);
+  border-bottom-color: rgba(23, 57, 82, 0.98);
+  color: #ffffff;
+}
+
+body.theme-dark .ribbon-tab-experimental,
+body.theme-dark .ribbon-tab-experimental.is-active {
+  color: #dff4ff;
+}
+
+body.theme-dark input,
+body.theme-dark select,
+body.theme-dark textarea {
+  border-color: rgba(121, 166, 198, 0.18);
+  background: rgba(9, 18, 29, 0.94);
+  color: #eef6ff;
+}
+
+body.theme-dark ::placeholder {
+  color: #88a3bb;
+}
+
+body.theme-dark button {
+  background: linear-gradient(135deg, #1997d0 0%, #0f628f 100%);
+  color: #f6fcff;
+}
+
+body.theme-dark .secondary-button,
+body.theme-dark .experimental-button,
+body.theme-dark .quick-reply-button,
+body.theme-dark .ribbon-theme-button {
+  background: rgba(13, 29, 43, 0.96);
+  border-color: rgba(121, 166, 198, 0.18);
+  color: #dff4ff;
+}
+
+body.theme-dark .ribbon-theme-button-dark {
+  background: linear-gradient(135deg, rgba(22, 54, 79, 0.98) 0%, rgba(16, 38, 58, 0.98) 100%);
+}
+
+body.theme-dark .ribbon-theme-button.is-active,
+body.theme-dark .ribbon-theme-button-dark.is-active {
+  background: linear-gradient(135deg, #49c0f4 0%, #1d8bc1 100%);
+  color: #06131e;
+  border-color: rgba(84, 200, 255, 0.28);
+}
+
+body.theme-dark .message.assistant {
+  background: rgba(14, 30, 44, 0.96);
+  border: 1px solid rgba(121, 166, 198, 0.16);
+}
+
+body.theme-dark .message.system {
+  background: rgba(18, 36, 52, 0.96);
+  border: 1px solid rgba(121, 166, 198, 0.14);
+}
+
+body.theme-dark .message.user {
+  background: linear-gradient(180deg, rgba(23, 114, 162, 0.98) 0%, rgba(12, 85, 128, 0.98) 100%);
+  color: #f4fbff;
+}
+
+body.theme-dark .message .label,
+body.theme-dark .message .text,
+body.theme-dark .quick-replies-label,
+body.theme-dark .panel-note,
+body.theme-dark .upload-status,
+body.theme-dark .chat-actions-note,
+body.theme-dark .thinking-indicator,
+body.theme-dark .site-footer-inner,
+body.theme-dark .site-footer-inner a,
+body.theme-dark .brand-kicker,
+body.theme-dark .brand-title {
+  color: var(--muted);
+}
+
+body.theme-dark .status {
+  background: rgba(14, 33, 47, 0.98);
+  color: #dff4ff;
+}
+
+body.theme-dark .status.error {
+  background: rgba(72, 26, 26, 0.94);
+  color: #ffd5d5;
+}
+
+body.theme-dark .chat-drop-hint {
+  background: rgba(9, 18, 29, 0.94);
+  border-color: rgba(84, 200, 255, 0.2);
+  color: #c8dfef;
+}
+
+body.theme-dark .chat-drop-hint.drag-active,
+body.theme-dark .chat-panel.drag-active {
+  background: rgba(12, 28, 40, 0.96);
+  border-color: rgba(84, 200, 255, 0.3);
+}
+
+body.theme-dark .download-progress-track,
+body.theme-dark .report-progress-shell {
+  background: rgba(84, 200, 255, 0.16);
+}
+
+body.theme-dark .download-progress-bar,
+body.theme-dark .report-progress-bar {
+  background: linear-gradient(90deg, #54c8ff 0%, #9ae6ff 100%);
+}
+
+.ribbon-theme-button-dark {
+  background: linear-gradient(135deg, rgba(16, 38, 58, 0.96) 0%, rgba(11, 26, 40, 0.96) 100%);
+  border-color: rgba(11, 46, 74, 0.12);
+  color: #eef6ff;
+}
+
 .participant-animation-overlay {
   position: fixed;
   inset: 0;
