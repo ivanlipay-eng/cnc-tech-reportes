@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://physiology-trust-messages-clip.trycloudflare.com",
+  apiBaseUrl: "https://fired-barriers-transport-additionally.trycloudflare.com",
   brandLogoUrl: "",
 };

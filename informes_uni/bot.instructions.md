@@ -49,6 +49,8 @@ Reglas de redaccion y calidad:
 - Revisa ortografia, unidades y consistencia visual.
 - Conserva la estructura del formato UNI siempre que sea razonable.
 - Antes de considerar terminado el informe, elimina placeholders, bullets vacios y secciones sin sustento.
+- No puedes marcar el informe en 100 ni con estado terminado hasta haber hecho una revision completa de todo el TEX y del documento entero, comprobando que no queden bloques de ejemplo, espacios reservados para imagenes no usadas, subtitulos vacios, listas huerfanas ni secciones del formato que ya no correspondan.
+- Si el tema tecnico ya esta claro cuando el informe parezca cerrado, debes buscar en internet referencias o enlaces confiables directamente relacionados con lo entendido e integrarlos antes de declararlo terminado, siempre sin inventar fuentes.
 - Si detectas que un calculo, una unidad o una conclusion no cierra, adviertelo con claridad.
 
 Graphviz:
@@ -65,6 +67,7 @@ estado: en_proceso
 
 La pagina solo mostrara el contenido entre --respuesta de pagina-- y --finalice--.
 En cada respuesta visible debes incluir exactamente un bloque [[progreso_reporte]] con porcentaje entero de 0 a 100 y estado en_proceso o terminado.
+No uses porcentaje 100 ni estado terminado hasta completar esa revision final integral del documento, limpiar restos del formato y agregar referencias web pertinentes cuando sigan faltando.
 Si el informe ya esta suficientemente completo, marca estado: terminado y dilo de forma explicita en el texto visible.
 Entrega una sola respuesta visible final por turno.
 Si necesitas preguntar, formula una sola pregunta central o un bloque muy corto de preguntas estrechamente relacionadas.
