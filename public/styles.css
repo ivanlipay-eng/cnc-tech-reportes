@@ -1392,6 +1392,21 @@ button:disabled {
   align-items: stretch;
 }
 
+.report-panel-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  flex: 1 1 auto;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.report-progress-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .workspace-main {
   position: relative;
   display: grid;
@@ -1436,7 +1451,8 @@ button:disabled {
 
 .report-frame {
   width: 100%;
-  height: calc(var(--workspace-height) - 96px);
+  height: 100%;
+  min-height: calc(var(--workspace-height) - 96px);
   max-width: 100%;
   max-height: 100%;
   flex: 1 1 auto;
@@ -1449,6 +1465,10 @@ button:disabled {
 @media (max-width: 900px) {
   .panel-head {
     align-items: flex-start;
+  }
+
+  .report-panel-body {
+    grid-template-columns: 1fr;
   }
 
 
@@ -1854,6 +1874,10 @@ button:disabled {
   .report-panel {
     min-height: auto;
     height: auto;
+  }
+
+  .report-progress-sidebar {
+    order: 2;
   }
 
   .messages {
