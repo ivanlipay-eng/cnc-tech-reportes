@@ -1952,7 +1952,7 @@ function maybeTriggerRubenAnimationFromProfile() {
   }
 
   state.rubenAnimationShownForSessionId = state.session.id;
-  showParticipantAnimation();
+  showParticipantAnimation("transparent");
 }
 
 function maybeTriggerRubenAnimationFromText(visibleText) {
@@ -1978,7 +1978,7 @@ function maybeTriggerRubenAnimationFromText(visibleText) {
   }
 
   state.rubenAnimationShownForSessionId = state.session.id;
-  showParticipantAnimation();
+  showParticipantAnimation("transparent");
 }
 
 function showParticipantAnimation(mode = "auto") {
