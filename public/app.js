@@ -1661,6 +1661,8 @@ function initializeParticipantAnimation() {
     return;
   }
   participantAnimationVideo.muted = true;
+  participantAnimationVideo.defaultMuted = true;
+  participantAnimationVideo.playsInline = true;
   participantAnimationVideo.load();
   participantAnimationVideo.pause();
   participantAnimationVideo.addEventListener("ended", hideParticipantAnimation);
@@ -1875,6 +1877,8 @@ function showParticipantAnimation() {
 
   clearTimeout(participantAnimationHideTimer);
   participantAnimationOverlay.hidden = false;
+  participantAnimationOverlay.classList.add("is-visible");
+  participantAnimationVideo.load();
   participantAnimationVideo.currentTime = 0;
   const playAttempt = participantAnimationVideo.play();
   if (playAttempt && typeof playAttempt.catch === "function") {
@@ -1889,6 +1893,7 @@ function hideParticipantAnimation() {
   if (!participantAnimationOverlay || !participantAnimationVideo) {
     return;
   }
+  participantAnimationOverlay.classList.remove("is-visible");
   participantAnimationOverlay.hidden = true;
   participantAnimationVideo.pause();
 }
