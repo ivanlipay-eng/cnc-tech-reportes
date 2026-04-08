@@ -27,6 +27,7 @@ const folderInput = document.getElementById("folder-name");
 const reportFormatSelect = document.getElementById("report-format");
 const sessionMeta = document.getElementById("session-meta");
 const downloadZipLink = document.getElementById("download-zip");
+const uploadDriveButton = document.getElementById("upload-drive");
 const compileButton = document.getElementById("compile-report");
 const viewPdfButton = document.getElementById("view-pdf");
 const syncImagesButton = document.getElementById("sync-images");
@@ -964,6 +965,64 @@ downloadZipLink.addEventListener("click", async (event) => {
   }
 });
 
+uploadDriveButton?.addEventListener("click", async () => {
+  if (!state.session || uploadDriveButton.disabled) {
+    return;
+  }
+
+  uploadDriveButton.disabled = true;
+  uploadDriveButton.classList.add("disabled");
+  uploadDriveButton.setAttribute("aria-disabled", "true");
+  downloadZipLink.classList.add("disabled");
+  downloadZipLink.setAttribute("aria-disabled", "true");
+  compileButton.disabled = true;
+  setPdfViewButtonEnabled(false);
+  syncImagesButton.disabled = true;
+  chatInput.disabled = true;
+  sendButton.disabled = true;
+  state.activeMode = "drive-upload";
+  setStatus("Compilando y subiendo a Drive...");
+  pdfStatus.textContent = "Compilando y copiando el ZIP a la carpeta asignada...";
+  setThinking(true, "subiendo a drive");
+  showDownloadOverlay("Subiendo a Drive", 18, "Preparando el proyecto...");
+
+  try {
+    const response = await fetch(buildApiUrl(`/sessions/${state.session.id}/upload-drive`), {
+      method: "POST",
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "No se pudo subir el proyecto a Drive.");
+    }
+
+    const result = data.result || {};
+    showDownloadOverlay("Subido a Drive", 100, result.participantFolderName || "Proyecto entregado en la carpeta asignada");
+    pdfStatus.textContent = result.targetPath
+      ? `Proyecto subido a Drive en: ${result.targetPath}`
+      : "Proyecto subido a Drive.";
+    setStatus("Proyecto subido a Drive");
+  } catch (error) {
+    pdfStatus.textContent = error.message || "No se pudo subir el proyecto a Drive.";
+    setStatus("No se pudo subir a Drive.", true);
+    hideDownloadOverlay();
+  } finally {
+    const hasParticipant = Boolean(state.participantProfile?.name);
+    uploadDriveButton.disabled = !state.session || !hasParticipant;
+    uploadDriveButton.classList.toggle("disabled", !state.session || !hasParticipant);
+    uploadDriveButton.setAttribute("aria-disabled", !state.session || !hasParticipant ? "true" : "false");
+    downloadZipLink.classList.remove("disabled");
+    downloadZipLink.setAttribute("aria-disabled", "false");
+    compileButton.disabled = false;
+    setPdfViewButtonEnabled(Boolean(state.session));
+    syncImagesButton.disabled = false;
+    chatInput.disabled = false;
+    sendButton.disabled = false;
+    state.activeMode = null;
+    setThinking(false);
+    setTimeout(() => hideDownloadOverlay(), 900);
+  }
+});
+
 function handleServerEvent(event) {
   switch (event.type) {
     case "snapshot":
@@ -996,7 +1055,7 @@ function handleServerEvent(event) {
         break;
       }
       if (event.payload.role === "assistant") {
-        if (state.activeMode === "compile" || state.activeMode === "download" || state.activeMode === "sync-images") {
+        if (state.activeMode === "compile" || state.activeMode === "download" || state.activeMode === "sync-images" || state.activeMode === "drive-upload") {
           break;
         }
       } else {
@@ -1004,12 +1063,12 @@ function handleServerEvent(event) {
       }
       break;
     case "assistant-delta":
-      if (!event.payload.internal && state.activeMode !== "compile" && state.activeMode !== "download" && state.activeMode !== "sync-images") {
+      if (!event.payload.internal && state.activeMode !== "compile" && state.activeMode !== "download" && state.activeMode !== "sync-images" && state.activeMode !== "drive-upload") {
         updateAssistantMessage(event.payload);
       }
       break;
     case "assistant-complete":
-      if (!event.payload.internal && state.activeMode !== "compile" && state.activeMode !== "download" && state.activeMode !== "sync-images") {
+      if (!event.payload.internal && state.activeMode !== "compile" && state.activeMode !== "download" && state.activeMode !== "sync-images" && state.activeMode !== "drive-upload") {
         setThinking(true, "pensando");
       }
       break;
@@ -1017,7 +1076,7 @@ function handleServerEvent(event) {
       if (event.payload?.internal) {
         break;
       }
-      if (state.activeMode !== "compile" && state.activeMode !== "download" && state.activeMode !== "sync-images") {
+      if (state.activeMode !== "compile" && state.activeMode !== "download" && state.activeMode !== "sync-images" && state.activeMode !== "drive-upload") {
         if (event.payload?.assistantText) {
           updateAssistantMessage(
             {
@@ -1034,13 +1093,19 @@ function handleServerEvent(event) {
       sendButton.disabled = false;
       compileButton.disabled = false;
       syncImagesButton.disabled = false;
+      if (uploadDriveButton) {
+        const hasParticipant = Boolean(state.participantProfile?.name);
+        uploadDriveButton.disabled = !state.session || !hasParticipant;
+        uploadDriveButton.classList.toggle("disabled", !state.session || !hasParticipant);
+        uploadDriveButton.setAttribute("aria-disabled", !state.session || !hasParticipant ? "true" : "false");
+      }
       chatInput.focus();
       setStatus("Listo");
       state.activeMode = null;
       setThinking(false);
       break;
     case "status":
-      if (state.activeMode === "compile" || state.activeMode === "download") {
+      if (state.activeMode === "compile" || state.activeMode === "download" || state.activeMode === "drive-upload") {
         setStatus("Compilando...");
         setThinking(event.payload.status === "running" || event.payload.status === "active", "compilando");
       } else if (state.activeMode === "chat") {
@@ -1349,6 +1414,13 @@ function renderMeta(session) {
   downloadZipLink.href = buildApiUrl(`/sessions/${session.id}/download`);
   downloadZipLink.classList.remove("disabled");
   downloadZipLink.setAttribute("aria-disabled", "false");
+  if (uploadDriveButton) {
+    const requiresParticipant = Boolean(session.reportFormat?.usesParticipantProfiles);
+    const canUploadToDrive = !requiresParticipant || Boolean(state.participantProfile?.name);
+    uploadDriveButton.disabled = !canUploadToDrive;
+    uploadDriveButton.classList.toggle("disabled", !canUploadToDrive);
+    uploadDriveButton.setAttribute("aria-disabled", canUploadToDrive ? "false" : "true");
+  }
   uploadInput.disabled = false;
   uploadTrigger.disabled = false;
   uploadTrigger.classList.remove("disabled");

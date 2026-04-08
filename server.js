@@ -14,6 +14,7 @@ const APP_ROOT = process.cwd();
 const PUBLIC_DIR = path.join(APP_ROOT, "public");
 const WORKSPACES_ROOT = path.join(APP_ROOT, "workspaces");
 const TEMP_ZIP_DIR = path.join(os.tmpdir(), "codex-web-bridge-zips");
+const DRIVE_REPORTS_ROOT = process.env.DRIVE_REPORTS_ROOT || "C:\\Users\\Ivan\\Desktop\\REPORTES CNC TECH FORMATIVO\\Reportes_Formativo";
 const FORMAT_CONFIG_FILE = "format.config.json";
 const MAX_HISTORY_EVENTS = 500;
 const SSE_HEARTBEAT_MS = 15000;
@@ -2538,6 +2539,180 @@ async function createWorkspaceZip(session) {
   return { zipPath, zipFileName };
 }
 
+function normalizeAreaForDrive(area) {
+  const normalized = normalizeSearchText(area);
+  if (normalized.includes("electronica")) {
+    return "electronica";
+  }
+  if (normalized.includes("mecanica")) {
+    return "mecanica";
+  }
+  if (normalized.includes("programacion")) {
+    return "programacion";
+  }
+  return "";
+}
+
+function uniqueNormalizedTokens(value) {
+  return Array.from(new Set(normalizeSearchText(value).split(" ").filter(Boolean)));
+}
+
+function buildDriveParticipantNameCandidates(profile) {
+  const names = [
+    profile?.name,
+    ...(Array.isArray(profile?.aliases) ? profile.aliases : []),
+  ];
+
+  return Array.from(new Set(names.map((item) => normalizeSearchText(item)).filter(Boolean)));
+}
+
+function haveSameTokenSet(leftTokens, rightTokens) {
+  if (!leftTokens.length || !rightTokens.length || leftTokens.length !== rightTokens.length) {
+    return false;
+  }
+
+  const leftSorted = [...leftTokens].sort();
+  const rightSorted = [...rightTokens].sort();
+  return leftSorted.every((token, index) => token === rightSorted[index]);
+}
+
+function scoreDriveParticipantFolderMatch(folderName, profile) {
+  const normalizedFolderName = normalizeSearchText(String(folderName || "").replace(/,/g, " "));
+  if (!normalizedFolderName) {
+    return 0;
+  }
+
+  const folderTokens = uniqueNormalizedTokens(normalizedFolderName);
+  const candidates = buildDriveParticipantNameCandidates(profile);
+  let bestScore = 0;
+
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue;
+    }
+
+    if (normalizedFolderName === candidate) {
+      bestScore = Math.max(bestScore, 400 + candidate.length);
+      continue;
+    }
+
+    const candidateTokens = uniqueNormalizedTokens(candidate);
+    if (!candidateTokens.length) {
+      continue;
+    }
+
+    if (haveSameTokenSet(folderTokens, candidateTokens)) {
+      bestScore = Math.max(bestScore, 320 + candidateTokens.length * 10);
+      continue;
+    }
+
+    const commonTokens = candidateTokens.filter((token) => folderTokens.includes(token));
+    if (commonTokens.length === candidateTokens.length && candidateTokens.length >= 2) {
+      bestScore = Math.max(bestScore, 250 + commonTokens.length * 10 - Math.abs(folderTokens.length - candidateTokens.length));
+      continue;
+    }
+
+    if (commonTokens.length >= 2) {
+      bestScore = Math.max(bestScore, 120 + commonTokens.length * 10 - Math.abs(folderTokens.length - candidateTokens.length));
+    }
+  }
+
+  return bestScore;
+}
+
+async function listDriveDestinationFolders() {
+  const areaEntries = await fs.readdir(DRIVE_REPORTS_ROOT, { withFileTypes: true }).catch(() => []);
+  const destinations = [];
+
+  for (const areaEntry of areaEntries) {
+    if (!areaEntry.isDirectory()) {
+      continue;
+    }
+
+    const areaPath = path.join(DRIVE_REPORTS_ROOT, areaEntry.name);
+    const reportsDirPath = path.join(areaPath, "Reportes_Semanales");
+    const participantEntries = await fs.readdir(reportsDirPath, { withFileTypes: true }).catch(() => []);
+    for (const participantEntry of participantEntries) {
+      if (!participantEntry.isDirectory()) {
+        continue;
+      }
+
+      destinations.push({
+        areaKey: normalizeAreaForDrive(areaEntry.name),
+        areaDirName: areaEntry.name,
+        reportsDirPath,
+        participantFolderName: participantEntry.name,
+        participantFolderPath: path.join(reportsDirPath, participantEntry.name),
+      });
+    }
+  }
+
+  return destinations;
+}
+
+async function resolveDriveDestinationForProfile(profile) {
+  if (!profile?.name) {
+    return null;
+  }
+
+  const destinations = await listDriveDestinationFolders();
+  if (!destinations.length) {
+    return null;
+  }
+
+  const profileAreaKey = normalizeAreaForDrive(profile.area);
+  const areaScopedDestinations = profileAreaKey
+    ? destinations.filter((item) => item.areaKey === profileAreaKey)
+    : destinations;
+
+  let bestMatch = null;
+  for (const destination of areaScopedDestinations) {
+    const score = scoreDriveParticipantFolderMatch(destination.participantFolderName, profile);
+    if (!score) {
+      continue;
+    }
+
+    if (!bestMatch || score > bestMatch.score) {
+      bestMatch = { destination, score };
+    }
+  }
+
+  if (!bestMatch || bestMatch.score < 130) {
+    return null;
+  }
+
+  return bestMatch.destination;
+}
+
+async function uploadWorkspaceZipToDrive(session) {
+  if (!session.participantProfile?.name) {
+    throw new Error("Todavia no se identifico al participante, asi que no se puede asignar una carpeta en Drive.");
+  }
+
+  const destination = await resolveDriveDestinationForProfile(session.participantProfile);
+  if (!destination) {
+    throw new Error(`No se encontro una carpeta destino en Drive para ${session.participantProfile.name}.`);
+  }
+
+  const { zipPath, zipFileName } = await createWorkspaceZip(session);
+  try {
+    const target = await ensureUniqueFileTarget(destination.participantFolderPath, zipFileName);
+    await fs.copyFile(zipPath, target.targetPath);
+    const targetStat = await fs.stat(target.targetPath);
+
+    return {
+      zipFileName: target.fileName,
+      targetPath: target.targetPath,
+      targetSize: targetStat.size,
+      participantFolderName: destination.participantFolderName,
+      participantFolderPath: destination.participantFolderPath,
+      areaDirName: destination.areaDirName,
+    };
+  } finally {
+    await fs.unlink(zipPath).catch(() => {});
+  }
+}
+
 function applyCorsHeaders(request, response) {
   const origin = String(request.headers.origin || "").trim();
   if (!origin) {
@@ -2575,6 +2750,7 @@ async function serveStaticFile(requestPath, response) {
       ".css": "text/css; charset=utf-8",
       ".json": "application/json; charset=utf-8",
       ".webm": "video/webm",
+      ".mp4": "video/mp4",
       ".svg": "image/svg+xml",
       ".png": "image/png",
       ".jpg": "image/jpeg",
@@ -3095,6 +3271,23 @@ async function handleApi(request, response) {
     });
 
     readStream.pipe(response);
+    return;
+  }
+
+  if (request.method === "POST" && segments[3] === "upload-drive") {
+    try {
+      await compileReportPdf(session);
+    } catch (error) {
+      json(response, 409, { error: `No se pudo compilar antes de subir a Drive: ${error.message}` });
+      return;
+    }
+
+    try {
+      const result = await uploadWorkspaceZipToDrive(session);
+      json(response, 200, { ok: true, result });
+    } catch (error) {
+      json(response, 409, { error: error.message || "No se pudo subir el proyecto a Drive." });
+    }
     return;
   }
 
