@@ -85,6 +85,8 @@ const downloadProgressPercent = document.getElementById("download-progress-perce
 const downloadProgressDetail = document.getElementById("download-progress-detail");
 const participantAnimationOverlay = document.getElementById("participant-animation-overlay");
 const participantAnimationVideo = document.getElementById("participant-animation-video");
+const participantAnimationMp4Source = document.getElementById("participant-animation-source-mp4");
+const participantAnimationWebmSource = document.getElementById("participant-animation-source-webm");
 let uploadOverlayHideTimer = null;
 let pdfLoadedOnce = false;
 let currentPdfObjectUrl = null;
@@ -92,6 +94,7 @@ let dragDepth = 0;
 let inlineImageSequence = 0;
 let quickFieldSaveTimer = null;
 let participantAnimationHideTimer = null;
+const participantAnimationDefaultPoster = participantAnimationVideo?.getAttribute("poster") || "";
 const PAGE_RESPONSE_START = "--respuesta de pagina--";
 const PAGE_RESPONSE_END = "--finalice--";
 const QUICK_REPLIES_START = "[[respuestas_rapidas]]";
@@ -1682,8 +1685,25 @@ function initializeGlobalShortcuts() {
     }
 
     event.preventDefault();
-    showParticipantAnimation();
+    showParticipantAnimation("transparent");
   });
+}
+
+function setParticipantAnimationPlaybackMode(mode = "auto") {
+  if (!participantAnimationVideo || !participantAnimationMp4Source || !participantAnimationWebmSource) {
+    return;
+  }
+
+  if (mode === "transparent") {
+    participantAnimationVideo.poster = "";
+    participantAnimationVideo.prepend(participantAnimationWebmSource);
+    participantAnimationVideo.append(participantAnimationMp4Source);
+    return;
+  }
+
+  participantAnimationVideo.poster = participantAnimationDefaultPoster;
+  participantAnimationVideo.prepend(participantAnimationMp4Source);
+  participantAnimationVideo.append(participantAnimationWebmSource);
 }
 
 function normalizeIdentityToken(value) {
@@ -1888,7 +1908,7 @@ function maybeTriggerRubenAnimationFromText(visibleText) {
   showParticipantAnimation();
 }
 
-function showParticipantAnimation() {
+function showParticipantAnimation(mode = "auto") {
   if (!participantAnimationOverlay || !participantAnimationVideo) {
     return;
   }
@@ -1897,6 +1917,7 @@ function showParticipantAnimation() {
   participantAnimationOverlay.hidden = false;
   participantAnimationOverlay.setAttribute("aria-hidden", "false");
   participantAnimationOverlay.classList.add("is-visible");
+  setParticipantAnimationPlaybackMode(mode);
   participantAnimationVideo.load();
   participantAnimationVideo.currentTime = 0;
   const playAttempt = participantAnimationVideo.play();
