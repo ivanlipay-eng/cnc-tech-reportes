@@ -966,7 +966,13 @@ downloadZipLink.addEventListener("click", async (event) => {
 });
 
 uploadDriveButton?.addEventListener("click", async () => {
-  if (!state.session || uploadDriveButton.disabled) {
+  if (state.activeMode === "drive-upload") {
+    return;
+  }
+
+  if (!state.session) {
+    setExperimentalStatus("Primero crea una sesión antes de subir a Drive.", true);
+    setStatus("No hay sesión activa.", true);
     return;
   }
 
@@ -1003,13 +1009,13 @@ uploadDriveButton?.addEventListener("click", async () => {
     setStatus("Proyecto subido a Drive");
   } catch (error) {
     pdfStatus.textContent = error.message || "No se pudo subir el proyecto a Drive.";
+    setExperimentalStatus(error.message || "No se pudo subir el proyecto a Drive.", true);
     setStatus("No se pudo subir a Drive.", true);
     hideDownloadOverlay();
   } finally {
-    const hasParticipant = Boolean(state.participantProfile?.name);
-    uploadDriveButton.disabled = !state.session || !hasParticipant;
-    uploadDriveButton.classList.toggle("disabled", !state.session || !hasParticipant);
-    uploadDriveButton.setAttribute("aria-disabled", !state.session || !hasParticipant ? "true" : "false");
+    uploadDriveButton.disabled = false;
+    uploadDriveButton.classList.remove("disabled");
+    uploadDriveButton.setAttribute("aria-disabled", "false");
     downloadZipLink.classList.remove("disabled");
     downloadZipLink.setAttribute("aria-disabled", "false");
     compileButton.disabled = false;
@@ -1094,10 +1100,9 @@ function handleServerEvent(event) {
       compileButton.disabled = false;
       syncImagesButton.disabled = false;
       if (uploadDriveButton) {
-        const hasParticipant = Boolean(state.participantProfile?.name);
-        uploadDriveButton.disabled = !state.session || !hasParticipant;
-        uploadDriveButton.classList.toggle("disabled", !state.session || !hasParticipant);
-        uploadDriveButton.setAttribute("aria-disabled", !state.session || !hasParticipant ? "true" : "false");
+        uploadDriveButton.disabled = false;
+        uploadDriveButton.classList.remove("disabled");
+        uploadDriveButton.setAttribute("aria-disabled", "false");
       }
       chatInput.focus();
       setStatus("Listo");
@@ -1415,11 +1420,9 @@ function renderMeta(session) {
   downloadZipLink.classList.remove("disabled");
   downloadZipLink.setAttribute("aria-disabled", "false");
   if (uploadDriveButton) {
-    const requiresParticipant = Boolean(session.reportFormat?.usesParticipantProfiles);
-    const canUploadToDrive = !requiresParticipant || Boolean(state.participantProfile?.name);
-    uploadDriveButton.disabled = !canUploadToDrive;
-    uploadDriveButton.classList.toggle("disabled", !canUploadToDrive);
-    uploadDriveButton.setAttribute("aria-disabled", canUploadToDrive ? "false" : "true");
+    uploadDriveButton.disabled = false;
+    uploadDriveButton.classList.remove("disabled");
+    uploadDriveButton.setAttribute("aria-disabled", "false");
   }
   uploadInput.disabled = false;
   uploadTrigger.disabled = false;
