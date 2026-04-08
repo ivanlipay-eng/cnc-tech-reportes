@@ -114,6 +114,7 @@ loadAppVersion();
 initializeQuickPanel();
 initializeQuickDrawer();
 initializeParticipantAnimation();
+initializeGlobalShortcuts();
 
 function initializeThemeToggle() {
   const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
@@ -1656,6 +1657,7 @@ function hydrateSessionState(snapshot) {
 function initializeParticipantAnimation() {
   if (participantAnimationOverlay) {
     participantAnimationOverlay.hidden = true;
+    participantAnimationOverlay.setAttribute("aria-hidden", "true");
   }
   if (!participantAnimationVideo) {
     return;
@@ -1666,6 +1668,22 @@ function initializeParticipantAnimation() {
   participantAnimationVideo.load();
   participantAnimationVideo.pause();
   participantAnimationVideo.addEventListener("ended", hideParticipantAnimation);
+}
+
+function initializeGlobalShortcuts() {
+  document.addEventListener("keydown", (event) => {
+    const isShortcut = (event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey;
+    if (!isShortcut) {
+      return;
+    }
+
+    if (String(event.key || "").toLowerCase() !== "p") {
+      return;
+    }
+
+    event.preventDefault();
+    showParticipantAnimation();
+  });
 }
 
 function normalizeIdentityToken(value) {
@@ -1877,6 +1895,7 @@ function showParticipantAnimation() {
 
   clearTimeout(participantAnimationHideTimer);
   participantAnimationOverlay.hidden = false;
+  participantAnimationOverlay.setAttribute("aria-hidden", "false");
   participantAnimationOverlay.classList.add("is-visible");
   participantAnimationVideo.load();
   participantAnimationVideo.currentTime = 0;
@@ -1895,6 +1914,7 @@ function hideParticipantAnimation() {
   }
   participantAnimationOverlay.classList.remove("is-visible");
   participantAnimationOverlay.hidden = true;
+  participantAnimationOverlay.setAttribute("aria-hidden", "true");
   participantAnimationVideo.pause();
 }
 
