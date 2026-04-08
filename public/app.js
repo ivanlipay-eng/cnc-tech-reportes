@@ -1311,7 +1311,11 @@ function updateMessageContent(article, message) {
 
 function renderMeta(session) {
   state.participantProfile = session.participantProfile || null;
-  state.forcedProfileTheme = isSteysiProfile(state.participantProfile) ? "rose" : "";
+  if (isSteysiProfile(state.participantProfile)) {
+    state.forcedProfileTheme = "rose";
+  } else if (state.participantProfile) {
+    state.forcedProfileTheme = "";
+  }
   state.quickFields = buildNormalizedQuickFields(session.quickFields || state.quickFields || {}, getCurrentFormatDefinition());
   state.reportProgress = session.reportProgress || state.reportProgress;
   state.selectedFormatId = session.reportFormat?.id || state.selectedFormatId;
@@ -1637,6 +1641,8 @@ function hydrateSessionState(snapshot) {
   state.participantProfile = snapshot?.participantProfile || null;
   if (isSteysiProfile(state.participantProfile)) {
     state.forcedProfileTheme = "rose";
+  } else if (state.participantProfile) {
+    state.forcedProfileTheme = "";
   }
   state.quickFields = buildNormalizedQuickFields(snapshot?.quickFields || state.quickFields || {}, getCurrentFormatDefinition());
   state.reportProgress = snapshot?.reportProgress || state.reportProgress;
@@ -1785,10 +1791,16 @@ function textMentionsSteyciIdentification(value) {
     "perfecto",
     "participante identificado",
     "identificado como",
+    "ya te identifique",
     "ya te tengo identificado",
     "te tengo identificado",
     "quedaste identificado",
     "ya esta identificado",
+    "corresponde a",
+    "eres",
+    "tu reporte",
+    "auditoria",
+    "auditor",
     "para construir bien tu reporte",
     "para reconstruir bien tu reporte",
   ];
