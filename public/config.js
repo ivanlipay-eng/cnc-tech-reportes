@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://basket-realistic-theology-qualifications.trycloudflare.com",
+  apiBaseUrl: "https://beds-andrew-pack-syndrome.trycloudflare.com",
   brandLogoUrl: "",
 };
