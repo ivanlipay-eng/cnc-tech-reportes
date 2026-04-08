@@ -339,6 +339,7 @@ body.theme-dark .report-progress-bar {
   max-height: 72vh;
   background: transparent;
   border-radius: 0;
+  clip-path: inset(0 44px 34px 0);
   image-rendering: pixelated;
   filter: drop-shadow(0 18px 26px rgba(11, 46, 74, 0.18));
   box-shadow: none;
@@ -364,6 +365,7 @@ body.theme-dark .report-progress-bar {
   .participant-animation-video {
     width: min(74vw, 300px);
     max-height: 56vh;
+    clip-path: inset(0 32px 26px 0);
   }
 }
 
