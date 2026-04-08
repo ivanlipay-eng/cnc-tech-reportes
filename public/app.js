@@ -1320,6 +1320,7 @@ function renderMeta(session) {
   state.reportProgress = session.reportProgress || state.reportProgress;
   state.selectedFormatId = session.reportFormat?.id || state.selectedFormatId;
   syncTheme();
+  maybeTriggerRubenAnimationFromProfile();
   if (reportFormatSelect && state.selectedFormatId) {
     reportFormatSelect.value = state.selectedFormatId;
   }
@@ -1648,6 +1649,7 @@ function hydrateSessionState(snapshot) {
   state.reportProgress = snapshot?.reportProgress || state.reportProgress;
   state.uploadedFiles = Array.isArray(snapshot?.uploadedFiles) ? [...snapshot.uploadedFiles] : [];
   syncTheme();
+  maybeTriggerRubenAnimationFromProfile();
   renderQuickPanel(state.quickFields, getCurrentFormatDefinition());
 }
 
@@ -1821,6 +1823,23 @@ function maybeActivateSteyciThemeFromText(visibleText) {
     state.forcedProfileTheme = "rose";
     syncTheme();
   }
+}
+
+function maybeTriggerRubenAnimationFromProfile() {
+  if (!state.session?.id) {
+    return;
+  }
+
+  if (state.rubenAnimationShownForSessionId === state.session.id) {
+    return;
+  }
+
+  if (!isRubenPinasProfile(state.participantProfile)) {
+    return;
+  }
+
+  state.rubenAnimationShownForSessionId = state.session.id;
+  showParticipantAnimation();
 }
 
 function maybeTriggerRubenAnimationFromText(visibleText) {
