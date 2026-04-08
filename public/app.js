@@ -94,7 +94,6 @@ let dragDepth = 0;
 let inlineImageSequence = 0;
 let quickFieldSaveTimer = null;
 let participantAnimationHideTimer = null;
-const participantAnimationDefaultPoster = participantAnimationVideo?.getAttribute("poster") || "";
 const PAGE_RESPONSE_START = "--respuesta de pagina--";
 const PAGE_RESPONSE_END = "--finalice--";
 const QUICK_REPLIES_START = "[[respuestas_rapidas]]";
@@ -1695,13 +1694,12 @@ function setParticipantAnimationPlaybackMode(mode = "auto") {
   }
 
   if (mode === "transparent") {
-    participantAnimationVideo.poster = "";
     participantAnimationVideo.prepend(participantAnimationWebmSource);
     participantAnimationVideo.append(participantAnimationMp4Source);
     return;
   }
 
-  participantAnimationVideo.poster = participantAnimationDefaultPoster;
+  participantAnimationVideo.poster = "";
   participantAnimationVideo.prepend(participantAnimationMp4Source);
   participantAnimationVideo.append(participantAnimationWebmSource);
 }
