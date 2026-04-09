@@ -2030,10 +2030,11 @@ function setThinking(isThinking, label = "pensando") {
     return;
   }
 
-  botThinking.hidden = !isThinking;
-  botThinking.setAttribute("aria-label", isThinking ? `Procesando: ${label}` : "Procesando respuesta");
+  const shouldShowChatThinking = Boolean(isThinking) && String(label || "pensando").trim().toLowerCase() === "pensando";
+  botThinking.hidden = !shouldShowChatThinking;
+  botThinking.setAttribute("aria-label", shouldShowChatThinking ? "Procesando respuesta" : "Procesando respuesta");
 
-  if (isThinking) {
+  if (shouldShowChatThinking) {
     startThinkingFacts();
     return;
   }
