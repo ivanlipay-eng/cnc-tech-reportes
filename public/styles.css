@@ -828,6 +828,35 @@ body.theme-rose .download-progress-bar {
   align-items: end;
 }
 
+.toolbar-collaboration {
+  border: 1px solid rgba(11, 46, 74, 0.1);
+  border-radius: 16px;
+  background: rgba(245, 249, 252, 0.9);
+  padding: 14px 16px;
+}
+
+.collaboration-card,
+.collaboration-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.collaboration-note {
+  color: #526578;
+  text-align: left;
+}
+
+.collaboration-row {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  gap: 12px 16px;
+  align-items: end;
+}
+
+.collaboration-field {
+  margin: 0;
+}
+
 .session-panel-stack {
   display: grid;
   gap: 14px;
@@ -1823,6 +1852,7 @@ button:disabled {
   }
 
   .toolbar-session-form,
+  .collaboration-row,
   .toolbar-evidence-row,
   .quick-date-row,
   .quick-panel-grid {

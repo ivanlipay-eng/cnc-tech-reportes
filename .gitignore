@@ -2,6 +2,7 @@ node_modules/
 workspaces/
 .tmp-schema/
 tmp/
+shared-projects/
 
 *.log
 *.out.log

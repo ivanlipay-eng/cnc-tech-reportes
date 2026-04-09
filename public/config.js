@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://beds-andrew-pack-syndrome.trycloudflare.com",
+  apiBaseUrl: "https://coral-radar-festival-stuffed.trycloudflare.com",
   brandLogoUrl: "",
 };

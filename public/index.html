@@ -7,10 +7,10 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Asistente de Reportes CNC Tech</title>
-    <link rel="stylesheet" href="./styles.css?v=1.1.79" />
+    <link rel="stylesheet" href="./styles.css?v=1.1.82" />
   </head>
   <body>
-    <div id="app-version-badge" class="app-version-badge">Version 1.1.79</div>
+    <div id="app-version-badge" class="app-version-badge">Version 1.1.82</div>
     <div id="upload-overlay" class="download-overlay upload-overlay" hidden>
       <div id="upload-card" class="download-card upload-card">
         <div class="download-eyebrow">Subiendo archivo</div>
@@ -53,14 +53,14 @@
         playsinline
         preload="auto"
       >
-        <source id="participant-animation-source-mp4" src="./ruben-pinas.mp4?v=1.1.79" type="video/mp4" />
-        <source id="participant-animation-source-webm" src="./ruben-pinas-transparent.webm?v=1.1.79" type="video/webm" />
+        <source id="participant-animation-source-mp4" src="./ruben-pinas.mp4?v=1.1.82" type="video/mp4" />
+        <source id="participant-animation-source-webm" src="./ruben-pinas-transparent.webm?v=1.1.82" type="video/webm" />
       </video>
     </div>
     <header class="ribbon-shell">
       <div class="ribbon-topline">
         <div class="topbar-brand">
-          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.79" alt="Logo real de CNC Tech" />
+          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.1.82" alt="Logo real de CNC Tech" />
           <div class="brand-copy">
             <span class="brand-kicker">CNC Tech</span>
             <strong class="brand-title">Centro de reportes</strong>
@@ -106,6 +106,41 @@
 
               <button id="create-session" type="submit">Crear proyecto</button>
             </form>
+
+            <div id="collaboration-panel" class="toolbar-collaboration" hidden>
+              <div class="collaboration-card">
+                <div class="collaboration-copy">
+                  <strong>Trabajo en grupo</strong>
+                  <div class="panel-note collaboration-note">
+                    Comparte el ID del proyecto o carga uno existente. Ambas PCs deben apuntar a este mismo backend.
+                  </div>
+                </div>
+
+                <div class="collaboration-row">
+                  <label class="field toolbar-field toolbar-field-wide collaboration-field">
+                    <span>ID del proyecto</span>
+                    <input id="shared-project-id" readonly placeholder="Se genera al crear el proyecto" />
+                  </label>
+                  <button id="copy-shared-project-id" type="button" class="secondary-button" disabled>
+                    Copiar ID
+                  </button>
+                </div>
+
+                <div class="collaboration-row">
+                  <label class="field toolbar-field toolbar-field-wide collaboration-field">
+                    <span>Cargar proyecto por ID</span>
+                    <input id="load-shared-project-id" placeholder="Ejemplo: UNI-AB12CD34" />
+                  </label>
+                  <button id="load-shared-project" type="button" class="secondary-button" disabled>
+                    Cargar proyecto
+                  </button>
+                </div>
+
+                <div id="collaboration-status" class="upload-status">
+                  Disponible para Informes UNI.
+                </div>
+              </div>
+            </div>
 
             <div id="session-meta" class="meta top-meta empty toolbar-session-meta">
               Todavía no hay una sesión activa.
@@ -323,7 +358,7 @@
       </div>
     </footer>
 
-    <script src="./config.js?v=1.1.79"></script>
-    <script src="./app.js?v=1.1.79"></script>
+    <script src="./config.js?v=1.1.82"></script>
+    <script src="./app.js?v=1.1.82"></script>
   </body>
 </html>

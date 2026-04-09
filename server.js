@@ -13,6 +13,9 @@ const PORT = Number(process.env.PORT || 3100);
 const APP_ROOT = process.cwd();
 const PUBLIC_DIR = path.join(APP_ROOT, "public");
 const WORKSPACES_ROOT = path.join(APP_ROOT, "workspaces");
+const SHARED_PROJECTS_ROOT = path.join(APP_ROOT, "shared-projects");
+const SHARED_PROJECT_METADATA_FILE = "metadata.json";
+const SHARED_PROJECT_WORKSPACE_DIR = "workspace";
 const TEMP_ZIP_DIR = path.join(os.tmpdir(), "codex-web-bridge-zips");
 const DRIVE_REPORTS_ROOT = process.env.DRIVE_REPORTS_ROOT || "C:\\Users\\Ivan\\Desktop\\REPORTES CNC TECH FORMATIVO\\Reportes_Formativo";
 const FORMAT_CONFIG_FILE = "format.config.json";
@@ -71,6 +74,7 @@ class CodexSession extends EventEmitter {
     this.currentTurnMeta = { visible: true, mode: "chat" };
     this.openingQuestion = formatDefinition?.bot?.openingQuestion || "Quien eres?";
     this.serviceName = formatDefinition?.bot?.serviceName || "Contexto";
+    this.sharedProjectId = "";
   }
 
   async start(options = {}) {
@@ -146,6 +150,11 @@ class CodexSession extends EventEmitter {
       quickFields: this.quickFields,
       reportProgress: this.reportProgressAudit,
       reportFormat: this.reportFormat,
+      sharedProject: this.sharedProjectId
+        ? {
+            id: this.sharedProjectId,
+          }
+        : null,
       openingQuestion: this.openingQuestion || "Quien eres?",
       history: includeHistory ? this.history : undefined,
     };
@@ -532,6 +541,10 @@ function getFormatDefinition(formatId) {
   return reportFormats.get(String(formatId || "").trim()) || getDefaultFormatDefinition();
 }
 
+function supportsSharedProjects(formatDefinition) {
+  return String(formatDefinition?.id || "").trim() === "informes-uni";
+}
+
 function buildParticipantContextDefinition(formatDir, contextConfig = {}) {
   const participantProfilesDir = resolveConfigPath(formatDir, contextConfig.participantProfilesDir || "");
   const scheduleDir = resolveConfigPath(formatDir, contextConfig.scheduleDir || "");
@@ -863,8 +876,18 @@ async function loadReportFormats() {
 }
 
 function resolveCodexCommand() {
+  const extensionRoot = path.join(os.homedir(), ".vscode", "extensions");
+  const extensionCandidates = fsSync.existsSync(extensionRoot)
+    ? fsSync.readdirSync(extensionRoot, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && entry.name.startsWith("openai.chatgpt-"))
+        .map((entry) => path.join(extensionRoot, entry.name, "bin", "windows-x86_64", "codex.exe"))
+        .filter((candidate) => fsSync.existsSync(candidate))
+        .sort((left, right) => right.localeCompare(left))
+    : [];
+
   const candidatePaths = [
     process.env.CODEX_PATH,
+    ...extensionCandidates,
     path.join(
       os.homedir(),
       ".vscode",
@@ -1841,6 +1864,19 @@ async function seedWorkspaceReportProject(workspacePath, formatDefinition) {
   };
 }
 
+function getWorkspaceProjectLayout(workspacePath, formatDefinition) {
+  const workspaceConfig = formatDefinition.workspace;
+  const reportProjectPath = path.join(workspacePath, workspaceConfig.reportDir);
+  return {
+    reportProjectPath,
+    reportTexPath: path.join(reportProjectPath, workspaceConfig.reportTexName),
+    reportPdfPath: path.join(reportProjectPath, workspaceConfig.reportPdfName),
+    imagesDir: path.join(workspacePath, workspaceConfig.imagesDir),
+    filesDir: path.join(workspacePath, workspaceConfig.filesDir),
+    exportDir: path.join(workspacePath, workspaceConfig.exportDir),
+  };
+}
+
 function renderInstructionTemplate(template, replacements) {
   let output = String(template || "");
   for (const [key, value] of Object.entries(replacements)) {
@@ -2463,6 +2499,246 @@ async function createWorkspaceFolder(requestedName, formatDefinition) {
   return { folderName, workspacePath, ...projectLayout };
 }
 
+function normalizeSharedProjectId(value) {
+  const projectId = String(value || "").trim().toUpperCase();
+  if (!/^[A-Z0-9-]{6,40}$/.test(projectId)) {
+    throw new Error("ID de proyecto invalido.");
+  }
+  return projectId;
+}
+
+async function generateSharedProjectId(formatDefinition) {
+  const prefix = supportsSharedProjects(formatDefinition) ? "UNI" : "PRJ";
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const projectId = `${prefix}-${randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+    if (!(await pathExists(path.join(SHARED_PROJECTS_ROOT, projectId)))) {
+      return projectId;
+    }
+  }
+
+  throw new Error("No se pudo generar un ID de proyecto compartido.");
+}
+
+function serializeSharedHistory(history = []) {
+  return history.filter((event) => event?.type === "chat-message" || event?.type === "turn-complete");
+}
+
+function toWorkspaceRelativePath(workspacePath, targetPath) {
+  const relativePath = path.relative(workspacePath, targetPath || "");
+  if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    return "";
+  }
+  return relativePath.split(path.sep).join("/");
+}
+
+function serializeSharedUpload(session, fileInfo) {
+  return {
+    name: fileInfo.name,
+    size: fileInfo.size,
+    uploadedAt: fileInfo.uploadedAt,
+    kind: fileInfo.kind,
+    relativePath: toWorkspaceRelativePath(session.workspacePath, fileInfo.path),
+  };
+}
+
+function deserializeSharedUpload(session, fileInfo) {
+  const relativePath = String(fileInfo?.relativePath || "").trim();
+  const fallbackDir = String(fileInfo?.kind || "archivo") === "imagen"
+    ? (session.imagesDir || session.workspacePath)
+    : (session.filesDir || session.workspacePath);
+  const absolutePath = relativePath
+    ? path.join(session.workspacePath, ...relativePath.split("/"))
+    : path.join(fallbackDir, safeUploadName(fileInfo?.name || "archivo"));
+
+  return {
+    name: String(fileInfo?.name || "archivo"),
+    path: absolutePath,
+    size: Number(fileInfo?.size || 0),
+    uploadedAt: fileInfo?.uploadedAt || new Date().toISOString(),
+    kind: String(fileInfo?.kind || "archivo"),
+  };
+}
+
+function serializeSessionForSharedProject(session) {
+  return {
+    schemaVersion: 1,
+    projectId: session.sharedProjectId,
+    formatId: session.formatDefinition?.id || "",
+    sessionName: session.name,
+    openingQuestion: session.openingQuestion,
+    serviceName: session.serviceName,
+    participantProfile: session.participantProfile || null,
+    quickFields: sanitizeQuickFields(session.quickFields, session.formatDefinition),
+    reportProgress: session.reportProgressAudit || buildEmptyReportProgressAudit(session.formatDefinition, session.quickFields),
+    imageAssignments: Array.isArray(session.imageAssignments) ? session.imageAssignments : [],
+    uploadedFiles: Array.isArray(session.uploadedFiles)
+      ? session.uploadedFiles.map((fileInfo) => serializeSharedUpload(session, fileInfo))
+      : [],
+    history: serializeSharedHistory(session.history),
+    savedAt: new Date().toISOString(),
+  };
+}
+
+function restoreSessionFromSharedProject(session, metadata = {}) {
+  session.sharedProjectId = String(metadata.projectId || session.sharedProjectId || "").trim().toUpperCase();
+  session.openingQuestion = String(metadata.openingQuestion || session.openingQuestion || "Quien eres?").trim() || "Quien eres?";
+  session.serviceName = String(metadata.serviceName || session.serviceName || "Contexto").trim() || "Contexto";
+  session.participantProfile = metadata.participantProfile && typeof metadata.participantProfile === "object"
+    ? metadata.participantProfile
+    : null;
+  session.quickFields = {
+    ...buildDefaultQuickFields(session.formatDefinition),
+    ...sanitizeQuickFields(metadata.quickFields || {}, session.formatDefinition),
+  };
+  session.reportProgressAudit = metadata.reportProgress && typeof metadata.reportProgress === "object"
+    ? metadata.reportProgress
+    : buildEmptyReportProgressAudit(session.formatDefinition, session.quickFields);
+  session.imageAssignments = Array.isArray(metadata.imageAssignments)
+    ? metadata.imageAssignments
+        .filter((item) => item && item.requestedName && item.finalName)
+        .slice(0, 20)
+    : [];
+  session.uploadedFiles = Array.isArray(metadata.uploadedFiles)
+    ? metadata.uploadedFiles.map((fileInfo) => deserializeSharedUpload(session, fileInfo)).slice(0, 12)
+    : [];
+  session.history = Array.isArray(metadata.history) ? metadata.history : [];
+}
+
+async function persistSharedProject(session) {
+  if (!supportsSharedProjects(session.formatDefinition)) {
+    return null;
+  }
+
+  if (!session.sharedProjectId) {
+    session.sharedProjectId = await generateSharedProjectId(session.formatDefinition);
+  }
+
+  const projectId = session.sharedProjectId;
+  const projectDir = path.join(SHARED_PROJECTS_ROOT, projectId);
+  const tempDir = path.join(SHARED_PROJECTS_ROOT, `${projectId}.tmp-${Date.now()}`);
+  const metadata = serializeSessionForSharedProject(session);
+
+  await fs.mkdir(tempDir, { recursive: true });
+
+  try {
+    await fs.cp(session.workspacePath, path.join(tempDir, SHARED_PROJECT_WORKSPACE_DIR), { recursive: true });
+    await fs.writeFile(
+      path.join(tempDir, SHARED_PROJECT_METADATA_FILE),
+      JSON.stringify(metadata, null, 2),
+      "utf8"
+    );
+    await fs.rm(projectDir, { recursive: true, force: true });
+    await fs.rename(tempDir, projectDir);
+    return {
+      projectId,
+      savedAt: metadata.savedAt,
+    };
+  } catch (error) {
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+    throw error;
+  }
+}
+
+async function persistSharedProjectSafely(session) {
+  try {
+    return await persistSharedProject(session);
+  } catch (error) {
+    console.error(`[shared-project ${session?.id || "unknown"}] ${error.message}`);
+    return null;
+  }
+}
+
+async function readSharedProjectSnapshot(projectId) {
+  const normalizedProjectId = normalizeSharedProjectId(projectId);
+  const projectDir = path.join(SHARED_PROJECTS_ROOT, normalizedProjectId);
+  const metadataPath = path.join(projectDir, SHARED_PROJECT_METADATA_FILE);
+  const workspacePath = path.join(projectDir, SHARED_PROJECT_WORKSPACE_DIR);
+
+  if (!(await pathExists(metadataPath)) || !(await pathExists(workspacePath))) {
+    throw new Error("No se encontro un proyecto compartido con ese ID.");
+  }
+
+  const metadata = JSON.parse(await fs.readFile(metadataPath, "utf8"));
+  return {
+    projectId: normalizedProjectId,
+    metadata,
+    workspacePath,
+  };
+}
+
+async function createSessionFromWorkspace(options) {
+  const {
+    sessionId = randomUUID(),
+    sessionName,
+    workspacePath,
+    formatDefinition,
+    openInVsCode = false,
+    sharedProjectId = "",
+    restoredState = null,
+  } = options;
+
+  await ensureParticipantIndex(formatDefinition);
+  const projectLayout = getWorkspaceProjectLayout(workspacePath, formatDefinition);
+  if (openInVsCode) {
+    openWorkspaceInVsCode(workspacePath);
+  }
+
+  const session = new CodexSession({
+    id: sessionId,
+    name: sessionName,
+    workspacePath,
+    formatDefinition,
+  });
+  session.reportProjectPath = projectLayout.reportProjectPath;
+  session.reportTexPath = projectLayout.reportTexPath;
+  session.reportPdfPath = projectLayout.reportPdfPath;
+  session.imagesDir = projectLayout.imagesDir;
+  session.filesDir = projectLayout.filesDir;
+  session.exportDir = projectLayout.exportDir;
+  session.sharedProjectId = String(sharedProjectId || "").trim().toUpperCase();
+
+  if (restoredState) {
+    restoreSessionFromSharedProject(session, restoredState);
+  }
+
+  sessions.set(session.id, session);
+  const developerInstructions = await buildReportBotInstructions(
+    workspacePath,
+    projectLayout,
+    formatDefinition
+  );
+  await session.start({
+    developerInstructions,
+    openingQuestion: session.openingQuestion,
+    serviceName: session.serviceName,
+  });
+  return session;
+}
+
+async function loadSessionFromSharedProject(projectId, options = {}) {
+  const { metadata, workspacePath: sharedWorkspacePath, projectId: normalizedProjectId } = await readSharedProjectSnapshot(projectId);
+  const formatDefinition = getFormatDefinition(metadata.formatId);
+  if (!formatDefinition || !supportsSharedProjects(formatDefinition)) {
+    throw new Error("Ese proyecto compartido no pertenece a un formato compatible con trabajo en grupo.");
+  }
+
+  const folderName = `${safeName(metadata.sessionName || normalizedProjectId)}-${Date.now()}`;
+  const workspacePath = path.join(WORKSPACES_ROOT, folderName);
+  await fs.cp(sharedWorkspacePath, workspacePath, { recursive: true });
+
+  const session = await createSessionFromWorkspace({
+    sessionName: metadata.sessionName || folderName,
+    workspacePath,
+    formatDefinition,
+    openInVsCode: options.openInVsCode !== false,
+    sharedProjectId: normalizedProjectId,
+    restoredState: metadata,
+  });
+
+  await persistSharedProjectSafely(session);
+  return session;
+}
+
 function openWorkspaceInVsCode(workspacePath) {
   if (process.platform === "win32") {
     const child = spawn(
@@ -2806,51 +3082,32 @@ async function handleApi(request, response) {
       return;
     }
 
-    await ensureParticipantIndex(formatDefinition);
     const {
       folderName,
       workspacePath,
-      reportProjectPath,
-      reportTexPath,
-      reportPdfPath,
-      imagesDir,
-      filesDir,
-      exportDir,
     } = await createWorkspaceFolder(body.name, formatDefinition);
-    if (body.openInVsCode) {
-      openWorkspaceInVsCode(workspacePath);
-    }
-
-    const session = new CodexSession({
-      id: randomUUID(),
-      name: folderName,
+    const session = await createSessionFromWorkspace({
+      sessionName: folderName,
       workspacePath,
       formatDefinition,
+      openInVsCode: body.openInVsCode,
     });
-    session.reportProjectPath = reportProjectPath;
-    session.reportTexPath = reportTexPath;
-    session.reportPdfPath = reportPdfPath;
-    session.imagesDir = imagesDir;
-    session.filesDir = filesDir;
-    session.exportDir = exportDir;
-    sessions.set(session.id, session);
-    const developerInstructions = await buildReportBotInstructions(
-      workspacePath,
-      {
-        reportProjectPath,
-        reportTexPath,
-        reportPdfPath,
-        imagesDir,
-        filesDir,
-      },
-      formatDefinition
-    );
-    const snapshot = await session.start({
-      developerInstructions,
-      openingQuestion: formatDefinition.bot.openingQuestion,
-      serviceName: formatDefinition.bot.serviceName,
-    });
-    json(response, 201, snapshot);
+    await persistSharedProjectSafely(session);
+    json(response, 201, session.snapshot());
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/sessions/load-shared") {
+    const body = await readRequestBody(request);
+
+    try {
+      const session = await loadSessionFromSharedProject(body.projectId, {
+        openInVsCode: body.openInVsCode !== false,
+      });
+      json(response, 201, session.snapshot());
+    } catch (error) {
+      json(response, 404, { error: error.message || "No se pudo cargar el proyecto compartido." });
+    }
     return;
   }
 
@@ -2907,6 +3164,7 @@ async function handleApi(request, response) {
     try {
       await maybeResolveParticipantProfile(session, body.message);
       const result = await session.sendUserMessage(body.message);
+      await persistSharedProjectSafely(session);
       json(response, 200, { ok: true, result });
     } catch (error) {
       json(response, 409, { error: error.message });
@@ -2917,6 +3175,7 @@ async function handleApi(request, response) {
   if (request.method === "POST" && segments[3] === "quick-fields") {
     const body = await readRequestBody(request);
     const quickFields = session.mergeQuickFields(body || {});
+    await persistSharedProjectSafely(session);
     json(response, 200, { ok: true, quickFields, snapshot: session.snapshot(false) });
     return;
   }
@@ -2932,6 +3191,7 @@ async function handleApi(request, response) {
         visible: false,
         mode: "quick-fields-apply",
       });
+      await persistSharedProjectSafely(session);
       json(response, 200, { ok: true, result, quickFields: session.quickFields });
     } catch (error) {
       json(response, 409, { error: error.message });
@@ -2945,6 +3205,7 @@ async function handleApi(request, response) {
         visible: false,
         mode: "secondary-suggestions",
       });
+      await persistSharedProjectSafely(session);
       json(response, 200, { ok: true, result });
     } catch (error) {
       json(response, 409, { error: error.message });
@@ -2955,6 +3216,7 @@ async function handleApi(request, response) {
   if (request.method === "POST" && segments[3] === "compile") {
     try {
       const result = await compileReportPdf(session);
+      await persistSharedProjectSafely(session);
       json(response, 200, { ok: true, result });
     } catch (error) {
       json(response, 409, { error: error.message });
@@ -2965,6 +3227,7 @@ async function handleApi(request, response) {
   if (request.method === "POST" && segments[3] === "sync-images") {
     try {
       const result = await requestImageSync(session);
+      await persistSharedProjectSafely(session);
       json(response, 200, { ok: true, result });
     } catch (error) {
       json(response, 409, { error: error.message });
@@ -2982,6 +3245,7 @@ async function handleApi(request, response) {
 
     try {
       const result = await requestExperimentalAction(session, actionId);
+      await persistSharedProjectSafely(session);
       json(response, 200, { ok: true, result });
     } catch (error) {
       json(response, 409, { error: error.message });
@@ -3005,6 +3269,7 @@ async function handleApi(request, response) {
       kind: "archivo",
     };
     session.registerUpload(fileInfo);
+    await persistSharedProjectSafely(session);
     json(response, 200, {
       ok: true,
       fileName,
@@ -3046,6 +3311,7 @@ async function handleApi(request, response) {
       texUpdated,
     });
     session.registerUpload(fileInfo);
+    await persistSharedProjectSafely(session);
     json(response, 200, {
       ok: true,
       fileName: resolvedFinalName,
@@ -3128,6 +3394,7 @@ async function handleApi(request, response) {
       texUpdated,
     });
     session.registerUpload(fileInfo);
+    await persistSharedProjectSafely(session);
 
     json(response, 200, {
       ok: true,
@@ -3176,6 +3443,8 @@ async function handleApi(request, response) {
         };
       }
     }
+
+    await persistSharedProjectSafely(session);
 
     json(response, 200, {
       ok: true,
@@ -3336,6 +3605,7 @@ const server = http.createServer(async (request, response) => {
 
 async function bootstrap() {
   await fs.mkdir(WORKSPACES_ROOT, { recursive: true });
+  await fs.mkdir(SHARED_PROJECTS_ROOT, { recursive: true });
   await fs.mkdir(TEMP_ZIP_DIR, { recursive: true });
   await loadReportFormats();
   server.listen(PORT, HOST, () => {

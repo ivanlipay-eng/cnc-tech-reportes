@@ -25,6 +25,12 @@ const apiRoot = apiBaseUrl ? `${apiBaseUrl}/api` : "/api";
 const form = document.getElementById("session-form");
 const folderInput = document.getElementById("folder-name");
 const reportFormatSelect = document.getElementById("report-format");
+const collaborationPanel = document.getElementById("collaboration-panel");
+const sharedProjectIdInput = document.getElementById("shared-project-id");
+const copySharedProjectIdButton = document.getElementById("copy-shared-project-id");
+const loadSharedProjectIdInput = document.getElementById("load-shared-project-id");
+const loadSharedProjectButton = document.getElementById("load-shared-project");
+const collaborationStatus = document.getElementById("collaboration-status");
 const sessionMeta = document.getElementById("session-meta");
 const downloadZipLink = document.getElementById("download-zip");
 const uploadDriveButton = document.getElementById("upload-drive");
@@ -107,6 +113,7 @@ const IMAGE_EXTENSION_REGEX = /\.(jpg|jpeg|png|webp|gif|bmp|tif|tiff|svg|heic|he
 const quickPanelInputRegistry = new Map();
 const quickPanelActionButtons = [];
 const THEME_STORAGE_KEY = "cnc-tech-theme";
+const GROUP_COLLABORATION_FORMAT_IDS = new Set(["informes-uni"]);
 
 const WINDOWS_PATH_REGEX = /[A-Za-z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*/g;
 
@@ -118,6 +125,7 @@ initializeQuickPanel();
 initializeQuickDrawer();
 initializeParticipantAnimation();
 initializeGlobalShortcuts();
+syncCollaborationControls();
 
 function initializeThemeToggle() {
   const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
@@ -199,6 +207,13 @@ function getCurrentQuickPanel() {
   };
 }
 
+function isGroupCollaborationFormat(formatDefinition = null) {
+  const definition = formatDefinition
+    || (state.session?.reportFormat?.id ? getFormatDefinitionById(state.session.reportFormat.id) : null)
+    || getCurrentFormatDefinition();
+  return GROUP_COLLABORATION_FORMAT_IDS.has(String(definition?.id || "").trim());
+}
+
 function buildEmptyQuickFields(formatDefinition = getCurrentFormatDefinition()) {
   const quickPanel = formatDefinition?.quickPanel;
   const fields = Array.isArray(quickPanel?.fields) ? quickPanel.fields : [];
@@ -228,6 +243,141 @@ function buildApiUrl(pathname) {
 function buildBackendUrl(pathname) {
   const normalizedPath = String(pathname || "").startsWith("/") ? pathname : `/${pathname}`;
   return apiBaseUrl ? `${apiBaseUrl}${normalizedPath}` : normalizedPath;
+}
+
+function setCollaborationStatus(text, isError = false) {
+  if (!collaborationStatus) {
+    return;
+  }
+  collaborationStatus.textContent = text;
+  collaborationStatus.classList.toggle("error", Boolean(isError));
+}
+
+function syncCollaborationControls() {
+  if (!collaborationPanel) {
+    return;
+  }
+
+  const collaborationEnabled = isGroupCollaborationFormat();
+  collaborationPanel.hidden = !collaborationEnabled;
+  if (!collaborationEnabled) {
+    return;
+  }
+
+  const sharedProjectId = String(state.session?.sharedProject?.id || "").trim();
+  if (sharedProjectIdInput) {
+    sharedProjectIdInput.value = sharedProjectId;
+  }
+
+  const hasLoadInput = Boolean(String(loadSharedProjectIdInput?.value || "").trim());
+  if (copySharedProjectIdButton) {
+    copySharedProjectIdButton.disabled = !sharedProjectId;
+  }
+  if (loadSharedProjectButton) {
+    loadSharedProjectButton.disabled = !hasLoadInput;
+  }
+
+  if (sharedProjectId) {
+    setCollaborationStatus(`ID listo para compartir: ${sharedProjectId}`);
+    return;
+  }
+
+  if (state.session) {
+    setCollaborationStatus("Este proyecto se sincronizara y mostrara su ID compartido al crear la sesion.");
+    return;
+  }
+
+  setCollaborationStatus("Crea un proyecto nuevo o carga uno por ID. Ambas PCs deben usar este mismo backend.");
+}
+
+function hasVisibleHistory(snapshot) {
+  return Array.isArray(snapshot?.history)
+    && snapshot.history.some((event) => event?.type === "chat-message" || event?.type === "turn-complete");
+}
+
+async function activateSessionSnapshot(snapshot, options = {}) {
+  hydrateSessionState(snapshot);
+  state.assistantNodes.clear();
+  stateRequestedImages.clear();
+  pdfLoadedOnce = false;
+  state.lastAssistantMessageId = null;
+  state.userMessageCount = 0;
+  messages.innerHTML = "";
+  setReportProgress(snapshot?.reportProgress || { percent: 0, status: "en_proceso" });
+  clearPdfViewer("Cargando PDF inicial del proyecto...");
+  renderUploadedFiles(snapshot?.uploadedFiles || []);
+  renderRequestedImages();
+  renderMeta(snapshot);
+  restoreHistory(snapshot?.history || []);
+  renderRequestedImages();
+
+  if (options.showOpeningQuestion !== false && !hasVisibleHistory(snapshot) && snapshot?.openingQuestion) {
+    appendMessage({
+      id: crypto.randomUUID(),
+      role: "assistant",
+      text: snapshot.openingQuestion,
+    });
+  }
+
+  connectEvents(snapshot.id);
+  chatInput.disabled = false;
+  sendButton.disabled = false;
+  compileButton.disabled = false;
+  syncImagesButton.disabled = false;
+  setPdfViewButtonEnabled(true);
+  try {
+    await loadInitialPdfViewer();
+  } catch {
+    clearPdfViewer("El PDF inicial no estuvo disponible todavia");
+  }
+  chatInput.focus();
+  setStatus(options.statusText || "Proyecto listo");
+  setThinking(false);
+  if (!pdfLoadedOnce) {
+    pdfStatus.textContent = "El PDF inicial no estuvo disponible todavia";
+  }
+}
+
+async function loadSharedProjectById(projectId) {
+  const normalizedProjectId = String(projectId || "").trim().toUpperCase();
+  if (!normalizedProjectId) {
+    setCollaborationStatus("Escribe primero un ID de proyecto.", true);
+    return;
+  }
+
+  setStatus("Cargando proyecto grupal...");
+  setCollaborationStatus(`Buscando ${normalizedProjectId}...`);
+  if (loadSharedProjectButton) {
+    loadSharedProjectButton.disabled = true;
+  }
+
+  try {
+    const response = await fetch(buildApiUrl("/sessions/load-shared"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        projectId: normalizedProjectId,
+        openInVsCode: true,
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "No se pudo cargar el proyecto compartido.");
+    }
+
+    await activateSessionSnapshot(data, {
+      statusText: "Proyecto grupal cargado",
+      showOpeningQuestion: !hasVisibleHistory(data),
+    });
+    setCollaborationStatus(`Proyecto ${normalizedProjectId} cargado en esta PC.`);
+  } catch (error) {
+    setStatus("No se pudo cargar el proyecto grupal.", true);
+    setCollaborationStatus(error.message || "No se pudo cargar el proyecto compartido.", true);
+    setThinking(false);
+  } finally {
+    syncCollaborationControls();
+  }
 }
 
 function initializeBrandLogo() {
@@ -451,46 +601,41 @@ form.addEventListener("submit", async (event) => {
       throw new Error(data.error || "No se pudo crear el proyecto.");
     }
 
-    hydrateSessionState(data);
-    state.assistantNodes.clear();
-    stateRequestedImages.clear();
-    pdfLoadedOnce = false;
-    state.lastAssistantMessageId = null;
-    state.userMessageCount = 0;
-    messages.innerHTML = "";
-    setReportProgress({ percent: 0, status: "en_proceso" });
-    clearPdfViewer("Cargando PDF inicial del proyecto...");
-    renderUploadedFiles(data.uploadedFiles || []);
-    renderRequestedImages();
-    renderMeta(data);
-    if (data.openingQuestion) {
-      appendMessage({
-        id: crypto.randomUUID(),
-        role: "assistant",
-        text: data.openingQuestion,
-      });
-    }
-    connectEvents(data.id);
-    chatInput.disabled = false;
-    sendButton.disabled = false;
-    compileButton.disabled = false;
-    syncImagesButton.disabled = false;
-    setPdfViewButtonEnabled(true);
-    try {
-      await loadInitialPdfViewer();
-    } catch (error) {
-      clearPdfViewer("El PDF inicial no estuvo disponible todavia");
-    }
-    chatInput.focus();
-    setStatus("Proyecto listo");
-    setThinking(false);
-    if (!pdfLoadedOnce) {
-      pdfStatus.textContent = "El PDF inicial no estuvo disponible todavia";
-    }
+    await activateSessionSnapshot(data, {
+      statusText: "Proyecto listo",
+      showOpeningQuestion: true,
+    });
   } catch (error) {
     setStatus("No se pudo crear el proyecto.", true);
     setThinking(false);
   }
+});
+
+copySharedProjectIdButton?.addEventListener("click", async () => {
+  const sharedProjectId = String(state.session?.sharedProject?.id || "").trim();
+  if (!sharedProjectId) {
+    setCollaborationStatus("Este proyecto todavia no tiene un ID disponible.", true);
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(sharedProjectId);
+    setCollaborationStatus(`ID copiado: ${sharedProjectId}`);
+  } catch {
+    if (sharedProjectIdInput) {
+      sharedProjectIdInput.focus();
+      sharedProjectIdInput.select();
+    }
+    setCollaborationStatus(`Copia manualmente este ID: ${sharedProjectId}`);
+  }
+});
+
+loadSharedProjectIdInput?.addEventListener("input", () => {
+  syncCollaborationControls();
+});
+
+loadSharedProjectButton?.addEventListener("click", async () => {
+  await loadSharedProjectById(loadSharedProjectIdInput?.value || "");
 });
 
 chatForm.addEventListener("submit", async (event) => {
@@ -1408,6 +1553,10 @@ function renderMeta(session) {
     `<strong>Formato:</strong> ${escapeHtml(reportFormat)}`,
   ];
 
+  if (session.sharedProject?.id) {
+    metaLines.push(`<strong>ID grupal:</strong> ${escapeHtml(session.sharedProject.id)}`);
+  }
+
   if (session.reportFormat?.usesParticipantProfiles) {
     metaLines.push(`<strong>Participante:</strong> ${escapeHtml(participantName)}`);
     metaLines.push(`<strong>Area:</strong> ${escapeHtml(participantArea)}`);
@@ -1449,6 +1598,7 @@ function renderMeta(session) {
   } else {
     pdfStatus.textContent = "PDF listo. Pulsa Compilar PDF para actualizarlo";
   }
+  syncCollaborationControls();
 }
 
 function renderUploadedFiles(files) {
@@ -1729,6 +1879,7 @@ function hydrateSessionState(snapshot) {
   syncTheme();
   maybeTriggerRubenAnimationFromProfile();
   renderQuickPanel(state.quickFields, getCurrentFormatDefinition());
+  syncCollaborationControls();
 }
 
 function initializeParticipantAnimation() {
@@ -2050,6 +2201,7 @@ function populateFormatOptions(formats, preferredFormatId = "") {
     state.quickFields = buildEmptyQuickFields(getCurrentFormatDefinition());
   }
   renderQuickPanel(state.quickFields || buildEmptyQuickFields(getCurrentFormatDefinition()), getCurrentFormatDefinition());
+  syncCollaborationControls();
 }
 
 reportFormatSelect?.addEventListener("change", () => {
@@ -2059,6 +2211,7 @@ reportFormatSelect?.addEventListener("change", () => {
     renderQuickPanel(state.quickFields, getCurrentFormatDefinition());
     setQuickPanelStatus(getCurrentQuickPanel().readyStatus || "Panel rapido listo para el formato seleccionado");
   }
+  syncCollaborationControls();
 });
 
 function setReportProgress(meta) {
