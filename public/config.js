@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://coral-radar-festival-stuffed.trycloudflare.com",
+  apiBaseUrl: "https://cooper-files-setup-maximum.trycloudflare.com",
   brandLogoUrl: "",
 };

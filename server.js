@@ -30,6 +30,7 @@ const CORS_ALLOWED_ORIGINS = String(process.env.CORS_ALLOWED_ORIGINS || "*")
   .filter(Boolean);
 const GRAPHVIZ_DOT_COMMAND = resolveGraphvizDotCommand();
 const CODEX_COMMAND = resolveCodexCommand();
+const RIPGREP_COMMAND = resolveRipgrepCommand();
 
 const sessions = new Map();
 const participantRegistryCache = new Map();
@@ -909,8 +910,8 @@ function resolveCodexCommand() {
 function resolveGraphvizDotCommand() {
   const candidatePaths = [
     process.env.GRAPHVIZ_DOT,
-    path.join("C:\\Program Files\\Graphviz\\bin", "dot.exe"),
-    path.join("C:\\Program Files (x86)\\Graphviz\\bin", "dot.exe"),
+    path.join(String.raw`C:\Program Files\Graphviz\bin`, "dot.exe"),
+    path.join(String.raw`C:\Program Files (x86)\Graphviz\bin`, "dot.exe"),
     path.join(process.env.LOCALAPPDATA || "", "Programs", "Graphviz", "bin", "dot.exe"),
   ].filter(Boolean);
 
@@ -918,10 +919,60 @@ function resolveGraphvizDotCommand() {
   return foundPath || "";
 }
 
+function resolveRipgrepCommand() {
+  const candidatePaths = [
+    process.env.RIPGREP_PATH,
+    process.env.RG_PATH,
+    path.join(String.raw`C:\Program Files\Microsoft VS Code`, "resources", "app", "node_modules.asar.unpacked", "@vscode", "ripgrep", "bin", "rg.exe"),
+    path.join(process.env.LOCALAPPDATA || "", "Programs", "Microsoft VS Code", "resources", "app", "node_modules.asar.unpacked", "@vscode", "ripgrep", "bin", "rg.exe"),
+    path.join(process.env.LOCALAPPDATA || "", "Programs", "cursor", "resources", "app", "node_modules.asar.unpacked", "@vscode", "ripgrep", "bin", "rg.exe"),
+    path.join(process.env.LOCALAPPDATA || "", "Programs", "Trae", "resources", "app", "node_modules.asar.unpacked", "@vscode", "ripgrep", "bin", "rg.exe"),
+    "rg",
+  ].filter(Boolean);
+
+  const foundPath = candidatePaths.find((candidate) => candidate === "rg" || fsSync.existsSync(candidate));
+  return foundPath || "rg";
+}
+
+function buildCodexSpawnEnv() {
+  const env = { ...process.env };
+  const pathKey = Object.hasOwn(env, "Path") ? "Path" : "PATH";
+  const separator = process.platform === "win32" ? ";" : ":";
+  const toolDirs = [
+    path.dirname(CODEX_COMMAND),
+    RIPGREP_COMMAND === "rg" ? "" : path.dirname(RIPGREP_COMMAND),
+    GRAPHVIZ_DOT_COMMAND ? path.dirname(GRAPHVIZ_DOT_COMMAND) : "",
+  ].filter(Boolean);
+
+  const existingEntries = String(env[pathKey] || "")
+    .split(separator)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  const mergedEntries = [...toolDirs, ...existingEntries].filter(
+    (entry, index, entries) => entries.indexOf(entry) === index
+  );
+
+  env[pathKey] = mergedEntries.join(separator);
+  if (pathKey === "Path") {
+    env.PATH = env[pathKey];
+  } else {
+    env.Path = env[pathKey];
+  }
+
+  if (RIPGREP_COMMAND && RIPGREP_COMMAND !== "rg") {
+    env.RIPGREP_PATH = RIPGREP_COMMAND;
+    env.RG_PATH = RIPGREP_COMMAND;
+  }
+
+  return env;
+}
+
 async function spawnCodexProcess(workspacePath) {
   return new Promise((resolve, reject) => {
     const child = spawn(CODEX_COMMAND, ["app-server"], {
       cwd: workspacePath,
+      env: buildCodexSpawnEnv(),
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });
