@@ -25,6 +25,9 @@ const apiRoot = apiBaseUrl ? `${apiBaseUrl}/api` : "/api";
 const form = document.getElementById("session-form");
 const folderInput = document.getElementById("folder-name");
 const reportFormatSelect = document.getElementById("report-format");
+const collaborationShell = document.getElementById("collaboration-shell");
+const collaborationToggle = document.getElementById("collaboration-toggle");
+const collaborationToggleHint = document.getElementById("collaboration-toggle-hint");
 const collaborationPanel = document.getElementById("collaboration-panel");
 const sharedProjectIdInput = document.getElementById("shared-project-id");
 const copySharedProjectIdButton = document.getElementById("copy-shared-project-id");
@@ -68,6 +71,8 @@ const sendButton = document.getElementById("send-message");
 const statusPill = document.getElementById("status-pill");
 const messages = document.getElementById("messages");
 const botThinking = document.getElementById("bot-thinking");
+const thinkingFactBar = document.getElementById("thinking-fact-bar");
+const thinkingFactText = document.getElementById("thinking-fact-text");
 const reportProgressBar = document.getElementById("report-progress-bar");
 const reportProgressLabel = document.getElementById("report-progress-label");
 const reportProgressPercent = document.getElementById("report-progress-percent");
@@ -101,6 +106,10 @@ let dragDepth = 0;
 let inlineImageSequence = 0;
 let quickFieldSaveTimer = null;
 let participantAnimationHideTimer = null;
+let collaborationPanelOpen = false;
+let thinkingFactTimer = null;
+let thinkingFactQueue = [];
+let thinkingFactIndex = 0;
 const PAGE_RESPONSE_START = "--respuesta de pagina--";
 const PAGE_RESPONSE_END = "--finalice--";
 const QUICK_REPLIES_START = "[[respuestas_rapidas]]";
@@ -114,6 +123,108 @@ const quickPanelInputRegistry = new Map();
 const quickPanelActionButtons = [];
 const THEME_STORAGE_KEY = "cnc-tech-theme";
 const GROUP_COLLABORATION_FORMAT_IDS = new Set(["informes-uni"]);
+const CNC_TECH_CURIOUS_FACTS = [
+  "En CNC Tech, un reporte bien ordenado suele ahorrar mas tiempo que una correccion rapida al final.",
+  "Una evidencia con buena luz puede resolver dudas tecnicas sin pedir una segunda visita.",
+  "Muchos errores de reporte aparecen por no registrar el contexto antes de describir la accion.",
+  "Cuando el nombre del archivo es claro, la revision documental se vuelve mas rapida.",
+  "Una foto tomada desde el mismo angulo en distintas fechas facilita comparar avances reales.",
+  "En trabajos tecnicos, describir el antes y el despues suele valer mas que adornar el texto.",
+  "Un buen pie de foto puede convertir una imagen comun en una prueba util para auditoria.",
+  "Los proyectos de CNC Tech ganan claridad cuando cada evidencia responde a una pregunta concreta.",
+  "Un informe tecnico no solo cuenta que paso; tambien deja rastro de como se comprobo.",
+  "Las tablas cortas y bien tituladas suelen comunicar mejor que los parrafos saturados.",
+  "Cuando un hallazgo se explica con lenguaje simple, mas personas pueden validarlo rapido.",
+  "Un reporte consistente transmite mas control que uno lleno de detalles aislados.",
+  "En CNC Tech, una buena trazabilidad hace que el proyecto sea entendible incluso semanas despues.",
+  "Las evidencias repetidas con nombres distintos suelen generar mas ruido que valor.",
+  "Un encabezado preciso puede ahorrar varias preguntas de seguimiento al revisar un documento.",
+  "Las observaciones tecnicas mejoran cuando incluyen lugar, accion y resultado en una misma idea.",
+  "La calidad del reporte no depende solo del texto; depende de como dialoga con sus anexos.",
+  "Una captura de pantalla con datos visibles puede ser tan util como una fotografia de campo.",
+  "La coherencia entre chat, panel rapido y PDF reduce mucho las correcciones manuales.",
+  "CNC Tech trabaja mejor cuando cada evidencia tiene una razon clara para existir.",
+  "Los reportes mas solidos suelen construirse en capas: contexto, accion, evidencia y cierre.",
+  "Un dato corto y exacto suele tener mas peso que una frase larga y ambigua.",
+  "Guardar avances parciales evita rehacer trabajo cuando cambian las prioridades.",
+  "El orden de las imagenes tambien comunica: puede mostrar proceso, secuencia y causalidad.",
+  "En documentos tecnicos, una conclusion fuerte suele nacer de observaciones muy concretas.",
+  "Las listas ayudan cuando hay pasos; las tablas ayudan cuando hay comparacion.",
+  "Una descripcion neutral es mas util que una opinion dramatica dentro de un informe.",
+  "La mejor evidencia suele ser la que responde exactamente a la duda del lector.",
+  "Un proyecto compartido funciona mejor si todos usan el mismo criterio para nombrar archivos.",
+  "Cuando una imagen no aporta, quitarla suele mejorar el reporte.",
+  "Una secuencia cronologica clara reduce la necesidad de explicar lo obvio en reuniones.",
+  "Los cambios pequenos, bien documentados, pueden tener mas impacto que una reescritura completa.",
+  "En CNC Tech, una revision rapida sirve mas cuando el material ya esta bien clasificado.",
+  "La consistencia visual tambien comunica disciplina tecnica.",
+  "Los titulos especificos orientan mejor que etiquetas genericas como avance o mejora.",
+  "Si una foto necesita demasiada explicacion, probablemente hace falta otra evidencia complementaria.",
+  "Un reporte claro permite que otra persona continue el trabajo sin perder contexto.",
+  "Los datos bien distribuidos cansan menos que un bloque grande de texto continuo.",
+  "Una buena evidencia no solo muestra algo; demuestra por que importa.",
+  "Cuando el orden interno del proyecto es bueno, tambien mejora la velocidad de compilacion y revision.",
+  "En tareas formativas, documentar el aprendizaje tambien puede ser parte del resultado tecnico.",
+  "Las conclusiones se fortalecen cuando recuperan pruebas ya mostradas en el cuerpo del reporte.",
+  "Un informe solido no necesita exagerar: le basta con ser verificable.",
+  "Las observaciones con verbos concretos suelen ser mas utiles que las frases abstractas.",
+  "Un mismo dato puede servir en introduccion, desarrollo y cierre si se usa con enfoque distinto.",
+  "En CNC Tech, la claridad operativa vale tanto como el detalle tecnico.",
+  "La mejor colaboracion no es escribir a la vez; es mantener una estructura que todos entiendan.",
+  "Los proyectos compartidos mejoran cuando el ID se usa como referencia comun entre equipos.",
+  "Un archivo bien clasificado hoy puede ahorrar una busqueda larga en la entrega final.",
+  "La evidencia visual gana fuerza cuando esta ubicada cerca del texto que la explica.",
+  "Un reporte tecnico no solo se lee: tambien se navega.",
+  "La continuidad entre secciones hace que el documento parezca una sola historia, no fragmentos unidos.",
+  "Una observacion bien escrita suele anticipar la conclusion sin repetirla.",
+  "En procesos formativos, registrar el metodo puede ser tan importante como registrar el resultado.",
+  "Las mejoras de sintaxis ayudan, pero la estructura suele ser lo primero que se nota.",
+  "Cada evidencia deberia responder al menos una de estas preguntas: que paso, donde, cuando o con que resultado.",
+  "Cuando el lector encuentra rapido lo esencial, el reporte transmite dominio.",
+  "En CNC Tech, un PDF ordenado inspira mas confianza que uno lleno de remiendos.",
+  "Los estados breves como Procesando reducen ansiedad mejor que mensajes ambiguos o ruidosos.",
+  "Una burbuja con movimiento suave comunica actividad sin presionar al usuario.",
+  "Los datos curiosos durante la espera convierten tiempo muerto en contexto util.",
+  "Un panel desplegable ayuda a mostrar opciones avanzadas sin recargar la pantalla principal.",
+  "La experiencia de usuario tambien forma parte de la calidad tecnica del sistema.",
+  "Una interfaz serena puede mejorar la percepcion del trabajo incluso antes del resultado final.",
+  "La colaboracion remota funciona mejor cuando el backend y el ID del proyecto son compartidos de forma estable.",
+  "Si el usuario entiende que esta pasando, suele tolerar mejor las esperas largas.",
+  "Una espera corta se siente larga cuando la interfaz parece congelada.",
+  "Mostrar senales de actividad claras evita clicks repetidos y errores por impaciencia.",
+  "Un buen sistema de reportes reduce friccion tanto en la captura como en la revision.",
+  "En CNC Tech, la automatizacion sirve mas cuando no rompe el flujo de trabajo humano.",
+  "Las herramientas utiles son las que desaparecen y dejan que el usuario piense en el contenido.",
+  "La mejor mejora de interfaz suele ser la que baja ruido sin esconder funciones importantes.",
+  "Un acordeon bien usado muestra complejidad solo cuando hace falta.",
+  "La documentacion del proyecto gana valor cuando coincide con el estado real del trabajo.",
+  "Una sesion bien restaurada por ID evita rehacer contexto en otra computadora.",
+  "La estabilidad del backend importa tanto como el diseño del frontend cuando se trabaja en grupo.",
+  "Cuanto mas natural es la interfaz, menos capacitacion necesita el usuario.",
+  "Las microdecisiones visuales, como espacio y contraste, afectan la fatiga durante jornadas largas.",
+  "Una barra de contexto puede educar al usuario mientras espera una respuesta compleja.",
+  "No toda mejora visible es grande; a veces cambiar un texto reduce mucho la tension del uso.",
+  "El flujo ideal de CNC Tech une captura, analisis, evidencia y compilacion sin saltos bruscos.",
+  "Una accion deshabilitada y bien explicada frustra menos que un boton activo que luego falla.",
+  "Las animaciones cortas funcionan mejor cuando tienen una intencion clara y no compiten con el contenido.",
+  "Un sistema confiable no solo responde; tambien comunica su estado con honestidad.",
+  "Una colaboracion efectiva no depende de hablar mas, sino de compartir mejor el contexto.",
+  "La calidad de una entrega suele empezar mucho antes del PDF final.",
+  "En CNC Tech, la evidencia correcta en el lugar correcto puede cerrar una revision completa.",
+  "Cada ajuste que reduce retrabajo libera tiempo para pensar mejor el contenido tecnico.",
+  "Un reporte util no es el mas largo, sino el mas facil de verificar.",
+  "La tecnologia ayuda mas cuando deja visibles las decisiones importantes del proceso.",
+  "El estado de una sesion deberia poder retomarse sin explicar todo desde cero.",
+  "Un ID compartido convierte el proyecto en una referencia comun, no en un archivo perdido.",
+  "Las sesiones colaborativas funcionan mejor cuando una persona puede continuar donde otra se quedo.",
+  "El progreso visible reduce la sensacion de incertidumbre durante tareas largas.",
+  "La paciencia del usuario mejora cuando la interfaz devuelve contexto en lugar de silencio.",
+  "Una buena experiencia no acelera solo el sistema; acelera la comprension del usuario.",
+  "En CNC Tech, ordenar bien la informacion tambien es una forma de trabajo tecnico.",
+  "Todo reporte fuerte combina tres cosas: evidencia, claridad y continuidad.",
+  "Un proyecto bien preparado puede viajar entre PCs sin perder su hilo de trabajo.",
+  "Cuando el sistema acompana la espera, el usuario siente control en vez de incertidumbre."
+];
 
 const WINDOWS_PATH_REGEX = /[A-Za-z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*/g;
 
@@ -214,6 +325,84 @@ function isGroupCollaborationFormat(formatDefinition = null) {
   return GROUP_COLLABORATION_FORMAT_IDS.has(String(definition?.id || "").trim());
 }
 
+function setCollaborationPanelOpen(isOpen) {
+  collaborationPanelOpen = Boolean(isOpen);
+
+  if (collaborationShell) {
+    collaborationShell.classList.toggle("is-open", collaborationPanelOpen);
+  }
+
+  if (collaborationPanel) {
+    collaborationPanel.hidden = !collaborationPanelOpen;
+  }
+
+  if (collaborationToggle) {
+    collaborationToggle.setAttribute("aria-expanded", collaborationPanelOpen ? "true" : "false");
+  }
+
+  if (collaborationToggleHint) {
+    collaborationToggleHint.textContent = collaborationPanelOpen
+      ? "Ocultar opciones de colaboracion"
+      : "Mostrar opciones de colaboracion";
+  }
+}
+
+function getThinkingFactDuration(fact) {
+  const length = String(fact || "").trim().length;
+  if (length <= 90) {
+    return 8000;
+  }
+  if (length <= 140) {
+    return 10000;
+  }
+  if (length <= 190) {
+    return 12000;
+  }
+  return 15000;
+}
+
+function refillThinkingFactQueue() {
+  thinkingFactQueue = [...CNC_TECH_CURIOUS_FACTS]
+    .map((fact, index) => ({ fact, sort: Math.random(), index }))
+    .sort((left, right) => left.sort - right.sort || left.index - right.index)
+    .map((entry) => entry.fact);
+  thinkingFactIndex = 0;
+}
+
+function stopThinkingFacts() {
+  if (thinkingFactTimer) {
+    clearTimeout(thinkingFactTimer);
+    thinkingFactTimer = null;
+  }
+  if (thinkingFactBar) {
+    thinkingFactBar.hidden = true;
+  }
+  if (thinkingFactText) {
+    thinkingFactText.textContent = "";
+  }
+}
+
+function showNextThinkingFact() {
+  if (!thinkingFactText || !thinkingFactBar) {
+    return;
+  }
+
+  if (!thinkingFactQueue.length || thinkingFactIndex >= thinkingFactQueue.length) {
+    refillThinkingFactQueue();
+  }
+
+  const fact = thinkingFactQueue[thinkingFactIndex] || CNC_TECH_CURIOUS_FACTS[0] || "";
+  thinkingFactIndex += 1;
+  thinkingFactBar.hidden = false;
+  thinkingFactText.textContent = fact;
+  thinkingFactTimer = setTimeout(showNextThinkingFact, getThinkingFactDuration(fact));
+}
+
+function startThinkingFacts() {
+  stopThinkingFacts();
+  showNextThinkingFact();
+}
+
 function buildEmptyQuickFields(formatDefinition = getCurrentFormatDefinition()) {
   const quickPanel = formatDefinition?.quickPanel;
   const fields = Array.isArray(quickPanel?.fields) ? quickPanel.fields : [];
@@ -254,15 +443,18 @@ function setCollaborationStatus(text, isError = false) {
 }
 
 function syncCollaborationControls() {
-  if (!collaborationPanel) {
+  if (!collaborationPanel || !collaborationShell) {
     return;
   }
 
   const collaborationEnabled = isGroupCollaborationFormat();
-  collaborationPanel.hidden = !collaborationEnabled;
+  collaborationShell.hidden = !collaborationEnabled;
   if (!collaborationEnabled) {
+    setCollaborationPanelOpen(false);
     return;
   }
+
+  setCollaborationPanelOpen(collaborationPanelOpen);
 
   const sharedProjectId = String(state.session?.sharedProject?.id || "").trim();
   if (sharedProjectIdInput) {
@@ -634,6 +826,10 @@ loadSharedProjectIdInput?.addEventListener("input", () => {
   syncCollaborationControls();
 });
 
+collaborationToggle?.addEventListener("click", () => {
+  setCollaborationPanelOpen(!collaborationPanelOpen);
+});
+
 loadSharedProjectButton?.addEventListener("click", async () => {
   await loadSharedProjectById(loadSharedProjectIdInput?.value || "");
 });
@@ -915,7 +1111,7 @@ function connectEvents(sessionId) {
 
   eventSource.onopen = () => {
     if (state.activeMode === "chat") {
-      setStatus("Contexto pensando...");
+      setStatus("Procesando");
     } else {
       setStatus("Sesión lista");
     }
@@ -1259,10 +1455,10 @@ function handleServerEvent(event) {
         setStatus("Compilando...");
         setThinking(event.payload.status === "running" || event.payload.status === "active", "compilando");
       } else if (state.activeMode === "chat") {
-        setStatus(event.payload.status === "running" || event.payload.status === "active" ? "Contexto pensando..." : "Listo");
+        setStatus(event.payload.status === "running" || event.payload.status === "active" ? "Procesando" : "Listo");
         setThinking(event.payload.status === "running" || event.payload.status === "active", "pensando");
       } else {
-        setStatus(event.payload.status === "running" ? "Contexto pensando..." : "Listo");
+        setStatus(event.payload.status === "running" ? "Procesando" : "Listo");
         setThinking(event.payload.status === "running" || event.payload.status === "active");
       }
       break;
@@ -1450,7 +1646,7 @@ async function submitChatMessage(rawMessage) {
   chatInput.disabled = true;
   compileButton.disabled = true;
   state.activeMode = "chat";
-  setStatus("Contexto pensando...");
+  setStatus("Procesando");
   setThinking(true, "pensando");
 
   try {
@@ -1830,8 +2026,19 @@ function setStatus(text, isError = false) {
 }
 
 function setThinking(isThinking, label = "pensando") {
+  if (!botThinking) {
+    return;
+  }
+
   botThinking.hidden = !isThinking;
-  botThinking.textContent = isThinking ? label : "";
+  botThinking.setAttribute("aria-label", isThinking ? `Procesando: ${label}` : "Procesando respuesta");
+
+  if (isThinking) {
+    startThinkingFacts();
+    return;
+  }
+
+  stopThinkingFacts();
 }
 
 function setUploadStatus(text, isError = false) {
