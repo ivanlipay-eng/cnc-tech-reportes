@@ -444,12 +444,8 @@ function syncCollaborationControls() {
     sharedProjectIdInput.value = sharedProjectId;
   }
 
-  const hasLoadInput = Boolean(String(loadSharedProjectIdInput?.value || "").trim());
   if (copySharedProjectIdButton) {
     copySharedProjectIdButton.disabled = !sharedProjectId;
-  }
-  if (loadSharedProjectButton) {
-    loadSharedProjectButton.disabled = !hasLoadInput;
   }
 
   if (sharedProjectId) {
@@ -522,9 +518,6 @@ async function loadSharedProjectById(projectId) {
 
   setStatus("Cargando proyecto grupal...");
   setCollaborationStatus(`Buscando ${normalizedProjectId}...`);
-  if (loadSharedProjectButton) {
-    loadSharedProjectButton.disabled = true;
-  }
 
   try {
     const response = await fetch(buildApiUrl("/sessions/load-shared"), {
