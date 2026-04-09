@@ -1583,6 +1583,11 @@ button:disabled {
   max-width: min(34ch, calc(100% - 16px));
 }
 
+.thinking-indicator[hidden],
+.thinking-fact-bar[hidden] {
+  display: none !important;
+}
+
 .thinking-bubble {
   align-self: flex-start;
   display: inline-flex;
@@ -1624,14 +1629,6 @@ button:disabled {
   border: 1px solid rgba(107, 122, 94, 0.1);
   color: #66725f;
   box-shadow: none;
-}
-
-.thinking-fact-kicker {
-  font-size: 0.64rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  opacity: 0.78;
 }
 
 .thinking-fact-text {
