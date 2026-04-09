@@ -1947,6 +1947,22 @@ function pulseRibbonTab(target) {
   const tab = ribbonTabs.find((item) => item.dataset.toolbarTarget === target);
   if (!tab) {
     return;
+function renderMessageMath(textNode) {
+  if (!textNode || typeof window.renderMathInElement !== "function") {
+    return;
+  }
+
+  window.renderMathInElement(textNode, {
+    delimiters: [
+      { left: "$$", right: "$$", display: true },
+      { left: "\\[", right: "\\]", display: true },
+      { left: "$", right: "$", display: false },
+      { left: "\\(", right: "\\)", display: false },
+    ],
+    throwOnError: false,
+    strict: "ignore",
+  });
+}
   }
 
   tab.classList.remove("has-upload-alert");
@@ -1956,6 +1972,8 @@ function pulseRibbonTab(target) {
     tab.classList.remove("has-upload-alert");
   }, 760);
 }
+    article.dataset.renderedText = message.text || "";
+    renderMessageMath(textNode);
 
 uploadedFilesList.addEventListener("click", async (event) => {
   const removeButton = event.target.closest('[data-action="delete-upload"]');
@@ -1965,6 +1983,8 @@ uploadedFilesList.addEventListener("click", async (event) => {
 
   const fileName = String(removeButton.dataset.name || "").trim();
   const fileKind = String(removeButton.dataset.kind || "archivo").trim();
+  article.dataset.renderedText = parsedContent.text;
+  renderMessageMath(textNode);
   if (!fileName) {
     return;
   }
@@ -1976,7 +1996,7 @@ uploadedFilesList.addEventListener("click", async (event) => {
     removeButton.disabled = false;
   }
 });
-
+    lastMessage.dataset.renderedText === sanitizedText
 function removeUploadedFile(name, kind) {
   state.uploadedFiles = state.uploadedFiles.filter(
     (item) => !(item.name === name && String(item.kind || "archivo") === kind)

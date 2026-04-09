@@ -1656,6 +1656,21 @@ button:disabled {
   white-space: pre-wrap;
   line-height: 1.6;
 }
+.message .text .katex {
+  white-space: normal;
+}
+
+.message .text .katex-display {
+  margin: 0.8rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.2rem;
+}
+
+.message .text .katex-display > .katex {
+  display: inline-block;
+  min-width: min-content;
+}
 
 .quick-replies {
   margin-top: 12px;
