@@ -6,6 +6,7 @@ const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { randomUUID } = require("node:crypto");
 const { EventEmitter } = require("node:events");
+const mammoth = require("mammoth");
 const { version: APP_VERSION } = require("./package.json");
 
 const HOST = process.env.HOST || "0.0.0.0";
@@ -22,6 +23,7 @@ const FORMAT_CONFIG_FILE = "format.config.json";
 const MAX_HISTORY_EVENTS = 500;
 const SSE_HEARTBEAT_MS = 15000;
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
+const MAX_WORD_SOURCE_CHARS = 24000;
 const CORS_ALLOWED_ORIGINS = String(process.env.CORS_ALLOWED_ORIGINS || "*")
   .split(",")
   .map((item) => item.trim())
@@ -2076,6 +2078,109 @@ async function requestImageSync(session) {
   return session.sendUserMessage(buildSyncImagesRequestMessage(session));
 }
 
+function isWordSourceFileName(fileName) {
+  const ext = path.extname(String(fileName || "")).toLowerCase();
+  return ext === ".doc" || ext === ".docx";
+}
+
+function normalizeWordSourceText(rawText) {
+  return String(rawText || "")
+    .replace(/\u00a0/g, " ")
+    .replace(/\r/g, "")
+    .replace(/\t/g, " ")
+    .replace(/[ ]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+async function extractWordSourceText(filePath) {
+  const ext = path.extname(String(filePath || "")).toLowerCase();
+  if (ext !== ".docx") {
+    throw new Error("Por ahora el analisis directo solo admite Word .docx. Si tienes un .doc, guardalo como .docx y vuelve a subirlo.");
+  }
+
+  const extraction = await mammoth.extractRawText({ path: filePath });
+  const text = normalizeWordSourceText(extraction.value || "");
+  if (!text) {
+    throw new Error("No pude extraer texto util del Word. Verifica que el archivo tenga texto seleccionable y no solo imagenes.");
+  }
+
+  return {
+    text,
+    warnings: Array.isArray(extraction.messages) ? extraction.messages : [],
+  };
+}
+
+async function persistExtractedWordSource(session, originalFileName, extractedText) {
+  const safeFileName = safeUploadName(originalFileName);
+  const parsed = path.parse(safeFileName);
+  const targetPath = path.join(session.filesDir || session.workspacePath, `${parsed.name}.fuente-word.txt`);
+  await fs.writeFile(targetPath, extractedText, "utf8");
+  return targetPath;
+}
+
+function buildWordSourceAnalysisMessage(session, options) {
+  const participantSummary = buildParticipantProfileSummary(session.participantProfile);
+  const quickFieldsSummary = buildQuickFieldsSummary(session);
+  const rawText = String(options?.extractedText || "");
+  const truncated = rawText.length > MAX_WORD_SOURCE_CHARS;
+  const excerpt = truncated ? `${rawText.slice(0, MAX_WORD_SOURCE_CHARS)}\n\n[Texto truncado para el analisis]` : rawText;
+  const warningText = Array.isArray(options?.warnings) && options.warnings.length
+    ? `Observaciones tecnicas de la extraccion: ${options.warnings.map((item) => item.message || item.type || "aviso").join(" | ")}`
+    : "";
+
+  return [
+    "Analiza un documento Word subido como fuente de informacion para mejorar o avanzar el informe actual.",
+    `Trabaja sobre este archivo TEX: ${session.reportTexPath}`,
+    `PDF asociado: ${session.reportPdfPath}`,
+    `Word subido: ${options.filePath}`,
+    `Texto extraido de apoyo: ${options.extractedTextPath}`,
+    participantSummary ? `Contexto confirmado del participante:\n${participantSummary}` : "",
+    quickFieldsSummary ? `Datos rapidos actuales:\n${quickFieldsSummary}` : "",
+    warningText,
+    "El Word es solo una fuente de informacion. La estetica, la redaccion final, la estructura LaTeX y el criterio editorial siguen siendo tuyos.",
+    "No copies el estilo del Word si es flojo, desordenado o poco tecnico.",
+    "Usa el Word para detectar y aprovechar datos, procedimientos, resultados, tablas, conceptos, referencias, nombres, fechas y estructura util que de verdad mejoren el reporte.",
+    "Si con esa informacion puedes fortalecer el TEX actual sin inventar nada, hazlo antes de responder.",
+    "Si el Word contradice lo ya confirmado por el usuario, no reemplaces a ciegas: explica brevemente la inconsistencia y formula una sola pregunta directa.",
+    "No cites rutas locales ni detalles internos de la PC en la respuesta visible.",
+    "La respuesta visible final debe venir dentro del bloque --respuesta de pagina-- ... --finalice--.",
+    "Dentro de esa respuesta visible debes: 1) decir que parte del Word si sirve para el informe, 2) decir que sigue faltando o que huecos detectaste, 3) cerrar con una sola pregunta directa o con el siguiente paso mas util.",
+    "A continuacion va el texto extraido del Word como material de apoyo:",
+    "[[fuente_word_inicio]]",
+    excerpt,
+    "[[fuente_word_fin]]",
+  ].filter(Boolean).join("\n");
+}
+
+async function requestWordSourceAnalysis(session, fileName) {
+  if (!fileName) {
+    throw new Error("Falta el archivo Word a analizar.");
+  }
+
+  const safeFileName = safeUploadName(fileName);
+  if (!isWordSourceFileName(safeFileName)) {
+    throw new Error("Solo se admite un archivo Word .doc o .docx para esta accion.");
+  }
+
+  const filePath = path.join(session.filesDir || session.workspacePath, safeFileName);
+  if (!(await pathExists(filePath))) {
+    throw new Error("El archivo Word ya no existe en la sesion.");
+  }
+
+  const extraction = await extractWordSourceText(filePath);
+  const extractedTextPath = await persistExtractedWordSource(session, safeFileName, extraction.text);
+  return session.sendUserMessage(buildWordSourceAnalysisMessage(session, {
+    filePath,
+    extractedText: extraction.text,
+    extractedTextPath,
+    warnings: extraction.warnings,
+  }), {
+    visible: false,
+    mode: "word-source-analysis",
+  });
+}
+
 function buildExperimentalActionMessage(session, actionId) {
   const participantSummary = buildParticipantProfileSummary(session.participantProfile);
   const quickFieldsSummary = buildQuickFieldsSummary(session);
@@ -3245,6 +3350,24 @@ async function handleApi(request, response) {
 
     try {
       const result = await requestExperimentalAction(session, actionId);
+      await persistSharedProjectSafely(session);
+      json(response, 200, { ok: true, result });
+    } catch (error) {
+      json(response, 409, { error: error.message });
+    }
+    return;
+  }
+
+  if (request.method === "POST" && segments[3] === "analyze-word-source") {
+    const body = await readRequestBody(request);
+    const fileName = String(body?.fileName || "").trim();
+    if (!fileName) {
+      json(response, 400, { error: "Falta indicar el archivo Word a analizar." });
+      return;
+    }
+
+    try {
+      const result = await requestWordSourceAnalysis(session, fileName);
       await persistSharedProjectSafely(session);
       json(response, 200, { ok: true, result });
     } catch (error) {

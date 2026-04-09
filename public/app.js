@@ -52,6 +52,8 @@ const quickDrawerBody = document.getElementById("quick-drawer-body");
 const workspaceMain = document.querySelector(".workspace-main");
 const uploadTrigger = document.getElementById("upload-files-trigger");
 const uploadInput = document.getElementById("upload-files");
+const uploadWordSourceTrigger = document.getElementById("upload-word-source-trigger");
+const uploadWordSourceInput = document.getElementById("upload-word-source");
 const uploadStatus = document.getElementById("upload-status");
 const requestedImageSelect = document.getElementById("requested-image-select");
 const requestedImageTrigger = document.getElementById("upload-requested-image-trigger");
@@ -119,6 +121,7 @@ const REPORT_PROGRESS_END = "[[/progreso_reporte]]";
 const stateRequestedImages = new Map();
 const IMAGE_EXTENSION_PATTERN = "jpg|jpeg|png|webp|gif|bmp|tif|tiff|svg|heic|heif|avif|jfif";
 const IMAGE_EXTENSION_REGEX = /\.(jpg|jpeg|png|webp|gif|bmp|tif|tiff|svg|heic|heif|avif|jfif)$/i;
+const WORD_SOURCE_EXTENSION_REGEX = /\.(doc|docx)$/i;
 const quickPanelInputRegistry = new Map();
 const quickPanelActionButtons = [];
 const THEME_STORAGE_KEY = "cnc-tech-theme";
@@ -961,6 +964,78 @@ uploadInput.addEventListener("change", async () => {
   }
 });
 
+uploadWordSourceInput?.addEventListener("change", async () => {
+  if (!state.session || uploadWordSourceInput.files.length === 0) {
+    return;
+  }
+
+  const file = uploadWordSourceInput.files[0];
+  if (!isWordSourceFileLike(file)) {
+    setUploadStatus("Sube un archivo Word .doc o .docx.", true);
+    uploadWordSourceInput.value = "";
+    return;
+  }
+
+  setUploadStatus(`Subiendo y analizando ${file.name}...`);
+  showUploadOverlay("Analizando Word", 0, file.name);
+  setWordSourceEnabled(false);
+  chatInput.disabled = true;
+  sendButton.disabled = true;
+  compileButton.disabled = true;
+  syncImagesButton.disabled = true;
+  state.activeMode = "word-source-analysis";
+  setThinking(true, "leyendo Word");
+
+  try {
+    const uploadData = await uploadBinaryWithProgress({
+      url: buildApiUrl(`/sessions/${state.session.id}/upload?name=${encodeURIComponent(file.name)}`),
+      file,
+      onProgress: ({ loaded, total, speedBytesPerSecond }) => {
+        const filePercent = total > 0 ? (loaded / total) * 100 : 0;
+        const percent = Math.min(filePercent * 0.7, 70);
+        showUploadOverlay(
+          "Analizando Word",
+          percent,
+          `${file.name} - ${formatUploadProgress(loaded, total, speedBytesPerSecond)}`
+        );
+        setUploadStatus(`${file.name} - ${formatUploadProgress(loaded, total, speedBytesPerSecond)}`);
+      },
+    });
+
+    addUploadedFile(withLocalPreview(uploadData.fileInfo, file));
+    showUploadOverlay("Analizando Word", 78, "Extrayendo texto y contrastando con el reporte");
+
+    const response = await fetch(buildApiUrl(`/sessions/${state.session.id}/analyze-word-source`), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fileName: uploadData.fileInfo?.name || uploadData.fileName || file.name,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "No se pudo analizar el Word.");
+    }
+
+    applyAssistantFallback(data.result);
+    const visible = extractPageResponse(data.result?.assistantText || "").text || "Word analizado y contrastado con el reporte";
+    setUploadStatus(visible);
+    completeUploadOverlay("Word analizado", file.name);
+  } catch (error) {
+    setUploadStatus(error.message || "No se pudo analizar el Word.", true);
+    failUploadOverlay("Analisis interrumpido", error.message || "No se pudo analizar el Word.");
+    chatInput.disabled = false;
+    sendButton.disabled = false;
+    compileButton.disabled = false;
+    syncImagesButton.disabled = false;
+    state.activeMode = null;
+    setThinking(false);
+  } finally {
+    uploadWordSourceInput.value = "";
+    setWordSourceEnabled(Boolean(state.session));
+  }
+});
+
 requestedImageInput.addEventListener("change", async () => {
   if (!state.session || requestedImageInput.files.length === 0) {
     return;
@@ -1022,6 +1097,13 @@ uploadTrigger.addEventListener("click", () => {
     return;
   }
   openFilePicker(uploadInput);
+});
+
+uploadWordSourceTrigger?.addEventListener("click", () => {
+  if (uploadWordSourceTrigger.disabled || !state.session) {
+    return;
+  }
+  openFilePicker(uploadWordSourceInput);
 });
 
 requestedImageTrigger.addEventListener("click", () => {
@@ -1420,6 +1502,7 @@ function handleServerEvent(event) {
       sendButton.disabled = false;
       compileButton.disabled = false;
       syncImagesButton.disabled = false;
+      setWordSourceEnabled(Boolean(state.session));
       if (uploadDriveButton) {
         uploadDriveButton.disabled = false;
         uploadDriveButton.classList.remove("disabled");
@@ -1447,6 +1530,7 @@ function handleServerEvent(event) {
       sendButton.disabled = false;
       compileButton.disabled = false;
       syncImagesButton.disabled = false;
+      setWordSourceEnabled(Boolean(state.session));
       state.activeMode = null;
       if (pdfStatus.textContent.includes("Compilando") || pdfStatus.textContent.includes("descargar")) {
         pdfStatus.textContent = "No se pudo completar la compilacion";
@@ -1598,9 +1682,26 @@ function applyAssistantFallback(result) {
   sendButton.disabled = false;
   compileButton.disabled = false;
   syncImagesButton.disabled = false;
+  setWordSourceEnabled(Boolean(state.session));
   state.activeMode = null;
   setThinking(false);
   setStatus("Listo");
+}
+
+function setWordSourceEnabled(enabled) {
+  if (!uploadWordSourceTrigger || !uploadWordSourceInput) {
+    return;
+  }
+
+  uploadWordSourceTrigger.disabled = !enabled;
+  uploadWordSourceInput.disabled = !enabled;
+  uploadWordSourceTrigger.classList.toggle("disabled", !enabled);
+  uploadWordSourceTrigger.setAttribute("aria-disabled", enabled ? "false" : "true");
+}
+
+function isWordSourceFileLike(file) {
+  const fileName = typeof file === "string" ? file : file?.name;
+  return WORD_SOURCE_EXTENSION_REGEX.test(String(fileName || ""));
 }
 
 async function submitChatMessage(rawMessage) {
@@ -1757,6 +1858,7 @@ function renderMeta(session) {
   uploadTrigger.disabled = false;
   uploadTrigger.classList.remove("disabled");
   uploadTrigger.setAttribute("aria-disabled", "false");
+  setWordSourceEnabled(true);
   compileButton.disabled = false;
   setPdfViewButtonEnabled(true);
   syncImagesButton.disabled = false;
@@ -2743,6 +2845,7 @@ async function runExperimentalAction(actionId) {
     sendButton.disabled = false;
     compileButton.disabled = false;
     syncImagesButton.disabled = false;
+    setWordSourceEnabled(Boolean(state.session));
     state.activeMode = null;
     setThinking(false);
     chatInput.focus();
