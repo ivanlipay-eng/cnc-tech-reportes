@@ -1559,7 +1559,7 @@ function updateAssistantMessage(payload, completed = false) {
   if (
     lastMessage &&
     lastMessage.classList.contains("assistant") &&
-    lastMessage.querySelector(".text")?.textContent === sanitizedText
+    lastMessage.dataset.renderedText === sanitizedText
   ) {
     return;
   }
@@ -1661,6 +1661,8 @@ function updateMessageContent(article, message) {
 
   if (message.role !== "assistant") {
     textNode.textContent = message.text || "";
+    article.dataset.renderedText = message.text || "";
+    renderMessageMath(textNode);
     const existingQuickReplies = article.querySelector(".quick-replies");
     if (existingQuickReplies) {
       existingQuickReplies.remove();
@@ -1670,6 +1672,8 @@ function updateMessageContent(article, message) {
 
   const parsedContent = parseAssistantDisplayContent(message.text || "");
   textNode.textContent = parsedContent.text;
+  article.dataset.renderedText = parsedContent.text;
+  renderMessageMath(textNode);
 
   const existingQuickReplies = article.querySelector(".quick-replies");
   if (existingQuickReplies) {
@@ -1947,6 +1951,26 @@ function pulseRibbonTab(target) {
   const tab = ribbonTabs.find((item) => item.dataset.toolbarTarget === target);
   if (!tab) {
     return;
+  }
+
+  tab.classList.remove("has-upload-alert");
+  void tab.offsetWidth;
+  tab.classList.add("has-upload-alert");
+  setTimeout(() => {
+    tab.classList.remove("has-upload-alert");
+  }, 760);
+}
+
+function normalizeMathMarkup(value) {
+  return String(value || "")
+    .replace(/```(?:katex|latex|tex)\s*\r?\n([\s\S]*?)```/gi, (_match, expression) => `\n$$\n${String(expression || "").trim()}\n$$\n`)
+    .replace(/\\\$/g, "$")
+    .replace(/\\\[/g, "\\[")
+    .replace(/\\\]/g, "\\]")
+    .replace(/\\\(/g, "\\(")
+    .replace(/\\\)/g, "\\)");
+}
+
 function renderMessageMath(textNode) {
   if (!textNode || typeof window.renderMathInElement !== "function") {
     return;
@@ -1963,17 +1987,6 @@ function renderMessageMath(textNode) {
     strict: "ignore",
   });
 }
-  }
-
-  tab.classList.remove("has-upload-alert");
-  void tab.offsetWidth;
-  tab.classList.add("has-upload-alert");
-  setTimeout(() => {
-    tab.classList.remove("has-upload-alert");
-  }, 760);
-}
-    article.dataset.renderedText = message.text || "";
-    renderMessageMath(textNode);
 
 uploadedFilesList.addEventListener("click", async (event) => {
   const removeButton = event.target.closest('[data-action="delete-upload"]');
@@ -1983,8 +1996,6 @@ uploadedFilesList.addEventListener("click", async (event) => {
 
   const fileName = String(removeButton.dataset.name || "").trim();
   const fileKind = String(removeButton.dataset.kind || "archivo").trim();
-  article.dataset.renderedText = parsedContent.text;
-  renderMessageMath(textNode);
   if (!fileName) {
     return;
   }
@@ -1996,7 +2007,7 @@ uploadedFilesList.addEventListener("click", async (event) => {
     removeButton.disabled = false;
   }
 });
-    lastMessage.dataset.renderedText === sanitizedText
+
 function removeUploadedFile(name, kind) {
   state.uploadedFiles = state.uploadedFiles.filter(
     (item) => !(item.name === name && String(item.kind || "archivo") === kind)
@@ -3438,7 +3449,7 @@ function shouldRenderQuickReplies() {
 }
 
 function sanitizeVisibleText(value) {
-  return String(value || "")
+  return normalizeMathMarkup(String(value || ""))
     .replace(/\[\[progreso_reporte\]\][\s\S]*?\[\[\/progreso_reporte\]\]/gi, "")
     .replace(WINDOWS_PATH_REGEX, "archivo local")
     .replace(/\n[ \t]+/g, "\n")
