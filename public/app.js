@@ -447,6 +447,9 @@ function syncCollaborationControls() {
   if (copySharedProjectIdButton) {
     copySharedProjectIdButton.disabled = !sharedProjectId;
   }
+  if (loadSharedProjectButton) {
+    loadSharedProjectButton.disabled = false;
+  }
 
   if (sharedProjectId) {
     setCollaborationStatus(`ID listo para compartir: ${sharedProjectId}`);
@@ -807,6 +810,7 @@ collaborationToggle?.addEventListener("click", () => {
 });
 
 loadSharedProjectButton?.addEventListener("click", async () => {
+  loadSharedProjectButton.disabled = false;
   await loadSharedProjectById(loadSharedProjectIdInput?.value || "");
 });
 
