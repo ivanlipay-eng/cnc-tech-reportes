@@ -128,7 +128,6 @@ const WORD_SOURCE_EXTENSION_REGEX = /\.(doc|docx)$/i;
 const quickPanelInputRegistry = new Map();
 const quickPanelActionButtons = [];
 const THEME_STORAGE_KEY = "cnc-tech-theme";
-const GROUP_COLLABORATION_FORMAT_IDS = new Set(["informes-uni"]);
 const CNC_TECH_CURIOUS_FACTS = [
   "El husillo es el corazon de la maquina CNC: su rigidez y concentricidad afectan directamente el acabado superficial.",
   "Un portaherramientas mal balanceado puede introducir vibracion incluso si el husillo esta en buen estado.",
@@ -302,11 +301,8 @@ function getCurrentQuickPanel() {
   };
 }
 
-function isGroupCollaborationFormat(formatDefinition = null) {
-  const definition = formatDefinition
-    || (state.session?.reportFormat?.id ? getFormatDefinitionById(state.session.reportFormat.id) : null)
-    || getCurrentFormatDefinition();
-  return GROUP_COLLABORATION_FORMAT_IDS.has(String(definition?.id || "").trim());
+function isGroupCollaborationFormat() {
+  return true;
 }
 
 function setCollaborationPanelOpen(isOpen) {
@@ -558,15 +554,6 @@ async function tryHandleProjectOpenCommand(rawMessage) {
     return false;
   }
 
-  if (!isGroupCollaborationFormat()) {
-    appendMessage({
-      id: crypto.randomUUID(),
-      role: "assistant",
-      text: "La orden de apertura rapida solo esta activa en formatos de trabajo en grupo.",
-    });
-    return true;
-  }
-
   if (!state.participantProfile?.name) {
     appendMessage({
       id: crypto.randomUUID(),
@@ -604,13 +591,7 @@ function syncCollaborationControls() {
     return;
   }
 
-  const collaborationEnabled = isGroupCollaborationFormat();
-  collaborationShell.hidden = !collaborationEnabled;
-  if (!collaborationEnabled) {
-    setCollaborationPanelOpen(false);
-    state.recentProjects = [];
-    return;
-  }
+  collaborationShell.hidden = false;
 
   setCollaborationPanelOpen(collaborationPanelOpen);
 

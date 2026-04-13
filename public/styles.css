@@ -1367,6 +1367,22 @@ button:disabled {
   border: 1px solid rgba(11, 46, 74, 0.1);
 }
 
+.report-progress-reference-note {
+  margin-bottom: 8px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.report-progress-heading-note {
+  margin-bottom: 8px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .report-progress-meta {
   display: flex;
   justify-content: space-between;
