@@ -1,5 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 const {
   ensureManagedRuntimeHealthy,
   STATE_FILE,
@@ -83,6 +84,33 @@ function acquireLock(mode) {
   return lockPath;
 }
 
+function syncTunnelUrlToGitHubPages(runtime) {
+  if (runtime?.mode !== "public" || !runtime?.tunnelUrl) {
+    return;
+  }
+
+  const result = spawnSync(process.execPath, ["scripts/sync-public-backend-url.js", runtime.tunnelUrl], {
+    cwd: path.resolve(__dirname, ".."),
+    encoding: "utf8",
+  });
+
+  const output = `${result.stdout || ""}${result.stderr || ""}`.trim();
+  if (result.error) {
+    console.error(`[monitor] No se pudo sincronizar URL publica: ${result.error.message || result.error}`);
+    return;
+  }
+
+  if (result.status !== 0) {
+    const detail = output || `codigo ${result.status}`;
+    console.error(`[monitor] Error al publicar URL del tunel: ${detail}`);
+    return;
+  }
+
+  if (output) {
+    console.log(`[monitor] ${output}`);
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv);
   const lockPath = acquireLock(args.mode);
@@ -117,8 +145,10 @@ async function main() {
       const result = await ensureManagedRuntimeHealthy(args);
       if (result.action === "started") {
         console.log(`[monitor] Runtime iniciado: ${result.runtime.mode} (${result.runtime.host}:${result.runtime.port})`);
+        syncTunnelUrlToGitHubPages(result.runtime);
       } else if (result.action === "restarted") {
         console.log(`[monitor] Runtime reiniciado: ${result.runtime.mode} (${result.runtime.host}:${result.runtime.port})`);
+        syncTunnelUrlToGitHubPages(result.runtime);
       }
     } catch (error) {
       console.error(`[monitor] ${error.message || error}`);
