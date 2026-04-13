@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://sharon-showers-norman-ordered.trycloudflare.com",
+  apiBaseUrl: "https://sandra-widespread-finishing-specific.trycloudflare.com",
   brandLogoUrl: "",
 };

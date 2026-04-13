@@ -21,8 +21,9 @@ const state = {
 };
 
 const appConfig = window.CNC_TECH_CONFIG || {};
-const apiBaseUrl = normalizeBaseUrl(appConfig.apiBaseUrl || "");
-const apiRoot = apiBaseUrl ? `${apiBaseUrl}/api` : "/api";
+const configuredApiBaseUrl = normalizeBaseUrl(appConfig.apiBaseUrl || "");
+let activeApiBaseUrl = configuredApiBaseUrl;
+let activeApiRoot = activeApiBaseUrl ? `${activeApiBaseUrl}/api` : "/api";
 
 const form = document.getElementById("session-form");
 const folderInput = document.getElementById("folder-name");
@@ -414,12 +415,32 @@ function normalizeBaseUrl(value) {
 
 function buildApiUrl(pathname) {
   const normalizedPath = String(pathname || "").startsWith("/") ? pathname : `/${pathname}`;
-  return `${apiRoot}${normalizedPath}`;
+  return `${activeApiRoot}${normalizedPath}`;
 }
 
 function buildBackendUrl(pathname) {
   const normalizedPath = String(pathname || "").startsWith("/") ? pathname : `/${pathname}`;
-  return apiBaseUrl ? `${apiBaseUrl}${normalizedPath}` : normalizedPath;
+  return activeApiBaseUrl ? `${activeApiBaseUrl}${normalizedPath}` : normalizedPath;
+}
+
+function setActiveApiBaseUrl(baseUrl) {
+  activeApiBaseUrl = normalizeBaseUrl(baseUrl || "");
+  activeApiRoot = activeApiBaseUrl ? `${activeApiBaseUrl}/api` : "/api";
+}
+
+function setFormatLoadError(message) {
+  if (!reportFormatSelect) {
+    return;
+  }
+
+  reportFormatSelect.innerHTML = "";
+  const option = document.createElement("option");
+  option.value = "";
+  option.textContent = message;
+  reportFormatSelect.append(option);
+  reportFormatSelect.disabled = true;
+  state.availableFormats = [];
+  state.selectedFormatId = "";
 }
 
 function setCollaborationStatus(text, isError = false) {
@@ -3802,20 +3823,30 @@ async function loadAppVersion() {
 
   const frontendVersion = String(appVersionBadge.textContent || "").trim();
 
-  try {
-    const response = await fetch(buildApiUrl("/health"), { cache: "no-store" });
-    if (!response.ok) {
+  const candidates = configuredApiBaseUrl ? [configuredApiBaseUrl, ""] : [""];
+
+  for (const candidate of candidates) {
+    try {
+      setActiveApiBaseUrl(candidate);
+      const response = await fetch(buildApiUrl("/health"), { cache: "no-store" });
+      if (!response.ok) {
+        continue;
+      }
+
+      const data = await response.json();
+      populateFormatOptions(data.formats || [], data.defaultFormatId || "");
+      if (data.version) {
+        appVersionBadge.textContent = frontendVersion || `Version ${data.version}`;
+        appVersionBadge.title = `Frontend ${frontendVersion || "desconocido"} | Backend ${data.version}`;
+      }
       return;
+    } catch {
+      // Prueba con el siguiente candidato.
     }
-    const data = await response.json();
-    populateFormatOptions(data.formats || [], data.defaultFormatId || "");
-    if (data.version) {
-      appVersionBadge.textContent = frontendVersion || `Version ${data.version}`;
-      appVersionBadge.title = `Frontend ${frontendVersion || "desconocido"} | Backend ${data.version}`;
-    }
-  } catch {
-    // Mantiene el valor inicial renderizado en HTML si la lectura falla.
   }
+
+  setFormatLoadError("Sin conexion con backend");
+  appVersionBadge.title = "No se pudo conectar con el backend";
 }
 
 function isInternalCompilePrompt(text) {
