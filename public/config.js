@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://potential-returning-theater-sara.trycloudflare.com",
+  apiBaseUrl: "https://indicating-adware-rick-from.trycloudflare.com",
   brandLogoUrl: "",
 };
