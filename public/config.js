@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://cooper-files-setup-maximum.trycloudflare.com",
+  apiBaseUrl: "https://potential-returning-theater-sara.trycloudflare.com",
   brandLogoUrl: "",
 };
