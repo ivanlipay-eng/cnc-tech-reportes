@@ -3845,7 +3845,7 @@ async function loadAppVersion() {
     }
   }
 
-  setFormatLoadError("Sin conexion con backend");
+  setFormatLoadError("Sin coneccion");
   appVersionBadge.title = "No se pudo conectar con el backend";
 }
 
