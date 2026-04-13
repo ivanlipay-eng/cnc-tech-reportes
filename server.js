@@ -78,6 +78,7 @@ class CodexSession extends EventEmitter {
     this.openingQuestion = formatDefinition?.bot?.openingQuestion || "Quien eres?";
     this.serviceName = formatDefinition?.bot?.serviceName || "Contexto";
     this.sharedProjectId = "";
+    this.personalAccessCode = "";
   }
 
   async start(options = {}) {
@@ -156,6 +157,7 @@ class CodexSession extends EventEmitter {
       sharedProject: this.sharedProjectId
         ? {
             id: this.sharedProjectId,
+            personalAccessCode: this.personalAccessCode || "",
           }
         : null,
       openingQuestion: this.openingQuestion || "Quien eres?",
@@ -545,7 +547,8 @@ function getFormatDefinition(formatId) {
 }
 
 function supportsSharedProjects(formatDefinition) {
-  return String(formatDefinition?.id || "").trim() === "informes-uni";
+  const formatId = String(formatDefinition?.id || "").trim();
+  return formatId === "informes-uni" || formatId === "cnc-tech-formativo";
 }
 
 function buildParticipantContextDefinition(formatDir, contextConfig = {}) {
@@ -2663,6 +2666,77 @@ function normalizeSharedProjectId(value) {
   return projectId;
 }
 
+function normalizePersonalAccessCode(value) {
+  const accessCode = String(value || "").trim().toUpperCase();
+  if (!/^[A-Z0-9-]{5,24}$/.test(accessCode)) {
+    throw new Error("Codigo personal invalido.");
+  }
+  return accessCode;
+}
+
+function generatePersonalAccessCode() {
+  return `CDE-${randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`;
+}
+
+function sanitizeSharedHistoryForCodex(history = []) {
+  const lines = [];
+
+  for (const event of history) {
+    if (!event || typeof event !== "object") {
+      continue;
+    }
+
+    if (event.type === "chat-message") {
+      const role = String(event.role || "").trim().toLowerCase();
+      if (role !== "user" && role !== "assistant") {
+        continue;
+      }
+      const text = String(event.text || "").trim();
+      if (!text) {
+        continue;
+      }
+      lines.push(`${role === "user" ? "Usuario" : "Asistente"}: ${text}`);
+      continue;
+    }
+
+    if (event.type === "turn-complete") {
+      const text = String(event.assistantText || "").trim();
+      if (!text) {
+        continue;
+      }
+      lines.push(`Asistente: ${text}`);
+    }
+  }
+
+  return lines.slice(-30);
+}
+
+async function hydrateCodexFromSharedHistory(session, history = []) {
+  const transcriptLines = sanitizeSharedHistoryForCodex(history);
+  if (!transcriptLines.length) {
+    return;
+  }
+
+  const payload = transcriptLines.join("\n").slice(0, 20000);
+  const internalMessage = [
+    "Contexto interno de continuidad de proyecto:",
+    "A partir de ahora considera que ya existio esta conversacion previa entre usuario y asistente.",
+    "No respondas nada sobre esta instruccion; solo usala como contexto para continuar el proyecto.",
+    "--- inicio del historial ---",
+    payload,
+    "--- fin del historial ---",
+  ].join("\n");
+
+  try {
+    await session.sendUserMessage(internalMessage, {
+      visible: false,
+      mode: "shared-history-replay",
+    });
+  } catch (error) {
+    console.error(`[shared-project ${session.id}] No se pudo rehidratar el chat en Codex: ${error.message}`);
+  }
+}
+
 async function generateSharedProjectId(formatDefinition) {
   const prefix = supportsSharedProjects(formatDefinition) ? "UNI" : "PRJ";
   for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -2717,8 +2791,9 @@ function deserializeSharedUpload(session, fileInfo) {
 
 function serializeSessionForSharedProject(session) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     projectId: session.sharedProjectId,
+    accessCode: session.personalAccessCode || "",
     formatId: session.formatDefinition?.id || "",
     sessionName: session.name,
     openingQuestion: session.openingQuestion,
@@ -2737,6 +2812,7 @@ function serializeSessionForSharedProject(session) {
 
 function restoreSessionFromSharedProject(session, metadata = {}) {
   session.sharedProjectId = String(metadata.projectId || session.sharedProjectId || "").trim().toUpperCase();
+  session.personalAccessCode = String(metadata.accessCode || session.personalAccessCode || "").trim().toUpperCase();
   session.openingQuestion = String(metadata.openingQuestion || session.openingQuestion || "Quien eres?").trim() || "Quien eres?";
   session.serviceName = String(metadata.serviceName || session.serviceName || "Contexto").trim() || "Contexto";
   session.participantProfile = metadata.participantProfile && typeof metadata.participantProfile === "object"
@@ -2767,6 +2843,9 @@ async function persistSharedProject(session) {
 
   if (!session.sharedProjectId) {
     session.sharedProjectId = await generateSharedProjectId(session.formatDefinition);
+  }
+  if (!session.personalAccessCode) {
+    session.personalAccessCode = generatePersonalAccessCode();
   }
 
   const projectId = session.sharedProjectId;
@@ -2822,6 +2901,63 @@ async function readSharedProjectSnapshot(projectId) {
   };
 }
 
+async function listRecentSharedProjectsByAccessCode(accessCode, options = {}) {
+  const normalizedAccessCode = normalizePersonalAccessCode(accessCode);
+  const requestedFormatId = String(options.formatId || "").trim();
+  const limit = Math.max(1, Math.min(Number(options.limit) || 8, 20));
+  const entries = await fs.readdir(SHARED_PROJECTS_ROOT, { withFileTypes: true });
+  const projects = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory() || entry.name.includes(".tmp-")) {
+      continue;
+    }
+
+    const metadataPath = path.join(SHARED_PROJECTS_ROOT, entry.name, SHARED_PROJECT_METADATA_FILE);
+    if (!(await pathExists(metadataPath))) {
+      continue;
+    }
+
+    try {
+      const metadata = JSON.parse(await fs.readFile(metadataPath, "utf8"));
+      const metadataAccessCode = String(metadata.accessCode || "").trim().toUpperCase();
+      if (!metadataAccessCode || metadataAccessCode !== normalizedAccessCode) {
+        continue;
+      }
+
+      const formatId = String(metadata.formatId || "").trim();
+      if (requestedFormatId && formatId !== requestedFormatId) {
+        continue;
+      }
+
+      const formatDefinition = getFormatDefinition(formatId);
+      if (!formatDefinition || !supportsSharedProjects(formatDefinition)) {
+        continue;
+      }
+
+      const chatEvents = Array.isArray(metadata.history)
+        ? metadata.history.filter((event) => event?.type === "chat-message").length
+        : 0;
+
+      projects.push({
+        projectId: String(metadata.projectId || entry.name).trim().toUpperCase(),
+        sessionName: String(metadata.sessionName || entry.name).trim(),
+        formatId,
+        formatLabel: formatDefinition.label || formatId,
+        participantName: String(metadata.participantProfile?.name || "").trim(),
+        savedAt: metadata.savedAt || "",
+        messageCount: chatEvents,
+      });
+    } catch {
+      // Ignora snapshots corruptos o incompletos.
+    }
+  }
+
+  return projects
+    .sort((left, right) => new Date(right.savedAt || 0).getTime() - new Date(left.savedAt || 0).getTime())
+    .slice(0, limit);
+}
+
 async function createSessionFromWorkspace(options) {
   const {
     sessionId = randomUUID(),
@@ -2857,6 +2993,10 @@ async function createSessionFromWorkspace(options) {
     restoreSessionFromSharedProject(session, restoredState);
   }
 
+  if (supportsSharedProjects(formatDefinition) && !session.personalAccessCode) {
+    session.personalAccessCode = generatePersonalAccessCode();
+  }
+
   sessions.set(session.id, session);
   const developerInstructions = await buildReportBotInstructions(
     workspacePath,
@@ -2868,6 +3008,11 @@ async function createSessionFromWorkspace(options) {
     openingQuestion: session.openingQuestion,
     serviceName: session.serviceName,
   });
+
+  if (restoredState?.history) {
+    await hydrateCodexFromSharedHistory(session, restoredState.history);
+  }
+
   return session;
 }
 
@@ -3250,6 +3395,24 @@ async function handleApi(request, response) {
     });
     await persistSharedProjectSafely(session);
     json(response, 201, session.snapshot());
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/shared-projects/recent") {
+    try {
+      const accessCode = normalizePersonalAccessCode(url.searchParams.get("accessCode") || "");
+      const projects = await listRecentSharedProjectsByAccessCode(accessCode, {
+        formatId: url.searchParams.get("formatId") || "",
+        limit: Number(url.searchParams.get("limit") || 8),
+      });
+      json(response, 200, {
+        ok: true,
+        accessCode,
+        projects,
+      });
+    } catch (error) {
+      json(response, 400, { error: error.message || "No se pudo listar proyectos recientes." });
+    }
     return;
   }
 
