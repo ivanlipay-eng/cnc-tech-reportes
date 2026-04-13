@@ -78,7 +78,6 @@ class CodexSession extends EventEmitter {
     this.openingQuestion = formatDefinition?.bot?.openingQuestion || "Quien eres?";
     this.serviceName = formatDefinition?.bot?.serviceName || "Contexto";
     this.sharedProjectId = "";
-    this.personalAccessCode = "";
   }
 
   async start(options = {}) {
@@ -157,7 +156,6 @@ class CodexSession extends EventEmitter {
       sharedProject: this.sharedProjectId
         ? {
             id: this.sharedProjectId,
-            personalAccessCode: this.personalAccessCode || "",
           }
         : null,
       openingQuestion: this.openingQuestion || "Quien eres?",
@@ -1546,22 +1544,34 @@ async function buildParticipantProfile(participant) {
 
 async function maybeResolveParticipantProfile(session, inputText) {
   if (session.participantProfile) {
-    return session.participantProfile;
+    return {
+      profile: session.participantProfile,
+      newlyIdentified: false,
+    };
   }
 
   if (!session.formatDefinition?.context?.participantProfilesDir) {
-    return null;
+    return {
+      profile: null,
+      newlyIdentified: false,
+    };
   }
 
   const participant = await findParticipantMatch(inputText, session.formatDefinition);
   if (!participant) {
-    return null;
+    return {
+      profile: null,
+      newlyIdentified: false,
+    };
   }
 
   const profile = await buildParticipantProfile(participant);
   session.setParticipantProfile(profile);
   session.pendingParticipantFullNameAnnouncement = profile.name || "";
-  return profile;
+  return {
+    profile,
+    newlyIdentified: true,
+  };
 }
 
 function slugFromName(fullName) {
@@ -2666,18 +2676,6 @@ function normalizeSharedProjectId(value) {
   return projectId;
 }
 
-function normalizePersonalAccessCode(value) {
-  const accessCode = String(value || "").trim().toUpperCase();
-  if (!/^[A-Z0-9-]{5,24}$/.test(accessCode)) {
-    throw new Error("Codigo personal invalido.");
-  }
-  return accessCode;
-}
-
-function generatePersonalAccessCode() {
-  return `CDE-${randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`;
-}
-
 function sanitizeSharedHistoryForCodex(history = []) {
   const lines = [];
 
@@ -2793,7 +2791,6 @@ function serializeSessionForSharedProject(session) {
   return {
     schemaVersion: 2,
     projectId: session.sharedProjectId,
-    accessCode: session.personalAccessCode || "",
     formatId: session.formatDefinition?.id || "",
     sessionName: session.name,
     openingQuestion: session.openingQuestion,
@@ -2812,7 +2809,6 @@ function serializeSessionForSharedProject(session) {
 
 function restoreSessionFromSharedProject(session, metadata = {}) {
   session.sharedProjectId = String(metadata.projectId || session.sharedProjectId || "").trim().toUpperCase();
-  session.personalAccessCode = String(metadata.accessCode || session.personalAccessCode || "").trim().toUpperCase();
   session.openingQuestion = String(metadata.openingQuestion || session.openingQuestion || "Quien eres?").trim() || "Quien eres?";
   session.serviceName = String(metadata.serviceName || session.serviceName || "Contexto").trim() || "Contexto";
   session.participantProfile = metadata.participantProfile && typeof metadata.participantProfile === "object"
@@ -2843,9 +2839,6 @@ async function persistSharedProject(session) {
 
   if (!session.sharedProjectId) {
     session.sharedProjectId = await generateSharedProjectId(session.formatDefinition);
-  }
-  if (!session.personalAccessCode) {
-    session.personalAccessCode = generatePersonalAccessCode();
   }
 
   const projectId = session.sharedProjectId;
@@ -2901,8 +2894,12 @@ async function readSharedProjectSnapshot(projectId) {
   };
 }
 
-async function listRecentSharedProjectsByAccessCode(accessCode, options = {}) {
-  const normalizedAccessCode = normalizePersonalAccessCode(accessCode);
+async function listRecentSharedProjectsByParticipantName(participantName, options = {}) {
+  const normalizedParticipantName = normalizeSearchText(participantName);
+  if (!normalizedParticipantName) {
+    throw new Error("Nombre de participante invalido.");
+  }
+
   const requestedFormatId = String(options.formatId || "").trim();
   const limit = Math.max(1, Math.min(Number(options.limit) || 8, 20));
   const entries = await fs.readdir(SHARED_PROJECTS_ROOT, { withFileTypes: true });
@@ -2920,8 +2917,8 @@ async function listRecentSharedProjectsByAccessCode(accessCode, options = {}) {
 
     try {
       const metadata = JSON.parse(await fs.readFile(metadataPath, "utf8"));
-      const metadataAccessCode = String(metadata.accessCode || "").trim().toUpperCase();
-      if (!metadataAccessCode || metadataAccessCode !== normalizedAccessCode) {
+      const metadataParticipantName = normalizeSearchText(metadata.participantProfile?.name || "");
+      if (!metadataParticipantName || metadataParticipantName !== normalizedParticipantName) {
         continue;
       }
 
@@ -2958,6 +2955,38 @@ async function listRecentSharedProjectsByAccessCode(accessCode, options = {}) {
     .slice(0, limit);
 }
 
+function buildProjectLoadWarningReminder() {
+  return "Advertencia importante: si cargas otro proyecto en esta sesion, el proyecto actualmente abierto se reemplazara en esta vista. Para no perder continuidad, guarda y comparte siempre el ID del proyecto actual antes de abrir otro.";
+}
+
+function buildRecentProjectsAssistantInstruction(profile, projects = []) {
+  if (!profile?.name) {
+    return "";
+  }
+
+  const lines = [
+    `Participante identificado: ${profile.name}.`,
+    "En tu respuesta visible debes confirmar la identificacion y mostrar continuidad de proyectos.",
+  ];
+
+  if (!projects.length) {
+    lines.push("No hay proyectos previos guardados para este participante.");
+    lines.push("Indica que al crear este proyecto se generara un ID para futuras continuidades.");
+    lines.push(buildProjectLoadWarningReminder());
+    return lines.join(" ");
+  }
+
+  const preview = projects.slice(0, 5).map((item, index) => {
+    const when = item.savedAt ? new Date(item.savedAt).toLocaleString("es-PE") : "fecha no disponible";
+    return `${index + 1}. ${item.sessionName} (ID: ${item.projectId}, guardado: ${when})`;
+  }).join(" | ");
+
+  lines.push(`Debes listar los ultimos proyectos con nombre e ID: ${preview}`);
+  lines.push("Indica que para abrir uno pueden escribir en chat 'abre ID' o usar el boton Cargar proyecto por ID.");
+  lines.push(buildProjectLoadWarningReminder());
+  return lines.join(" ");
+}
+
 async function createSessionFromWorkspace(options) {
   const {
     sessionId = randomUUID(),
@@ -2991,10 +3020,6 @@ async function createSessionFromWorkspace(options) {
 
   if (restoredState) {
     restoreSessionFromSharedProject(session, restoredState);
-  }
-
-  if (supportsSharedProjects(formatDefinition) && !session.personalAccessCode) {
-    session.personalAccessCode = generatePersonalAccessCode();
   }
 
   sessions.set(session.id, session);
@@ -3398,16 +3423,16 @@ async function handleApi(request, response) {
     return;
   }
 
-  if (request.method === "GET" && url.pathname === "/api/shared-projects/recent") {
+  if (request.method === "GET" && url.pathname === "/api/shared-projects/recent-by-participant") {
     try {
-      const accessCode = normalizePersonalAccessCode(url.searchParams.get("accessCode") || "");
-      const projects = await listRecentSharedProjectsByAccessCode(accessCode, {
+      const participantName = String(url.searchParams.get("participantName") || "").trim();
+      const projects = await listRecentSharedProjectsByParticipantName(participantName, {
         formatId: url.searchParams.get("formatId") || "",
         limit: Number(url.searchParams.get("limit") || 8),
       });
       json(response, 200, {
         ok: true,
-        accessCode,
+        participantName,
         projects,
       });
     } catch (error) {
@@ -3481,8 +3506,25 @@ async function handleApi(request, response) {
   if (request.method === "POST" && segments[3] === "messages") {
     const body = await readRequestBody(request);
     try {
-      await maybeResolveParticipantProfile(session, body.message);
-      const result = await session.sendUserMessage(body.message);
+      const identityResolution = await maybeResolveParticipantProfile(session, body.message);
+      let messageToSend = body.message;
+
+      if (identityResolution.newlyIdentified && supportsSharedProjects(session.formatDefinition)) {
+        const recentProjects = await listRecentSharedProjectsByParticipantName(identityResolution.profile?.name || "", {
+          formatId: session.formatDefinition?.id || "",
+          limit: 8,
+        }).catch(() => []);
+        const continuityInstruction = buildRecentProjectsAssistantInstruction(identityResolution.profile, recentProjects);
+        if (continuityInstruction) {
+          messageToSend = [
+            String(body.message || ""),
+            "",
+            `[Instruccion interna no visible: ${continuityInstruction}]`,
+          ].join("\n");
+        }
+      }
+
+      const result = await session.sendUserMessage(messageToSend);
       await persistSharedProjectSafely(session);
       json(response, 200, { ok: true, result });
     } catch (error) {

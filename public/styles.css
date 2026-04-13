@@ -907,63 +907,6 @@ body.theme-rose .download-progress-bar {
   margin: 0;
 }
 
-.collaboration-recent-shell {
-  display: grid;
-  gap: 10px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(11, 46, 74, 0.1);
-}
-
-.collaboration-recent-title {
-  color: #18344d;
-  font-size: 0.95rem;
-}
-
-.collaboration-recent-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 8px;
-  max-height: 220px;
-  overflow: auto;
-}
-
-.collaboration-recent-item {
-  border: 1px solid rgba(11, 46, 74, 0.12);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.88);
-  padding: 10px 12px;
-  display: grid;
-  gap: 6px;
-}
-
-.collaboration-recent-item-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.collaboration-recent-item-name {
-  font-weight: 700;
-  color: #173047;
-}
-
-.collaboration-recent-item-meta {
-  color: #526578;
-  font-size: 0.83rem;
-}
-
-.collaboration-recent-open {
-  justify-self: start;
-}
-
-.collaboration-recent-list .empty {
-  color: #5f7487;
-  font-size: 0.9rem;
-}
-
 .session-panel-stack {
   display: grid;
   gap: 14px;

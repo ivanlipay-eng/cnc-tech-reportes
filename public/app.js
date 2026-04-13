@@ -14,7 +14,7 @@ const state = {
   availableFormats: [],
   selectedFormatId: "",
   recentProjects: [],
-  lastRecentProjectsAccessCode: "",
+  lastRecentProjectsParticipantName: "",
   rubenAnimationShownForSessionId: "",
   forcedProfileTheme: "",
   manualTheme: "default",
@@ -35,10 +35,6 @@ const sharedProjectIdInput = document.getElementById("shared-project-id");
 const copySharedProjectIdButton = document.getElementById("copy-shared-project-id");
 const loadSharedProjectIdInput = document.getElementById("load-shared-project-id");
 const loadSharedProjectButton = document.getElementById("load-shared-project");
-const personalAccessCodeInput = document.getElementById("personal-access-code");
-const refreshRecentProjectsButton = document.getElementById("refresh-recent-projects");
-const recentProjectsList = document.getElementById("recent-projects-list");
-const recentProjectsStatus = document.getElementById("recent-projects-status");
 const collaborationStatus = document.getElementById("collaboration-status");
 const sessionMeta = document.getElementById("session-meta");
 const downloadZipLink = document.getElementById("download-zip");
@@ -434,115 +430,56 @@ function setCollaborationStatus(text, isError = false) {
   collaborationStatus.classList.toggle("error", Boolean(isError));
 }
 
-function setRecentProjectsStatus(text, isError = false) {
-  if (!recentProjectsStatus) {
-    return;
-  }
-  recentProjectsStatus.textContent = text;
-  recentProjectsStatus.classList.toggle("error", Boolean(isError));
-}
-
-function normalizePersonalAccessCode(value) {
-  return String(value || "")
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, "")
-    .replace(/[^A-Z0-9-]/g, "");
-}
-
-function getCurrentAccessCode() {
-  const sessionCode = normalizePersonalAccessCode(state.session?.sharedProject?.personalAccessCode || "");
-  if (sessionCode) {
-    return sessionCode;
-  }
-  return normalizePersonalAccessCode(personalAccessCodeInput?.value || "");
-}
-
-function renderRecentProjectsList() {
-  if (!recentProjectsList) {
-    return;
+function formatRecentProjectsText(projects = []) {
+  if (!projects.length) {
+    return "No hay proyectos anteriores registrados para tu perfil en este formato.";
   }
 
-  recentProjectsList.innerHTML = "";
-  if (!state.recentProjects.length) {
-    const empty = document.createElement("li");
-    empty.className = "empty";
-    empty.textContent = "No hay proyectos recientes para ese codigo personal.";
-    recentProjectsList.append(empty);
-    return;
-  }
-
-  state.recentProjects.forEach((project, index) => {
-    const item = document.createElement("li");
-    item.className = "collaboration-recent-item";
-
-    const head = document.createElement("div");
-    head.className = "collaboration-recent-item-head";
-
-    const name = document.createElement("span");
-    name.className = "collaboration-recent-item-name";
-    name.textContent = `${index + 1}. ${project.sessionName || project.projectId}`;
-
-    const projectId = document.createElement("code");
-    projectId.textContent = project.projectId || "";
-    head.append(name, projectId);
-
-    const meta = document.createElement("div");
-    meta.className = "collaboration-recent-item-meta";
-    const savedLabel = project.savedAt ? new Date(project.savedAt).toLocaleString() : "fecha no disponible";
-    meta.textContent = `${project.formatLabel || project.formatId || "Formato"} · ${savedLabel} · ${project.messageCount || 0} mensajes`;
-
-    const openButton = document.createElement("button");
-    openButton.type = "button";
-    openButton.className = "secondary-button collaboration-recent-open";
-    openButton.textContent = "Abrir";
-    openButton.addEventListener("click", async () => {
-      await loadSharedProjectById(project.projectId || "");
-    });
-
-    item.append(head, meta, openButton);
-    recentProjectsList.append(item);
+  const rows = projects.slice(0, 8).map((project, index) => {
+    const savedAt = project.savedAt
+      ? new Date(project.savedAt).toLocaleString()
+      : "fecha no disponible";
+    return `${index + 1}. ${project.sessionName || project.projectId} | ID: ${project.projectId} | ${savedAt}`;
   });
+
+  return rows.join("\n");
 }
 
-async function loadRecentProjects(options = {}) {
-  const accessCode = normalizePersonalAccessCode(options.accessCode || getCurrentAccessCode());
-  if (!accessCode) {
+async function loadRecentProjectsByParticipant(participantName, options = {}) {
+  const normalizedName = String(participantName || "").trim();
+  if (!normalizedName) {
     state.recentProjects = [];
-    renderRecentProjectsList();
-    if (!options.silent) {
-      setRecentProjectsStatus("Ingresa tu codigo personal para listar proyectos.");
-    }
-    return;
+    return [];
   }
 
-  state.lastRecentProjectsAccessCode = accessCode;
+  state.lastRecentProjectsParticipantName = normalizedName.toLowerCase();
   const formatId = String(state.selectedFormatId || state.session?.reportFormat?.id || "").trim();
-  const query = new URLSearchParams({ accessCode, limit: "8" });
+  const query = new URLSearchParams({ participantName: normalizedName, limit: "8" });
   if (formatId) {
     query.set("formatId", formatId);
   }
 
-  setRecentProjectsStatus("Buscando proyectos recientes...");
-
   try {
-    const response = await fetch(buildApiUrl(`/shared-projects/recent?${query.toString()}`), {
+    const response = await fetch(buildApiUrl(`/shared-projects/recent-by-participant?${query.toString()}`), {
       cache: "no-store",
     });
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data.error || "No se pudo cargar el historial de proyectos.");
+      throw new Error(data.error || "No se pudo cargar historial de proyectos.");
     }
 
     state.recentProjects = Array.isArray(data.projects) ? data.projects : [];
-    renderRecentProjectsList();
-    setRecentProjectsStatus(`Se encontraron ${state.recentProjects.length} proyecto(s) recientes.`);
-  } catch (error) {
+    return state.recentProjects;
+  } catch {
     state.recentProjects = [];
-    renderRecentProjectsList();
     if (!options.silent) {
-      setRecentProjectsStatus(error.message || "No se pudo cargar la lista de proyectos.", true);
+      appendMessage({
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: "No pude recuperar tus proyectos anteriores en este momento.",
+      });
     }
+    return [];
   }
 }
 
@@ -609,8 +546,17 @@ async function tryHandleProjectOpenCommand(rawMessage) {
     return true;
   }
 
+  if (!state.participantProfile?.name) {
+    appendMessage({
+      id: crypto.randomUUID(),
+      role: "assistant",
+      text: "Primero debo identificarte para recuperar tus proyectos anteriores. Responde 'quien soy' o indica tu nombre completo.",
+    });
+    return true;
+  }
+
   if (!state.recentProjects.length) {
-    await loadRecentProjects({ silent: true });
+    await loadRecentProjectsByParticipant(state.participantProfile.name, { silent: true });
   }
 
   const selectedProject = resolveProjectFromCommand(command);
@@ -618,7 +564,7 @@ async function tryHandleProjectOpenCommand(rawMessage) {
     appendMessage({
       id: crypto.randomUUID(),
       role: "assistant",
-      text: "No encontre ese proyecto en tu lista reciente. Usa 'Ver ultimos proyectos' y luego escribe por ejemplo: abre 1 o abre UNI-XXXX.",
+      text: `No encontre ese proyecto. Estos son tus proyectos recientes:\n${formatRecentProjectsText(state.recentProjects)}\n\nPuedes escribir: abre 1 o abre ID.`,
     });
     return true;
   }
@@ -642,20 +588,14 @@ function syncCollaborationControls() {
   if (!collaborationEnabled) {
     setCollaborationPanelOpen(false);
     state.recentProjects = [];
-    renderRecentProjectsList();
-    setRecentProjectsStatus("Disponible solo para formatos con trabajo en grupo.");
     return;
   }
 
   setCollaborationPanelOpen(collaborationPanelOpen);
 
   const sharedProjectId = String(state.session?.sharedProject?.id || "").trim();
-  const personalAccessCode = normalizePersonalAccessCode(state.session?.sharedProject?.personalAccessCode || "");
   if (sharedProjectIdInput) {
     sharedProjectIdInput.value = sharedProjectId;
-  }
-  if (personalAccessCodeInput && personalAccessCode) {
-    personalAccessCodeInput.value = personalAccessCode;
   }
 
   if (copySharedProjectIdButton) {
@@ -666,8 +606,7 @@ function syncCollaborationControls() {
   }
 
   if (sharedProjectId) {
-    const accessSuffix = personalAccessCode ? ` | Codigo personal: ${personalAccessCode}` : "";
-    setCollaborationStatus(`ID listo para compartir: ${sharedProjectId}${accessSuffix}`);
+    setCollaborationStatus(`ID listo para compartir: ${sharedProjectId}`);
     return;
   }
 
@@ -725,14 +664,24 @@ async function activateSessionSnapshot(snapshot, options = {}) {
   if (!pdfLoadedOnce) {
     pdfStatus.textContent = "El PDF inicial no estuvo disponible todavia";
   }
-  await loadRecentProjects({ silent: true });
+  await loadRecentProjectsByParticipant(state.participantProfile?.name || "", { silent: true });
 }
 
-async function loadSharedProjectById(projectId) {
+async function loadSharedProjectById(projectId, options = {}) {
   const normalizedProjectId = String(projectId || "").trim().toUpperCase();
   if (!normalizedProjectId) {
     setCollaborationStatus("Escribe primero un ID de proyecto.", true);
     return;
+  }
+
+  if (state.session && options.skipWarning !== true) {
+    const confirmed = window.confirm(
+      "Advertencia: si cargas otro proyecto, la sesion actual en esta pagina se reemplazara. Guarda el ID del proyecto actual antes de continuar.\n\n¿Deseas cargar el proyecto solicitado?"
+    );
+    if (!confirmed) {
+      setCollaborationStatus("Carga cancelada para conservar el proyecto actual.");
+      return;
+    }
   }
 
   setStatus("Cargando proyecto grupal...");
@@ -758,7 +707,7 @@ async function loadSharedProjectById(projectId) {
       showOpeningQuestion: !hasVisibleHistory(data),
     });
     setCollaborationStatus(`Proyecto ${normalizedProjectId} cargado en esta PC.`);
-    await loadRecentProjects({ silent: true });
+    await loadRecentProjectsByParticipant(state.participantProfile?.name || "", { silent: true });
   } catch (error) {
     setStatus("No se pudo cargar el proyecto grupal.", true);
     setCollaborationStatus(error.message || "No se pudo cargar el proyecto compartido.", true);
@@ -1029,22 +978,6 @@ collaborationToggle?.addEventListener("click", () => {
 loadSharedProjectButton?.addEventListener("click", async () => {
   loadSharedProjectButton.disabled = false;
   await loadSharedProjectById(loadSharedProjectIdInput?.value || "");
-});
-
-refreshRecentProjectsButton?.addEventListener("click", async () => {
-  await loadRecentProjects({ silent: false });
-});
-
-personalAccessCodeInput?.addEventListener("input", () => {
-  personalAccessCodeInput.value = normalizePersonalAccessCode(personalAccessCodeInput.value);
-});
-
-personalAccessCodeInput?.addEventListener("keydown", async (event) => {
-  if (event.key !== "Enter") {
-    return;
-  }
-  event.preventDefault();
-  await loadRecentProjects({ silent: false });
 });
 
 chatForm.addEventListener("submit", async (event) => {
@@ -2072,9 +2005,6 @@ function renderMeta(session) {
 
   if (session.sharedProject?.id) {
     metaLines.push(`<strong>ID grupal:</strong> ${escapeHtml(session.sharedProject.id)}`);
-    if (session.sharedProject.personalAccessCode) {
-      metaLines.push(`<strong>Codigo personal:</strong> ${escapeHtml(session.sharedProject.personalAccessCode)}`);
-    }
   }
 
   if (session.reportFormat?.usesParticipantProfiles) {
@@ -2119,6 +2049,12 @@ function renderMeta(session) {
   } else {
     pdfStatus.textContent = "PDF listo. Pulsa Compilar PDF para actualizarlo";
   }
+
+  const participantKey = String(state.participantProfile?.name || "").trim().toLowerCase();
+  if (participantKey && participantKey !== state.lastRecentProjectsParticipantName) {
+    loadRecentProjectsByParticipant(state.participantProfile.name, { silent: true });
+  }
+
   syncCollaborationControls();
 }
 
@@ -2772,7 +2708,7 @@ reportFormatSelect?.addEventListener("change", () => {
     setQuickPanelStatus(getCurrentQuickPanel().readyStatus || "Panel rapido listo para el formato seleccionado");
   }
   syncCollaborationControls();
-  loadRecentProjects({ silent: true });
+  loadRecentProjectsByParticipant(state.participantProfile?.name || "", { silent: true });
 });
 
 function setReportProgress(meta) {
