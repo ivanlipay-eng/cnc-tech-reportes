@@ -1,6 +1,8 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const net = require("node:net");
+const http = require("node:http");
+const https = require("node:https");
 const { spawn, spawnSync } = require("node:child_process");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
@@ -158,6 +160,46 @@ function isProcessAlive(pid) {
   } catch (error) {
     return error.code === "EPERM";
   }
+}
+
+function probeHealthUrl(url, timeoutMs = 5000) {
+  return new Promise((resolve) => {
+    try {
+      const target = new URL(url);
+      const client = target.protocol === "https:" ? https : http;
+      const request = client.request(target, { method: "GET", timeout: timeoutMs }, (response) => {
+        response.resume();
+        resolve(response.statusCode >= 200 && response.statusCode < 300);
+      });
+
+      request.on("timeout", () => {
+        request.destroy();
+        resolve(false);
+      });
+
+      request.on("error", () => resolve(false));
+      request.end();
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
+async function isBackendResponsive(runtime) {
+  if (!runtime?.host || !runtime?.port) {
+    return false;
+  }
+
+  return probeHealthUrl(`http://${runtime.host}:${runtime.port}/api/health`, 5000);
+}
+
+async function isTunnelResponsive(runtime) {
+  if (!runtime?.tunnelUrl) {
+    return true;
+  }
+
+  const healthUrl = `${String(runtime.tunnelUrl).replace(/\/+$/, "")}/api/health`;
+  return probeHealthUrl(healthUrl, 7000);
 }
 
 async function killPid(pid) {
@@ -445,7 +487,13 @@ async function ensureManagedRuntimeHealthy(options = {}) {
 
   const runtimeStatus = status[0];
   const needsTunnel = runtimeStatus.mode === "public" || runtimeStatus.mode === "permanent";
-  const unhealthy = !runtimeStatus.backendAlive || (needsTunnel && !runtimeStatus.tunnelAlive);
+  const backendResponsive = runtimeStatus.backendAlive ? await isBackendResponsive(runtimeStatus) : false;
+  const tunnelResponsive = needsTunnel && runtimeStatus.tunnelAlive
+    ? await isTunnelResponsive(runtimeStatus)
+    : !needsTunnel;
+  const unhealthy = !runtimeStatus.backendAlive
+    || !backendResponsive
+    || (needsTunnel && (!runtimeStatus.tunnelAlive || !tunnelResponsive));
 
   if (!unhealthy) {
     return {
