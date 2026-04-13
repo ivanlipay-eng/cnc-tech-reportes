@@ -4,7 +4,7 @@ $root = Split-Path -Parent $PSScriptRoot
 Push-Location $root
 
 try {
-  node scripts/start-managed-runtime.js permanent
+  node scripts/start-runtime-monitor.js permanent
 }
 finally {
   Pop-Location

@@ -1,6 +1,6 @@
 {
   "name": "codex-web-bridge",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "private": true,
   "description": "Pagina web para crear carpetas, abrir VS Code y chatear con Contexto",
   "scripts": {
@@ -11,8 +11,12 @@
     "start:pages-backend": "node scripts/start-managed-runtime.js pages",
     "start:public-backend": "node scripts/start-managed-runtime.js public",
     "start:permanent-backend": "node scripts/start-managed-runtime.js permanent",
+    "start:public-24x7": "node scripts/start-runtime-monitor.js public",
+    "start:permanent-24x7": "node scripts/start-runtime-monitor.js permanent",
     "stop:managed-runtime": "node scripts/stop-managed-runtime.js",
-    "status:managed-runtime": "node scripts/status-managed-runtime.js"
+    "status:managed-runtime": "node scripts/status-managed-runtime.js",
+    "status:runtime-monitor": "node scripts/status-runtime-monitor.js",
+    "stop:runtime-monitor": "node scripts/stop-runtime-monitor.js"
   },
   "dependencies": {
     "mammoth": "^1.11.0"

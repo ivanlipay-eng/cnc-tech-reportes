@@ -431,8 +431,46 @@ function getManagedRuntimeStatus() {
   }));
 }
 
+async function ensureManagedRuntimeHealthy(options = {}) {
+  const preferredMode = options.mode || process.env.MANAGED_RUNTIME_MODE || "permanent";
+  const status = getManagedRuntimeStatus();
+
+  if (!status.length) {
+    const runtime = await startManagedRuntime(preferredMode, options);
+    return {
+      action: "started",
+      runtime,
+    };
+  }
+
+  const runtimeStatus = status[0];
+  const needsTunnel = runtimeStatus.mode === "public" || runtimeStatus.mode === "permanent";
+  const unhealthy = !runtimeStatus.backendAlive || (needsTunnel && !runtimeStatus.tunnelAlive);
+
+  if (!unhealthy) {
+    return {
+      action: "healthy",
+      runtime: runtimeStatus,
+    };
+  }
+
+  const restarted = await startManagedRuntime(runtimeStatus.mode, {
+    host: runtimeStatus.host,
+    port: runtimeStatus.port,
+    allowedOrigins: runtimeStatus.allowedOrigins,
+    tunnelName: runtimeStatus.tunnelName || options.tunnelName || process.env.CLOUDFLARED_TUNNEL_NAME || "",
+  });
+
+  return {
+    action: "restarted",
+    previousRuntime: runtimeStatus,
+    runtime: restarted,
+  };
+}
+
 module.exports = {
   STATE_FILE,
+  ensureManagedRuntimeHealthy,
   getManagedRuntimeStatus,
   startManagedRuntime,
   stopManagedRuntime,

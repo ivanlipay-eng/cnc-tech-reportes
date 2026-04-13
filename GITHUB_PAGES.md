@@ -61,9 +61,15 @@ Comandos:
 
 `npm run start:permanent-backend`
 
+`npm run start:permanent-24x7`
+
 `npm run status:managed-runtime`
 
+`npm run status:runtime-monitor`
+
 `npm run stop:managed-runtime`
+
+`npm run stop:runtime-monitor`
 
 Cuando arrancas uno de estos modos, el gestor hace lo siguiente:
 
@@ -71,6 +77,8 @@ Cuando arrancas uno de estos modos, el gestor hace lo siguiente:
 2. Intenta recuperar el puerto si esta ocupado por un backend previo de este proyecto.
 3. Inicia el backend nuevo y el tunel correspondiente.
 4. Guarda PID, logs y datos del runtime en `tmp/managed-runtime.json`.
+
+Con el monitor 24x7 activo (`start:permanent-24x7` o `start:public-24x7`), se ejecuta una verificacion periodica que reinicia backend/tunel si alguno cae.
 
 Si el puerto esta ocupado por un proceso ajeno, el arranque falla para no matar un proceso no reconocido.
 
@@ -99,6 +107,10 @@ Si quieres que otras PCs usen siempre tu pagina publicada y que el backend siga 
 Ya deje listo un arranque para tunel nombrado:
 
 `npm run start:permanent-backend`
+
+Para dejarlo autorecuperable en segundo plano:
+
+`npm run start:permanent-24x7`
 
 Antes de usarlo, haz esto una sola vez con tu cuenta de Cloudflare:
 
