@@ -409,6 +409,51 @@ function normalizeBaseUrl(value) {
   return text.replace(/\/+$/, "");
 }
 
+function buildRepoConfigRawUrl() {
+  const locationRef = globalThis.location || { hostname: "", pathname: "" };
+  const host = String(locationRef.hostname || "").toLowerCase();
+  if (!host.endsWith(".github.io")) {
+    return "";
+  }
+
+  const owner = host.replace(/\.github\.io$/, "").trim();
+  const segments = String(locationRef.pathname || "")
+    .split("/")
+    .filter(Boolean);
+  const repo = segments[0] || "";
+  if (!owner || !repo) {
+    return "";
+  }
+
+  const targetFolder = segments.includes("docs") ? "docs" : "public";
+  return `https://raw.githubusercontent.com/${owner}/${repo}/main/${targetFolder}/config.js`;
+}
+
+function extractApiBaseUrlFromConfigText(sourceText) {
+  const pattern = /apiBaseUrl:\s*"([^"]+)"/i;
+  const match = pattern.exec(String(sourceText || ""));
+  return normalizeBaseUrl(match?.[1] || "");
+}
+
+async function fetchLatestRepoApiBaseUrl() {
+  const rawConfigUrl = buildRepoConfigRawUrl();
+  if (!rawConfigUrl) {
+    return "";
+  }
+
+  try {
+    const response = await fetch(`${rawConfigUrl}?t=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) {
+      return "";
+    }
+
+    const sourceText = await response.text();
+    return extractApiBaseUrlFromConfigText(sourceText);
+  } catch {
+    return "";
+  }
+}
+
 function buildApiUrl(pathname) {
   const normalizedPath = String(pathname || "").startsWith("/") ? pathname : `/${pathname}`;
   return `${activeApiRoot}${normalizedPath}`;
@@ -3804,7 +3849,10 @@ async function loadAppVersion() {
 
   const frontendVersion = String(appVersionBadge.textContent || "").trim();
 
-  const candidates = configuredApiBaseUrl ? [configuredApiBaseUrl, ""] : [""];
+  const latestRepoApiBaseUrl = await fetchLatestRepoApiBaseUrl();
+  const candidates = [configuredApiBaseUrl, latestRepoApiBaseUrl, ""]
+    .map((item) => normalizeBaseUrl(item || ""))
+    .filter((item, index, all) => all.indexOf(item) === index);
 
   for (const candidate of candidates) {
     try {
