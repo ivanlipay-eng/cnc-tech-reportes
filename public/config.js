@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://disabled-jackson-reach-advertisement.trycloudflare.com",
+  apiBaseUrl: "https://supplied-juice-roulette-modify.trycloudflare.com",
   brandLogoUrl: "",
 };
