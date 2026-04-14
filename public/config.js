@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://rover-campbell-improvement-standards.trycloudflare.com",
+  apiBaseUrl: "https://disabled-jackson-reach-advertisement.trycloudflare.com",
   brandLogoUrl: "",
 };
