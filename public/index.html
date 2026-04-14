@@ -7,12 +7,12 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Asistente de Reportes CNC Tech</title>
-    <link rel="icon" type="image/png" href="./favicon-circle.png?v=1.2.24" />
+    <link rel="icon" type="image/png" href="./favicon-circle.png?v=1.2.25" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous" />
-    <link rel="stylesheet" href="./styles.css?v=1.2.24" />
+    <link rel="stylesheet" href="./styles.css?v=1.2.25" />
   </head>
   <body>
-    <div id="app-version-badge" class="app-version-badge">Version 1.2.24</div>
+    <div id="app-version-badge" class="app-version-badge">Version 1.2.25</div>
     <div id="upload-overlay" class="download-overlay upload-overlay" hidden>
       <div id="upload-card" class="download-card upload-card">
         <div class="download-eyebrow">Subiendo archivo</div>
@@ -185,6 +185,9 @@
             <button id="compile-report" type="button" class="secondary-button" disabled>
               Compilar PDF
             </button>
+            <button id="upload-drive" type="button" class="secondary-button disabled" aria-disabled="true" disabled>
+              Subir proyecto a Drive
+            </button>
             <input id="upload-files" type="file" multiple hidden disabled />
             <input id="upload-word-source" type="file" accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden disabled />
           </div>
@@ -267,9 +270,6 @@
               </button>
               <button type="button" class="secondary-button experimental-button" data-experimental-action="compress-report" disabled>
                 Compactar reporte
-              </button>
-              <button id="upload-drive" type="button" class="secondary-button experimental-button" aria-disabled="false">
-                Subir proyecto a Drive
               </button>
             </div>
             <div id="experimental-status" class="upload-status">Sin sesión activa</div>
@@ -396,7 +396,7 @@
     </footer>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
-    <script src="./config.js?v=1.2.24"></script>
-    <script src="./app.js?v=1.2.24"></script>
+    <script src="./config.js?v=1.2.25"></script>
+    <script src="./app.js?v=1.2.25"></script>
   </body>
 </html>

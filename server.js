@@ -1542,6 +1542,92 @@ async function buildParticipantProfile(participant) {
   };
 }
 
+async function getAllDriveParticipantNames() {
+  try {
+    const participants = [];
+    const areaEntries = await fs.readdir(DRIVE_REPORTS_ROOT, { withFileTypes: true }).catch(() => []);
+
+    for (const areaEntry of areaEntries) {
+      if (!areaEntry.isDirectory()) continue;
+
+      const areaPath = path.join(DRIVE_REPORTS_ROOT, areaEntry.name);
+      const reportsDirPath = path.join(areaPath, "Reportes_Semanales");
+      const participantEntries = await fs.readdir(reportsDirPath, { withFileTypes: true }).catch(() => []);
+
+      for (const participantEntry of participantEntries) {
+        if (!participantEntry.isDirectory()) continue;
+        participants.push({
+          name: participantEntry.name,
+          area: normalizeAreaForDrive(areaEntry.name),
+          areaDisplay: areaEntry.name,
+          folderPath: path.join(reportsDirPath, participantEntry.name),
+        });
+      }
+    }
+    return participants;
+  } catch (error) {
+    console.error("Error reading Drive participant names:", error);
+    return [];
+  }
+}
+
+function findParticipantNameInText(text, driveParticipants) {
+  if (!text || !driveParticipants.length) return null;
+
+  const normalizedText = String(text || "").toLowerCase();
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const participant of driveParticipants) {
+    const normalizedName = (participant.name || "").toLowerCase();
+    if (!normalizedName) continue;
+
+    if (normalizedText.includes(normalizedName)) {
+      const score = normalizedName.length * 10;
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = participant;
+      }
+    } else {
+      const nameTokens = normalizedName.split(/\s+|,\s*/g).filter(Boolean);
+      const textTokens = normalizedText.split(/\s+/g);
+      const matches = nameTokens.filter(token => textTokens.some(t => t.includes(token) || token.includes(t)));
+
+      if (matches.length >= 1 && matches.length <= nameTokens.length) {
+        const score = matches.length * 5;
+        if (score > bestScore && score >= Math.max(3, normalizedName.split(/\s+/).length - 1)) {
+          bestScore = score;
+          bestMatch = participant;
+        }
+      }
+    }
+  }
+
+  return bestScore >= 3 ? bestMatch : null;
+}
+
+async function maybeResolveDriveParticipant(session, inputText) {
+  if (session.participantProfile) {
+    return { profile: session.participantProfile, newlyIdentified: false };
+  }
+
+  const driveParticipants = await getAllDriveParticipantNames();
+  const driveMatch = findParticipantNameInText(inputText, driveParticipants);
+
+  if (driveMatch) {
+    const profile = {
+      name: driveMatch.name,
+      area: driveMatch.areaDisplay,
+      folderPath: driveMatch.folderPath,
+    };
+    session.setParticipantProfile(profile);
+    session.pendingParticipantFullNameAnnouncement = profile.name || "";
+    return { profile, newlyIdentified: true };
+  }
+
+  return { profile: null, newlyIdentified: false };
+}
+
 async function maybeResolveParticipantProfile(session, inputText) {
   if (session.participantProfile) {
     return {
@@ -1551,10 +1637,7 @@ async function maybeResolveParticipantProfile(session, inputText) {
   }
 
   if (!session.formatDefinition?.context?.participantProfilesDir) {
-    return {
-      profile: null,
-      newlyIdentified: false,
-    };
+    return maybeResolveDriveParticipant(session, inputText);
   }
 
   const participant = await findParticipantMatch(inputText, session.formatDefinition);
