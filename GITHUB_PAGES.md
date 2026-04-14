@@ -82,6 +82,29 @@ Con el monitor 24x7 activo (`start:permanent-24x7` o `start:public-24x7`), se ej
 
 Si el puerto esta ocupado por un proceso ajeno, el arranque falla para no matar un proceso no reconocido.
 
+## Backend 24x7 sin monitor (recomendado)
+
+Si quieres que el backend se mantenga activo mientras Windows este encendido, sin depender del monitor del proyecto, instala el servicio de Windows incluido.
+
+Comandos:
+
+`npm run service:install`
+
+`npm run service:status`
+
+`npm run service:restart`
+
+`npm run service:stop`
+
+`npm run service:uninstall`
+
+Notas:
+
+1. Debes ejecutar estos comandos en una terminal abierta como Administrador.
+2. El servicio se llama `CncTechBackend` y arranca automaticamente con Windows.
+3. Ante fallos del proceso, Windows lo reinicia automaticamente.
+4. Este modo no usa el monitor de runtime del proyecto.
+
 ## Exponer este backend local
 
 Tambien deje preparado un modo para exponer el backend de esta misma PC por un tunel publico usando Cloudflare.
