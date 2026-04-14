@@ -30,6 +30,20 @@ function run(command, args, allowFailure = false) {
   return { ok: true, output };
 }
 
+function runQuiet(command, args) {
+  const result = spawnSync(command, args, {
+    cwd: rootDir,
+    encoding: "utf8",
+  });
+
+  return {
+    status: result.status,
+    stdout: result.stdout || "",
+    stderr: result.stderr || "",
+    error: result.error || null,
+  };
+}
+
 function updateApiBaseUrl(configPath, newUrl) {
   const content = fs.readFileSync(configPath, "utf8");
   const updated = content.replace(
@@ -51,6 +65,18 @@ function readCurrentApiBaseUrl(configPath) {
   return match?.[1] || "";
 }
 
+function isTrackedOrUnignored(filePath) {
+  const relativePath = path.relative(rootDir, filePath).replaceAll("\\", "/");
+  const checkIgnore = runQuiet("git", ["check-ignore", "-q", relativePath]);
+
+  if (checkIgnore.error) {
+    return false;
+  }
+
+  // status 0 => ignored, status 1 => not ignored
+  return checkIgnore.status === 1;
+}
+
 function main() {
   const tunnelUrl = String(process.argv[2] || "").trim();
   if (!/^https:\/\/.+/i.test(tunnelUrl)) {
@@ -64,14 +90,38 @@ function main() {
   }
 
   const publicChanged = updateApiBaseUrl(publicConfigPath, tunnelUrl);
-  const docsChanged = updateApiBaseUrl(docsConfigPath, tunnelUrl);
+
+  let docsChanged = false;
+  if (fs.existsSync(docsConfigPath) && isTrackedOrUnignored(docsConfigPath)) {
+    docsChanged = updateApiBaseUrl(docsConfigPath, tunnelUrl);
+  }
+
   if (!publicChanged && !docsChanged) {
     console.log("Sin cambios para sincronizar.");
     return;
   }
 
   run(process.execPath, ["scripts/bump-version-100.js"]);
-  run("git", ["add", "public/config.js", "docs/config.js", "package.json", "package-lock.json", "public/index.html", "docs/index.html"]);
+
+  const stageCandidates = [
+    "public/config.js",
+    "public/index.html",
+    "package.json",
+    "package-lock.json",
+  ];
+
+  if (docsChanged) {
+    stageCandidates.push("docs/config.js", "docs/index.html");
+  }
+
+  const stageArgs = ["add", ...stageCandidates.filter((entry) => {
+    const absolutePath = path.join(rootDir, entry);
+    return fs.existsSync(absolutePath) && isTrackedOrUnignored(absolutePath);
+  })];
+
+  if (stageArgs.length > 1) {
+    run("git", stageArgs);
+  }
 
   const safeHost = tunnelUrl.replace(/^https?:\/\//i, "");
   const commitMessage = `chore: sync backend url ${safeHost}`;

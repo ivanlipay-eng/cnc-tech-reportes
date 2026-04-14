@@ -355,6 +355,7 @@ function createConfig(mode, overrides = {}) {
   const allowedOrigins = overrides.allowedOrigins || process.env.CORS_ALLOWED_ORIGINS || base.allowedOrigins;
   const host = overrides.host || process.env.HOST || base.host;
   const tunnelName = overrides.tunnelName || process.env.CLOUDFLARED_TUNNEL_NAME || "";
+  const publicBaseUrl = overrides.publicBaseUrl || process.env.PUBLIC_BACKEND_URL || "";
 
   if (mode === "permanent" && !tunnelName) {
     throw new Error("Define CLOUDFLARED_TUNNEL_NAME antes de iniciar el tunel permanente.");
@@ -366,6 +367,7 @@ function createConfig(mode, overrides = {}) {
     port,
     allowedOrigins,
     tunnelName,
+    publicBaseUrl,
   };
 }
 
@@ -427,6 +429,8 @@ async function startManagedRuntime(mode, overrides = {}) {
 
     if (config.mode === "public") {
       tunnelUrl = await waitForQuickTunnelUrl(tunnelLogPath, 20000);
+    } else if (config.publicBaseUrl) {
+      tunnelUrl = String(config.publicBaseUrl).trim();
     }
   }
 

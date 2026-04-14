@@ -141,17 +141,20 @@ Antes de usarlo, haz esto una sola vez con tu cuenta de Cloudflare:
 2. `cloudflared tunnel create cnc-tech-reportes`
 3. Crea un host DNS o una ruta publica para ese tunel.
 4. Define la variable de entorno `CLOUDFLARED_TUNNEL_NAME=cnc-tech-reportes`
+5. Define tambien `PUBLIC_BACKEND_URL` con tu dominio estable (ejemplo: `https://cnc-reportes.tu-dominio.com`)
 
 Opcionalmente puedes cambiar el puerto y origen permitido:
 
 ```powershell
 $env:CLOUDFLARED_TUNNEL_NAME="cnc-tech-reportes"
+$env:PUBLIC_BACKEND_URL="https://cnc-reportes.tu-dominio.com"
 $env:PORT="3226"
 $env:CORS_ALLOWED_ORIGINS="https://ivanlipay-eng.github.io"
 npm run start:permanent-backend
 ```
 
 El runtime gestionado deja el backend local corriendo en esta PC y luego ejecuta `cloudflared tunnel run` con el nombre indicado.
+Si `PUBLIC_BACKEND_URL` esta definida, el monitor publicara esa URL estable en `public/config.js` (y en `docs/config.js` si aplica) para que GitHub Pages no dependa de URLs `trycloudflare` temporales.
 
 Si quieres exponer un subdominio fijo, usa un archivo de configuracion de Cloudflare como base:
 
