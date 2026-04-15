@@ -546,7 +546,9 @@ function getFormatDefinition(formatId) {
 
 function supportsSharedProjects(formatDefinition) {
   const formatId = String(formatDefinition?.id || "").trim();
-  return formatId === "informes-uni" || formatId === "cnc-tech-formativo";
+  return formatId === "informes-uni"
+    || formatId === "cnc-tech-formativo"
+    || formatId === "fdm-tech-formativo";
 }
 
 function buildParticipantContextDefinition(formatDir, contextConfig = {}) {

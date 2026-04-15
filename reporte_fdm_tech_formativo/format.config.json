@@ -1,0 +1,185 @@
+{
+  "id": "fdm-tech-formativo",
+  "label": "FDM Tech Formativo",
+  "description": "Formato semanal institucional para el programa formativo de FDM Tech.",
+  "default": false,
+  "workspace": {
+    "reportDir": "reporte",
+    "imagesDir": "imagenes",
+    "filesDir": "archivos",
+    "exportDir": "export",
+    "reportTexName": "reporte.tex",
+    "reportPdfName": "reporte.pdf"
+  },
+  "template": {
+    "sourceTex": "reporte_fdm_tech_formativo.tex",
+    "sourcePdf": "reporte_fdm_tech_formativo.pdf",
+    "assetsToImages": [
+      "fdm_tech_logo.png"
+    ],
+    "texReplacements": [
+      {
+        "search": "\\newcommand{\\LogoCNC}{fdm_tech_logo.png}",
+        "replace": "\\newcommand{\\LogoCNC}{../imagenes/fdm_tech_logo.png}"
+      },
+      {
+        "search": "\\newcommand{\\LogoHeader}{fdm_tech_logo.png}",
+        "replace": "\\newcommand{\\LogoHeader}{../imagenes/fdm_tech_logo.png}"
+      },
+      {
+        "search": "\\SmartFigure{evidencias/kicad_cama_sacrificio_layout.png}",
+        "replace": "\\SmartFigure{../imagenes/kicad_cama_sacrificio_layout.png}"
+      },
+      {
+        "search": "\\SmartFigure{evidencias/captura_kicad_pads.png}",
+        "replace": "\\SmartFigure{../imagenes/captura_kicad_pads.png}"
+      },
+      {
+        "search": "\\SmartFigure{evidencias/paso_1_pdf_mecanica.png}",
+        "replace": "\\SmartFigure{../imagenes/paso_1_pdf_mecanica.png}"
+      },
+      {
+        "search": "\\SmartFigure{evidencias/paso_2_area_cobre.png}",
+        "replace": "\\SmartFigure{../imagenes/paso_2_area_cobre.png}"
+      }
+    ]
+  },
+  "bot": {
+    "instructionsFile": "bot.instructions.md",
+    "openingQuestion": "Quien eres?",
+    "serviceName": "Contexto"
+  },
+  "quickPanel": {
+    "title": "Panel rapido",
+    "description": "Datos de cierre semanal para el formato formativo.",
+    "emptyStatus": "Sin sesion activa",
+    "readyStatus": "Panel rapido listo para completar datos de cierre",
+    "saveSuccessText": "Panel rapido guardado",
+    "applyingText": "Aplicando datos del panel al reporte...",
+    "applySuccessText": "Panel aplicado al reporte",
+    "fields": [
+      {
+        "key": "periodStart",
+        "label": "Inicio del periodo",
+        "type": "date",
+        "width": "half",
+        "defaultPreset": "currentWeekStart",
+        "autoRangeEndKey": "periodEnd",
+        "autoRangeEndDays": 6,
+        "meta": true
+      },
+      {
+        "key": "periodEnd",
+        "label": "Fin del periodo",
+        "type": "date",
+        "width": "half",
+        "defaultPreset": "currentWeekEnd",
+        "meta": true
+      },
+      {
+        "key": "hoursRemote",
+        "label": "Horas remotas",
+        "type": "number",
+        "width": "half",
+        "min": 0,
+        "step": 0.5,
+        "placeholder": "0"
+      },
+      {
+        "key": "hoursOnsite",
+        "label": "Horas presenciales",
+        "type": "number",
+        "width": "half",
+        "min": 0,
+        "step": 0.5,
+        "placeholder": "0"
+      },
+      {
+        "key": "modality",
+        "label": "Modalidad",
+        "type": "text",
+        "width": "full",
+        "placeholder": "Presencial, remota o mixta"
+      },
+      {
+        "key": "progressPercent",
+        "label": "Porcentaje de avance",
+        "type": "number",
+        "width": "full",
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "placeholder": "0-100",
+        "meta": true
+      },
+      {
+        "key": "risks",
+        "label": "Riesgos",
+        "type": "textarea",
+        "width": "full",
+        "rows": 2,
+        "placeholder": "Riesgos detectados"
+      },
+      {
+        "key": "blockers",
+        "label": "Bloqueos",
+        "type": "textarea",
+        "width": "full",
+        "rows": 2,
+        "placeholder": "Bloqueos o dependencias"
+      },
+      {
+        "key": "resourcesNeeded",
+        "label": "Necesidades",
+        "type": "textarea",
+        "width": "full",
+        "rows": 2,
+        "placeholder": "Piezas, accesos o aprobaciones"
+      },
+      {
+        "key": "nextSteps",
+        "label": "Proximos pasos",
+        "type": "textarea",
+        "width": "full",
+        "rows": 2,
+        "placeholder": "Siguiente paso o cierre esperado"
+      },
+      {
+        "key": "references",
+        "label": "Referencias",
+        "type": "textarea",
+        "width": "full",
+        "rows": 3,
+        "placeholder": "Manual, ficha tecnica, bitacora o URL"
+      }
+    ],
+    "actions": [
+      {
+        "type": "weekRange",
+        "label": "Esta semana",
+        "dayOffset": 0,
+        "startKey": "periodStart",
+        "endKey": "periodEnd"
+      },
+      {
+        "type": "weekRange",
+        "label": "Semana anterior",
+        "dayOffset": -7,
+        "startKey": "periodStart",
+        "endKey": "periodEnd"
+      }
+    ]
+  },
+  "context": {
+    "formatFiles": [
+      "contexto_formato_reporte/contexto_reporte_cnc_tech.tex",
+      "reporte_fdm_tech_formativo.tex"
+    ],
+    "participantProfilesDir": "C:\\Users\\Ivan\\Desktop\\contexto\\10_perfiles_participantes",
+    "scheduleDir": "C:\\Users\\Ivan\\Desktop\\contexto\\horarios",
+    "participantIndexTex": "indice_participantes_cnc.tex",
+    "participantIndexPdf": "indice_participantes_cnc.pdf",
+    "scheduleRegistryMd": "registro_horarios_participantes.md",
+    "schedulePdf": "horarios_participantes.pdf"
+  }
+}

@@ -9,6 +9,7 @@ shared-projects/
 *.err.log
 
 docs/
+plantilla_reporte_fdm_formativo/
 
 reporte_cnc_tech_formativo/**/*.aux
 reporte_cnc_tech_formativo/**/*.fdb_latexmk
