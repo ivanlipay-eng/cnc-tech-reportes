@@ -1,7 +1,7 @@
 {
-  "id": "fdm-tech-formativo",
-  "label": "FDM Tech Formativo",
-  "description": "Formato semanal institucional para el programa formativo de FDM Tech.",
+  "id": "fdm-tech",
+  "label": "FDM Tech",
+  "description": "Formato semanal institucional para FDM Tech.",
   "default": false,
   "workspace": {
     "reportDir": "reporte",
@@ -12,15 +12,15 @@
     "reportPdfName": "reporte.pdf"
   },
   "template": {
-    "sourceTex": "reporte_fdm_tech_formativo.tex",
-    "sourcePdf": "reporte_fdm_tech_formativo.pdf",
+    "sourceTex": "reporte_fdm_tech.tex",
+    "sourcePdf": "reporte_fdm_tech.pdf",
     "assetsToImages": [
       "fdm_tech_logo.png"
     ],
     "texReplacements": [
       {
-        "search": "\\newcommand{\\LogoCNC}{fdm_tech_logo.png}",
-        "replace": "\\newcommand{\\LogoCNC}{../imagenes/fdm_tech_logo.png}"
+        "search": "\\newcommand{\\LogoFDM}{fdm_tech_logo.png}",
+        "replace": "\\newcommand{\\LogoFDM}{../imagenes/fdm_tech_logo.png}"
       },
       {
         "search": "\\newcommand{\\LogoHeader}{fdm_tech_logo.png}",
@@ -51,7 +51,7 @@
   },
   "quickPanel": {
     "title": "Panel rapido",
-    "description": "Datos de cierre semanal para el formato formativo.",
+    "description": "Datos de cierre semanal para el formato FDM Tech.",
     "emptyStatus": "Sin sesion activa",
     "readyStatus": "Panel rapido listo para completar datos de cierre",
     "saveSuccessText": "Panel rapido guardado",
@@ -172,13 +172,13 @@
   },
   "context": {
     "formatFiles": [
-      "contexto_formato_reporte/contexto_reporte_cnc_tech.tex",
-      "reporte_fdm_tech_formativo.tex"
+      "contexto_formato_reporte/contexto_reporte_fdm_tech.tex",
+      "reporte_fdm_tech.tex"
     ],
     "participantProfilesDir": "C:\\Users\\Ivan\\Desktop\\contexto\\10_perfiles_participantes",
     "scheduleDir": "C:\\Users\\Ivan\\Desktop\\contexto\\horarios",
-    "participantIndexTex": "indice_participantes_cnc.tex",
-    "participantIndexPdf": "indice_participantes_cnc.pdf",
+    "participantIndexTex": "indice_participantes_fdm.tex",
+    "participantIndexPdf": "indice_participantes_fdm.pdf",
     "scheduleRegistryMd": "registro_horarios_participantes.md",
     "schedulePdf": "horarios_participantes.pdf"
   }

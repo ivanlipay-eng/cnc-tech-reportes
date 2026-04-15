@@ -46,21 +46,21 @@
 % COLORES (FDM STYLE - tomado del logo)
 % --------------------------
 \usepackage{xcolor}
-\definecolor{CNCblue}{HTML}{0A3B6F}
-\definecolor{CNCcyan}{HTML}{1D9DE0}
-\definecolor{CNCaccent}{HTML}{EF4337}
-\definecolor{CNCdark}{HTML}{0A2E56}
-\definecolor{CNCgray}{HTML}{334155}
-\definecolor{CNCmuted}{HTML}{64748B}
-\definecolor{CNCline}{HTML}{DCE8F3}
-\definecolor{CNCsoft}{HTML}{F6FAFE}
-\definecolor{CNCsoft2}{HTML}{ECF4FC}
+\definecolor{FDMblue}{HTML}{0A3B6F}
+\definecolor{FDMcyan}{HTML}{1D9DE0}
+\definecolor{FDMaccent}{HTML}{EF4337}
+\definecolor{FDMdark}{HTML}{0A2E56}
+\definecolor{FDMgray}{HTML}{334155}
+\definecolor{FDMmuted}{HTML}{64748B}
+\definecolor{FDMline}{HTML}{DCE8F3}
+\definecolor{FDMsoft}{HTML}{F6FAFE}
+\definecolor{FDMsoft2}{HTML}{ECF4FC}
 
 \hypersetup{
   colorlinks=true,
-  linkcolor=CNCcyan!60!CNCblue,
-  urlcolor=CNCcyan!60!CNCblue,
-  citecolor=CNCcyan!60!CNCblue
+  linkcolor=FDMcyan!60!FDMblue,
+  urlcolor=FDMcyan!60!FDMblue,
+  citecolor=FDMcyan!60!FDMblue
 }
 
 % --------------------------
@@ -71,30 +71,30 @@
   enhanced,
   breakable,
   boxrule=0.75pt,
-  colframe=CNCline,
-  colback=CNCsoft,
+  colframe=FDMline,
+  colback=FDMsoft,
   arc=2.2mm,
   left=4mm,right=4mm,top=3mm,bottom=3mm
 }
 
 % --------------------------
-% DECORACION (barra CNC + watermark)
+% DECORACION (barra FDM + watermark)
 % --------------------------
 \usepackage{tikz}
 \usepackage{eso-pic}
 
-% Barra lateral CNC
+% Barra lateral FDM
 \AddToShipoutPictureBG*{%
   \begin{tikzpicture}[remember picture,overlay]
-    \fill[CNCblue] (current page.north west) rectangle ([xshift=7.0mm]current page.south west);
-    \fill[CNCaccent] ([xshift=7.0mm]current page.north west) rectangle ([xshift=7.7mm]current page.south west);
+    \fill[FDMblue] (current page.north west) rectangle ([xshift=7.0mm]current page.south west);
+    \fill[FDMaccent] ([xshift=7.0mm]current page.north west) rectangle ([xshift=7.7mm]current page.south west);
   \end{tikzpicture}%
 }
 
 % Watermark tenue
 \AddToShipoutPictureBG{%
   \begin{tikzpicture}[remember picture,overlay]
-    \node[rotate=35,scale=8,text=CNCline!55] at ([xshift=1.5cm,yshift=-3.5cm]current page.center) {FDM};
+    \node[rotate=35,scale=8,text=FDMline!55] at ([xshift=1.5cm,yshift=-3.5cm]current page.center) {FDM};
   \end{tikzpicture}%
 }
 
@@ -122,7 +122,7 @@
 % VARIABLES EDITABLES
 % ==========================================================
 % Logos (en esta carpeta)
-\newcommand{\LogoCNC}{fdm_tech_logo.png} % Banner página 1
+\newcommand{\LogoFDM}{fdm_tech_logo.png} % Banner página 1
 \newcommand{\LogoHeader}{fdm_tech_logo.png} % Header página 2+
 
 % Institucion / programa
@@ -167,16 +167,16 @@
 % ==========================================================
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 
-\newcommand{\Field}[2]{\textbf{\color{CNCdark}#1}\hspace{4pt}{\color{CNCgray}#2}}
+\newcommand{\Field}[2]{\textbf{\color{FDMdark}#1}\hspace{4pt}{\color{FDMgray}#2}}
 
 \newcommand{\SectionTitle}[1]{%
   \vspace{1mm}
-  {\Large\bfseries\color{CNCblue}#1}\par
+  {\Large\bfseries\color{FDMblue}#1}\par
   \vspace{1mm}
 }
 
 \newcommand{\SubTitle}[1]{%
-  {\bfseries\color{CNCdark}#1}\par
+  {\bfseries\color{FDMdark}#1}\par
 }
 
 % Evita cortes de viñetas entre páginas
@@ -187,7 +187,7 @@
   \tcbox[
     on line,
     colback=white,
-    colframe=CNCline!85,
+    colframe=FDMline!85,
     boxrule=0.75pt,
     arc=3.2mm,
     left=1.8mm,right=1.8mm,
@@ -202,7 +202,7 @@
     on line,
     enhanced,
     colback=white,
-    colframe=CNCline!85,
+    colframe=FDMline!85,
     boxrule=0.7pt,
     arc=3.2mm,
     boxsep=0.6mm,
@@ -231,15 +231,15 @@
     \IfFileExists{\SFfile}{%
       \includegraphics[width=#2]{\SFfile}\par
       \vspace{1mm}
-      {\small\color{CNCmuted}#3}%
+      {\small\color{FDMmuted}#3}%
     }{%
       \fbox{\parbox{#2}{\centering
         \vspace{10mm}
-        \color{CNCmuted}\small
+        \color{FDMmuted}\small
         Placeholder: \texttt{\SFfile}\\(Sube la imagen a la carpeta del proyecto)
         \vspace{10mm}
       }}\par\vspace{1mm}
-      {\small\color{CNCmuted}#3}%
+      {\small\color{FDMmuted}#3}%
     }%
   \end{center}
   \endgroup
@@ -254,22 +254,22 @@
 % Estilo página 1 (sin header; solo footer)
 \fancypagestyle{firstpage}{
   \fancyhf{}
-  \fancyfoot[L]{\color{CNCmuted}\small \Autor}
-  \fancyfoot[C]{\color{CNCmuted}\small \OrgLineA}
-  \fancyfoot[R]{\color{CNCmuted}\small Pág. \thepage\ de \pageref{LastPage}}
+  \fancyfoot[L]{\color{FDMmuted}\small \Autor}
+  \fancyfoot[C]{\color{FDMmuted}\small \OrgLineA}
+  \fancyfoot[R]{\color{FDMmuted}\small Pág. \thepage\ de \pageref{LastPage}}
 }
 
 % Estilo páginas 2+ (logo pequeño arriba derecha)
 \fancypagestyle{mainpage}{
   \fancyhf{}
-  \fancyhead[L]{\color{CNCmuted}\small \Programa}
+  \fancyhead[L]{\color{FDMmuted}\small \Programa}
   \fancyhead[R]{%
-    \color{CNCmuted}\small \Mes\;—\;\Semana
+    \color{FDMmuted}\small \Mes\;—\;\Semana
     \hspace{8pt}\HeaderLogoRight
   }
-  \fancyfoot[L]{\color{CNCmuted}\small \Autor}
-  \fancyfoot[C]{\color{CNCmuted}\small \OrgLineA}
-  \fancyfoot[R]{\color{CNCmuted}\small Pág. \thepage\ de \pageref{LastPage}}
+  \fancyfoot[L]{\color{FDMmuted}\small \Autor}
+  \fancyfoot[C]{\color{FDMmuted}\small \OrgLineA}
+  \fancyfoot[R]{\color{FDMmuted}\small Pág. \thepage\ de \pageref{LastPage}}
 }
 
 % Default: mainpage (para que desde pag. 2 sea automático)
@@ -284,26 +284,26 @@
 \thispagestyle{firstpage}
 
 \begin{tcolorbox}[
-  colback=CNCdark,
-  colframe=CNCdark,
+  colback=FDMdark,
+  colframe=FDMdark,
   boxrule=0pt,
   arc=3.0mm,
   left=4mm,right=4mm,top=3mm,bottom=3mm
 ]
 \begin{tabularx}{\textwidth}{@{}p{0.18\textwidth}Y@{}}
 
-\IfFileExists{\LogoCNC}{%
-  \hspace*{4mm}\raisebox{-0.30\height}{\LogoChip{\includegraphics[height=9mm]{\LogoCNC}}}%
+\IfFileExists{\LogoFDM}{%
+  \hspace*{4mm}\raisebox{-0.30\height}{\LogoChip{\includegraphics[height=9mm]{\LogoFDM}}}%
 }{%
-  \hspace*{4mm}\raisebox{-0.30\height}{\LogoChip{\parbox[c][9mm][c]{0.20\textwidth}{\centering\color{CNCmuted}\small LOGO\\(\LogoCNC)}}}%
+  \hspace*{4mm}\raisebox{-0.30\height}{\LogoChip{\parbox[c][9mm][c]{0.20\textwidth}{\centering\color{FDMmuted}\small LOGO\\(\LogoFDM)}}}%
 }
 &
 \begin{minipage}[c]{\linewidth}
   {\color{white}\bfseries\Large \DocTitle}\par
   \vspace{0.6mm}
-  {\color{CNCline}\large \Programa}\par
+  {\color{FDMline}\large \Programa}\par
   \vspace{0.8mm}
-  {\color{CNCline}\small
+  {\color{FDMline}\small
     \OrgLineA \;\textbullet\;
     \Mes \;\textbullet\; \Semana \;\textbullet\; \RangoFechas
   }\par
@@ -315,7 +315,7 @@
 % ==========================================================
 % TARJETA EJECUTIVA
 % ==========================================================
-\begin{tcolorbox}[title=\textbf{\color{CNCblue}Resumen de la semana}]
+\begin{tcolorbox}[title=\textbf{\color{FDMblue}Resumen de la semana}]
 \begin{tabularx}{\textwidth}{@{}p{0.24\textwidth}Y p{0.22\textwidth}Y@{}}
 \toprule
 \Field{Autor:}{ } & \Autor &
@@ -331,33 +331,33 @@
 
 \vspace{2mm}
 \SubTitle{Resumen}
-{\color{CNCgray}\ResumenUnaLinea}
+{\color{FDMgray}\ResumenUnaLinea}
 
 \vspace{2mm}
 \SubTitle{Actividades}
 \begin{itemize}[leftmargin=*,itemsep=3pt]
-  \SafeItem \textbf{\color{CNCdark}Actividad principal:} \ActividadPrincipal.
-  \SafeItem \textbf{\color{CNCdark}Actividad secundaria:} \ActividadSecundaria.
-  \SafeItem \textbf{\color{CNCdark}Necesidades para avanzar:} \RecursosNecesarios.
+  \SafeItem \textbf{\color{FDMdark}Actividad principal:} \ActividadPrincipal.
+  \SafeItem \textbf{\color{FDMdark}Actividad secundaria:} \ActividadSecundaria.
+  \SafeItem \textbf{\color{FDMdark}Necesidades para avanzar:} \RecursosNecesarios.
 \end{itemize}
 \end{tcolorbox}
 
 \clearpage
 
-\begin{tcolorbox}[title=\textbf{\color{CNCblue}Avance de hito}]
+\begin{tcolorbox}[title=\textbf{\color{FDMblue}Avance de hito}]
 \Field{Avance:}{ }\AvancePorcentaje
 \end{tcolorbox}
 
-\begin{tcolorbox}[title=\textbf{\color{CNCblue}Riesgos y dependencias}]\textbf{Nivel:} \RiesgoNivel\par
-{\color{CNCgray}\RiesgosDetalle}
+\begin{tcolorbox}[title=\textbf{\color{FDMblue}Riesgos y dependencias}]\textbf{Nivel:} \RiesgoNivel\par
+{\color{FDMgray}\RiesgosDetalle}
 \end{tcolorbox}
 
-\begin{tcolorbox}[title=\textbf{\color{CNCblue}Recursos necesarios}]
-{\color{CNCgray}\RecursosNecesarios}
+\begin{tcolorbox}[title=\textbf{\color{FDMblue}Recursos necesarios}]
+{\color{FDMgray}\RecursosNecesarios}
 \end{tcolorbox}
 
 \ifShowNextSteps
-\begin{tcolorbox}[title=\textbf{\color{CNCblue}Proximos pasos (opcional)}]
+\begin{tcolorbox}[title=\textbf{\color{FDMblue}Proximos pasos (opcional)}]
 \begin{itemize}[leftmargin=*,itemsep=2pt]
   \SafeItem \ProximoPasoUno
   \SafeItem \ProximoPasoDos
@@ -375,7 +375,7 @@
 \begin{tcolorbox}
 \begin{itemize}[leftmargin=*,itemsep=3pt]
   \SafeItem \textbf{Sistema FDM y subsistemas:} enfoque en electr\'onica para la cama de sacrificio.
-  \SafeItem \textbf{Proceso formativo:} dise\~no en KiCad basado en PDF de mec\'anica y preparaci\'on para exportaci\'on.
+  \SafeItem \textbf{Proceso del proyecto:} dise\~no en KiCad basado en PDF de mec\'anica y preparaci\'on para exportaci\'on.
   \SafeItem \textbf{Verificacion basica:} pendiente confirmaci\'on de medidas del PDF del \'area de mec\'anica.
 \end{itemize}
 \end{tcolorbox}
@@ -384,8 +384,8 @@
 % 2) DESARROLLO TECNICO - PARTE I
 % ==========================================================
 \SectionTitle{2. Parte I — Desarrollo tecnico}
-\begin{tcolorbox}[colback=CNCsoft2,title=\textbf{\color{CNCblue}Resumen tecnico}]
-{\color{CNCgray}
+\begin{tcolorbox}[colback=FDMsoft2,title=\textbf{\color{FDMblue}Resumen tecnico}]
+{\color{FDMgray}
 Se dise\~no la cama de sacrificio en KiCad para FDM Tech, creando el \'area de cobre
 principal y los pads correspondientes a los orificios de fijaci\'on. El archivo queda listo
 para exportar Gerber y alimentar el modelado en G-code, sujeto a la validaci\'on final
@@ -393,7 +393,7 @@ de medidas del PDF de mec\'anica.
 }
 \end{tcolorbox}
 
-\begin{tcolorbox}[title=\textbf{\color{CNCblue}Componentes y evidencia tecnica}]
+\begin{tcolorbox}[title=\textbf{\color{FDMblue}Componentes y evidencia tecnica}]
 \SubTitle{(A) Componente o modulo principal}
 \begin{itemize}[leftmargin=*,itemsep=3pt]
   \SafeItem Dise\~no de cama de sacrificio en KiCad (\'area de cobre y pads de fijaci\'on).
@@ -414,14 +414,14 @@ de medidas del PDF de mec\'anica.
 % ==========================================================
 \clearpage
 \SectionTitle{3. Parte II — Operacion y flujo}
-\begin{tcolorbox}[colback=CNCsoft2,title=\textbf{\color{CNCblue}Flujo de trabajo observado}]
-{\color{CNCgray}
+\begin{tcolorbox}[colback=FDMsoft2,title=\textbf{\color{FDMblue}Flujo de trabajo observado}]
+{\color{FDMgray}
 Flujo seguido para convertir el PDF de mec\'anica en un dise\~no electr\'onico utilizable
 para exportaci\'on Gerber y modelado en G-code.
 }
 \end{tcolorbox}
 
-\begin{tcolorbox}[title=\textbf{\color{CNCblue}Pasos del proceso}]
+\begin{tcolorbox}[title=\textbf{\color{FDMblue}Pasos del proceso}]
 \begin{itemize}[leftmargin=*,itemsep=3pt]
   \SafeItem Paso 1: revisar el PDF de mec\'anica y definir el \'area util de la cama.
   \SafeItem Paso 2: crear el contorno y el \'area de cobre en KiCad.
@@ -436,7 +436,7 @@ para exportaci\'on Gerber y modelado en G-code.
 % 4) ACTIVIDADES Y METODOLOGIA (segun ejemplo)
 % ==========================================================
 \SectionTitle{4. Actividades y metodologia}
-\begin{tcolorbox}[title=\textbf{\color{CNCblue}Actividades}]
+\begin{tcolorbox}[title=\textbf{\color{FDMblue}Actividades}]
 \begin{enumerate}[leftmargin=*,itemsep=2pt]
   \SafeItem \textbf{Actividad principal:} \ActividadPrincipal.
   \SafeItem \textbf{Actividad secundaria:} \ActividadSecundaria.
@@ -445,7 +445,7 @@ para exportaci\'on Gerber y modelado en G-code.
 \end{enumerate}
 \end{tcolorbox}
 
-\begin{tcolorbox}[title=\textbf{\color{CNCblue}Metodologia}]
+\begin{tcolorbox}[title=\textbf{\color{FDMblue}Metodologia}]
 \SubTitle{Descripcion de su actividad}
 \begin{itemize}[leftmargin=*,itemsep=2pt]
   \SafeItem Preparaci\'on: revisar PDF de mec\'anica y delimitar el \'area de la cama.
@@ -459,7 +459,7 @@ para exportaci\'on Gerber y modelado en G-code.
 % 5) Referencias
 % ==========================================================
 \SectionTitle{5. Referencias}
-\begin{tcolorbox}[title=\textbf{\color{CNCblue}Fuentes consultadas}]
+\begin{tcolorbox}[title=\textbf{\color{FDMblue}Fuentes consultadas}]
 \begin{itemize}[leftmargin=*,itemsep=2pt]
   \SafeItem KiCad Documentation — PCB Editor (Pcbnew). \SafeURL{https://docs.kicad.org/6.0/en/pcbnew/pcbnew.html}
   \SafeItem KiCad Documentation — Plotting/Exporting Gerber and Drill files (PCB Editor PDF). \SafeURL{https://docs.kicad.org/8.0/en/pcbnew/pcbnew.pdf}

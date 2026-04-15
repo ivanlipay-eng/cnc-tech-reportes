@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://blog-incidents-banners-text.trycloudflare.com",
+  apiBaseUrl: "https://videos-employees-alien-stops.trycloudflare.com",
   brandLogoUrl: "",
 };
