@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://cubic-yourself-required-relocation.trycloudflare.com",
+  apiBaseUrl: "https://quotes-twisted-satellite-sheets.trycloudflare.com",
   brandLogoUrl: "",
 };
