@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://quotes-twisted-satellite-sheets.trycloudflare.com",
+  apiBaseUrl: "https://warned-patent-champions-ears.trycloudflare.com",
   brandLogoUrl: "",
 };
