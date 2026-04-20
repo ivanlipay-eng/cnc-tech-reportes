@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://palm-family-personal-sections.trycloudflare.com",
+  apiBaseUrl: "https://modular-bufing-logos-fortune.trycloudflare.com",
   brandLogoUrl: "",
 };

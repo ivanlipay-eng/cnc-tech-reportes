@@ -1,0 +1,38 @@
+{
+  "name": "palanca",
+  "description": "Instructivo para iniciar el backend publico de CNC Tech Reportes y conectar GitHub Pages.",
+  "projectPath": "C:\\Users\\Ivan\\Desktop\\auditoria\\cnc-tech-reportes",
+  "publicPageUrl": "https://ivanlipay-eng.github.io/cnc-tech-reportes/public/",
+  "currentBackendUrl": "https://modular-bufing-logos-fortune.trycloudflare.com",
+  "localBackendUrl": "http://127.0.0.1:3221",
+  "mode": "public",
+  "port": 3221,
+  "startup": {
+    "recommendedCommand": "$env:TUNNEL_TRANSPORT_PROTOCOL='http2'; npm run start:public-backend",
+    "statusCommand": "npm run status:managed-runtime",
+    "stopCommand": "npm run stop:managed-runtime"
+  },
+  "syncAfterNewTunnel": {
+    "fileToEdit": "public/config.js",
+    "field": "window.CNC_TECH_CONFIG.apiBaseUrl",
+    "steps": [
+      "Abrir una terminal en C:\\Users\\Ivan\\Desktop\\auditoria\\cnc-tech-reportes.",
+      "Ejecutar $env:TUNNEL_TRANSPORT_PROTOCOL='http2'; npm run start:public-backend.",
+      "Copiar la URL publica trycloudflare.com que aparece en npm run status:managed-runtime.",
+      "Probar la URL con /api/health antes de publicarla.",
+      "Pegar esa URL en public/config.js como apiBaseUrl.",
+      "Subir la version de package.json, package-lock.json y los parametros ?v= en public/index.html para evitar cache.",
+      "Hacer git add, git commit y git push."
+    ]
+  },
+  "verification": {
+    "localHealth": "Invoke-WebRequest -Uri 'http://127.0.0.1:3221/api/health' -UseBasicParsing",
+    "publicHealth": "Invoke-WebRequest -Uri 'https://modular-bufing-logos-fortune.trycloudflare.com/api/health' -UseBasicParsing",
+    "publishedConfig": "Invoke-WebRequest -Uri 'https://ivanlipay-eng.github.io/cnc-tech-reportes/public/config.js?v=1.2.32' -UseBasicParsing"
+  },
+  "notes": [
+    "Las URLs trycloudflare.com son temporales y pueden cambiar cuando se reinicia el tunel.",
+    "Si la URL devuelve 530, detener el runtime y volver a iniciar con TUNNEL_TRANSPORT_PROTOCOL=http2.",
+    "Para un enlace estable se necesita configurar un tunel permanente de Cloudflare con dominio propio."
+  ]
+}
