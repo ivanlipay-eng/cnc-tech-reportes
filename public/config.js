@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://modular-bufing-logos-fortune.trycloudflare.com",
+  apiBaseUrl: "https://strong-highland-begins-rogers.trycloudflare.com",
   brandLogoUrl: "",
 };

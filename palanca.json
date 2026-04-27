@@ -3,7 +3,7 @@
   "description": "Instructivo para iniciar el backend publico de CNC Tech Reportes y conectar GitHub Pages.",
   "projectPath": "C:\\Users\\Ivan\\Desktop\\auditoria\\cnc-tech-reportes",
   "publicPageUrl": "https://ivanlipay-eng.github.io/cnc-tech-reportes/public/",
-  "currentBackendUrl": "https://modular-bufing-logos-fortune.trycloudflare.com",
+  "currentBackendUrl": "https://strong-highland-begins-rogers.trycloudflare.com",
   "localBackendUrl": "http://127.0.0.1:3221",
   "mode": "public",
   "port": 3221,
@@ -27,7 +27,7 @@
   },
   "verification": {
     "localHealth": "Invoke-WebRequest -Uri 'http://127.0.0.1:3221/api/health' -UseBasicParsing",
-    "publicHealth": "Invoke-WebRequest -Uri 'https://modular-bufing-logos-fortune.trycloudflare.com/api/health' -UseBasicParsing",
+    "publicHealth": "Invoke-WebRequest -Uri 'https://strong-highland-begins-rogers.trycloudflare.com/api/health' -UseBasicParsing",
     "publishedConfig": "Invoke-WebRequest -Uri 'https://ivanlipay-eng.github.io/cnc-tech-reportes/public/config.js?v=1.2.32' -UseBasicParsing"
   },
   "notes": [
