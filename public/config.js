@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://strong-highland-begins-rogers.trycloudflare.com",
+  apiBaseUrl: "https://arms-parenting-used-purchase.trycloudflare.com",
   brandLogoUrl: "",
 };
