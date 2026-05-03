@@ -129,6 +129,8 @@ const QUICK_REPLIES_START = "[[respuestas_rapidas]]";
 const QUICK_REPLIES_END = "[[/respuestas_rapidas]]";
 const REPORT_PROGRESS_START = "[[progreso_reporte]]";
 const REPORT_PROGRESS_END = "[[/progreso_reporte]]";
+const IMAGE_REQUEST_KEYWORDS = /(imagen|foto|evidencia|captura|adjunta|adjunto|sube|subir|carga|cargar|comparte|compartir|envia|enviar)/i;
+const QUESTION_KEYWORDS = /(\?|que\s+paso|cual|cual fue|como|cuando|donde|por que|porque|puedes decirme|cuentame|indica)/i;
 const stateRequestedImages = new Map();
 const IMAGE_EXTENSION_PATTERN = "jpg|jpeg|png|webp|gif|bmp|tif|tiff|svg|heic|heif|avif|jfif";
 const IMAGE_EXTENSION_REGEX = /\.(jpg|jpeg|png|webp|gif|bmp|tif|tiff|svg|heic|heif|avif|jfif)$/i;
@@ -2242,7 +2244,7 @@ function appendMessage(message) {
   article.append(label, text);
   updateMessageContent(article, message);
   messages.append(article);
-  messages.scrollTop = messages.scrollHeight;
+  scrollMessagesToBottom();
 }
 
 function getLastMessageTextNode() {
@@ -2281,7 +2283,7 @@ function updateAssistantMessage(payload, completed = false) {
     setThinking(false);
     setStatus("Listo");
   }
-  messages.scrollTop = messages.scrollHeight;
+  scrollMessagesToBottom();
 }
 
 function applyAssistantFallback(result) {
@@ -2402,7 +2404,7 @@ function updateMessageContent(article, message) {
   }
 
   const parsedContent = parseAssistantDisplayContent(message.text || "");
-  textNode.textContent = parsedContent.text;
+  renderRichAssistantText(textNode, parsedContent.text);
   article.dataset.renderedText = parsedContent.text;
   renderMessageMath(textNode);
 
@@ -2436,6 +2438,110 @@ function updateMessageContent(article, message) {
 
   quickReplies.append(quickRepliesLabel, quickRepliesButtons);
   article.append(quickReplies);
+}
+
+function scrollMessagesToBottom() {
+  if (!messages) {
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    messages.scrollTop = messages.scrollHeight;
+  });
+}
+
+function clearNodeContents(node) {
+  while (node.firstChild) {
+    node.removeChild(node.firstChild);
+  }
+}
+
+function createInlineFormattedFragment(text) {
+  const fragment = document.createDocumentFragment();
+  const parts = String(text || "").split(/(\*\*[^*]+\*\*)/g);
+
+  for (const part of parts) {
+    if (!part) {
+      continue;
+    }
+
+    const boldMatch = part.match(/^\*\*([^*]+)\*\*$/);
+    if (boldMatch) {
+      const strong = document.createElement("strong");
+      strong.textContent = boldMatch[1];
+      fragment.append(strong);
+      continue;
+    }
+
+    fragment.append(document.createTextNode(part));
+  }
+
+  return fragment;
+}
+
+function classifyAssistantBlock(lines) {
+  const normalized = String(Array.isArray(lines) ? lines.join(" ") : lines || "").trim().toLowerCase();
+  const hasQuestionMark = normalized.includes("?");
+  const mentionsImage = IMAGE_REQUEST_KEYWORDS.test(normalized);
+  const mentionsQuestion = QUESTION_KEYWORDS.test(normalized) || hasQuestionMark;
+
+  if (mentionsImage) {
+    return "request";
+  }
+  if (mentionsQuestion) {
+    return "question";
+  }
+  return "";
+}
+
+function renderRichAssistantText(container, text) {
+  if (!container) {
+    return;
+  }
+
+  clearNodeContents(container);
+  const rawText = String(text || "").trim();
+  if (!rawText) {
+    return;
+  }
+
+  const blocks = rawText.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
+  const badges = new Set();
+
+  for (const block of blocks) {
+    const lines = block.split(/\n/).map((line) => line.trim()).filter(Boolean);
+    if (!lines.length) {
+      continue;
+    }
+
+    const blockKind = classifyAssistantBlock(lines);
+    if (blockKind === "question") {
+      badges.add("pregunta");
+    } else if (blockKind === "request") {
+      badges.add("evidencia");
+    }
+
+    const paragraph = document.createElement("p");
+    paragraph.className = "assistant-paragraph";
+    if (blockKind) {
+      paragraph.classList.add(`assistant-paragraph-${blockKind}`);
+    }
+
+    for (let index = 0; index < lines.length; index += 1) {
+      if (index > 0) {
+        paragraph.append(document.createElement("br"));
+      }
+      paragraph.append(createInlineFormattedFragment(lines[index]));
+    }
+
+    container.append(paragraph);
+  }
+
+  if (badges.size) {
+    container.dataset.messageTone = Array.from(badges).join(" ");
+  } else {
+    delete container.dataset.messageTone;
+  }
 }
 
 function renderMeta(session) {
