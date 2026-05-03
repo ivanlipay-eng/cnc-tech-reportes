@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://players-continue-income-combat.trycloudflare.com",
+  apiBaseUrl: "https://weekend-roy-stuart-wars.trycloudflare.com",
   brandLogoUrl: "",
 };
