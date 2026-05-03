@@ -48,6 +48,22 @@ const REPORT_PROGRESS_STAGES = [
   { index: 8, min: 100, max: 100, label: "Etapa 8", title: "Listo para entrega" },
 ];
 
+function sanitizeFileInfoForClient(fileInfo) {
+  if (!fileInfo || typeof fileInfo !== "object") {
+    return null;
+  }
+
+  return {
+    name: String(fileInfo.name || "").trim(),
+    kind: String(fileInfo.kind || "archivo").trim(),
+    size: Number(fileInfo.size || 0),
+    uploadedAt: String(fileInfo.uploadedAt || new Date().toISOString()),
+    originalName: fileInfo.originalName ? String(fileInfo.originalName).trim() : undefined,
+    requestedName: fileInfo.requestedName ? String(fileInfo.requestedName).trim() : undefined,
+    previewUrl: fileInfo.previewUrl ? String(fileInfo.previewUrl) : undefined,
+  };
+}
+
 class CodexSession extends EventEmitter {
   constructor({ id, name, workspacePath, formatDefinition }) {
     super();
@@ -138,17 +154,9 @@ class CodexSession extends EventEmitter {
     return {
       id: this.id,
       name: this.name,
-      workspacePath: this.workspacePath,
-      reportProjectPath: this.reportProjectPath || null,
-      reportTexPath: this.reportTexPath || null,
-      reportPdfPath: this.reportPdfPath || null,
-      imagesDir: this.imagesDir || null,
-      filesDir: this.filesDir || null,
-      exportDir: this.exportDir || null,
-      threadId: this.threadId,
       status: this.status,
       busy: this.busy,
-      uploadedFiles: this.uploadedFiles,
+      uploadedFiles: this.uploadedFiles.map(sanitizeFileInfoForClient),
       participantProfile: this.participantProfile,
       quickFields: this.quickFields,
       reportProgress: this.reportProgressAudit,
@@ -259,7 +267,7 @@ class CodexSession extends EventEmitter {
       fileInfo,
       ...this.uploadedFiles.filter((item) => item.path !== fileInfo.path),
     ].slice(0, 12);
-    this.#emitEvent("file-uploaded", fileInfo);
+    this.#emitEvent("file-uploaded", sanitizeFileInfoForClient(fileInfo));
   }
 
   unregisterUpload(filePath) {
@@ -269,7 +277,7 @@ class CodexSession extends EventEmitter {
     }
 
     this.uploadedFiles = this.uploadedFiles.filter((item) => item.path !== filePath);
-    this.#emitEvent("file-deleted", existing);
+    this.#emitEvent("file-deleted", sanitizeFileInfoForClient(existing));
     return existing;
   }
 
@@ -3420,10 +3428,8 @@ async function uploadWorkspaceZipToDrive(session) {
 
     return {
       zipFileName: target.fileName,
-      targetPath: target.targetPath,
       targetSize: targetStat.size,
       participantFolderName: destination.participantFolderName,
-      participantFolderPath: destination.participantFolderPath,
       areaDirName: destination.areaDirName,
     };
   } finally {
@@ -3515,7 +3521,6 @@ async function listWorkspaceProjects(options = {}) {
 
     projects.push({
       name: entry.name,
-      workspacePath,
       createdAt: stats.birthtime ? new Date(stats.birthtime).toISOString() : null,
       modifiedAt: stats.mtime ? new Date(stats.mtime).toISOString() : null,
       sharedProjectId: sharedProject?.projectId || "",
@@ -3541,7 +3546,6 @@ async function deleteWorkspaceProject(workspaceName) {
   await fs.rm(projectPath, { recursive: true, force: true });
   return {
     workspaceName: normalizeWorkspaceProjectName(workspaceName),
-    deletedPath: projectPath,
   };
 }
 
@@ -3615,13 +3619,11 @@ async function listDriveUploadedProjects(options = {}) {
         uploadedProjects.push({
           id: makeDriveUploadItemId(rootPath, filePath),
           fileName: fileEntry.name,
-          targetPath: filePath,
           relativePath: makeDriveUploadItemId(rootPath, filePath),
           size: fileEntry.isFile() ? stats.size : 0,
           modifiedAt: stats.mtime ? new Date(stats.mtime).toISOString() : null,
           createdAt: stats.birthtime ? new Date(stats.birthtime).toISOString() : null,
           participantFolderName: participantEntry.name,
-          participantFolderPath,
           areaDirName: areaEntry.name,
           entryType: fileEntry.isDirectory() ? "carpeta" : "archivo",
         });
@@ -3654,7 +3656,6 @@ async function deleteDriveUploadedProject(itemId) {
   const deletedItem = {
     id: relativePath,
     fileName: path.basename(targetPath),
-    targetPath,
     size: stats.isFile() ? stats.size : 0,
     entryType: stats.isDirectory() ? "carpeta" : "archivo",
     deletedAt: new Date().toISOString(),
@@ -3746,7 +3747,6 @@ async function handleApi(request, response) {
       ok: true,
       version: APP_VERSION,
       sessions: sessions.size,
-      workspacesRoot: WORKSPACES_ROOT,
       formats: getAvailableFormatSummaries(),
       defaultFormatId: defaultFormat?.id || "",
     });
@@ -4053,9 +4053,8 @@ async function handleApi(request, response) {
     json(response, 200, {
       ok: true,
       fileName,
-      targetPath,
       size: uploadedSize,
-      fileInfo,
+      fileInfo: sanitizeFileInfoForClient(fileInfo),
     });
     return;
   }
@@ -4228,7 +4227,7 @@ async function handleApi(request, response) {
 
     json(response, 200, {
       ok: true,
-      fileInfo: deletedFile,
+      fileInfo: sanitizeFileInfoForClient(deletedFile),
       restoredRequest,
     });
     return;

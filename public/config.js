@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://eligibility-activists-pork-untitled.trycloudflare.com",
+  apiBaseUrl: "https://median-wal-abu-yea.trycloudflare.com",
   brandLogoUrl: "",
 };
