@@ -574,10 +574,6 @@ function formatProjectTimestamp(value) {
   return parsed.toLocaleString();
 }
 
-function formatProjectPath(value) {
-  return String(value || "").replaceAll("\\", " / ");
-}
-
 function createEmptyProjectItem(text) {
   const empty = document.createElement("li");
   empty.className = "empty";
@@ -588,6 +584,7 @@ function createEmptyProjectItem(text) {
 function createLocalProjectItem(project) {
   const item = document.createElement("li");
   item.className = "project-record-item";
+  item.dataset.projectId = project.sharedProjectId || "";
 
   const main = document.createElement("div");
   main.className = "project-record-main";
@@ -605,11 +602,25 @@ function createLocalProjectItem(project) {
       : "",
     `Actualizado: ${escapeHtml(formatProjectTimestamp(project.modifiedAt || project.createdAt))}`,
     project.lastSharedSaveAt ? `Ultimo guardado compartido: ${escapeHtml(formatProjectTimestamp(project.lastSharedSaveAt))}` : "",
-    project.workspacePath ? `Carpeta: ${escapeHtml(formatProjectPath(project.workspacePath))}` : "",
   ].filter(Boolean).join("<br />");
 
+  const actions = document.createElement("div");
+  actions.className = "project-record-actions";
+
+  const loadButton = document.createElement("button");
+  loadButton.type = "button";
+  loadButton.className = "secondary-button project-record-load";
+  loadButton.textContent = "Cargar";
+  loadButton.dataset.action = "load-local-project";
+  loadButton.dataset.projectId = project.sharedProjectId || "";
+  loadButton.disabled = !project.sharedProjectId;
+  loadButton.classList.toggle("disabled", !project.sharedProjectId);
+  loadButton.setAttribute("aria-disabled", !project.sharedProjectId ? "true" : "false");
+  loadButton.setAttribute("aria-label", `Cargar ${project.name || "proyecto"}`);
+
+  actions.append(loadButton);
   main.append(name, meta);
-  item.append(main);
+  item.append(main, actions);
   return item;
 }
 
@@ -1290,6 +1301,31 @@ driveProjectsList?.addEventListener("click", async (event) => {
   }
 
   await deleteDriveProject(deleteButton.dataset.itemId || "", deleteButton);
+});
+
+localProjectsList?.addEventListener("click", async (event) => {
+  const loadButton = event.target.closest("[data-action='load-local-project']");
+  if (!loadButton || loadButton.disabled) {
+    return;
+  }
+
+  const projectId = String(loadButton.dataset.projectId || "").trim();
+  if (!projectId) {
+    setProjectListStatus(localProjectsStatus, "Ese proyecto todavia no tiene un codigo para poder cargarse.", true);
+    return;
+  }
+
+  loadButton.disabled = true;
+  setProjectListStatus(localProjectsStatus, `Cargando ${projectId}...`);
+  try {
+    await loadSharedProjectById(projectId);
+    setActiveRibbonPanel("session");
+    setProjectListStatus(localProjectsStatus, `Proyecto ${projectId} cargado.`);
+  } catch {
+    setProjectListStatus(localProjectsStatus, `No se pudo cargar ${projectId}.`, true);
+  } finally {
+    loadButton.disabled = false;
+  }
 });
 
 form.addEventListener("submit", async (event) => {
