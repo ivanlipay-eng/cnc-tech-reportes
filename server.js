@@ -3408,8 +3408,19 @@ function normalizeProjectListLimit(rawValue, fallback = 50, maximum = 200) {
   return Math.min(Math.trunc(parsed), maximum);
 }
 
+function buildProjectFilterProfile(options = {}) {
+  const name = String(options.participantName || "").trim();
+  const area = String(options.participantArea || "").trim();
+  if (!name) {
+    return null;
+  }
+  return { name, area };
+}
+
 async function listWorkspaceProjects(options = {}) {
   const limit = normalizeProjectListLimit(options.limit, 80, 300);
+  const filterProfile = buildProjectFilterProfile(options);
+  const normalizedFilterParticipantName = normalizeSearchText(filterProfile?.name || "");
   const workspaceEntries = await fs.readdir(WORKSPACES_ROOT, { withFileTypes: true }).catch(() => []);
   const sharedEntries = await fs.readdir(SHARED_PROJECTS_ROOT, { withFileTypes: true }).catch(() => []);
   const sharedProjectBySessionName = new Map();
@@ -3461,6 +3472,16 @@ async function listWorkspaceProjects(options = {}) {
     }
 
     const sharedProject = sharedProjectBySessionName.get(entry.name) || null;
+    const projectParticipantName = String(sharedProject?.participantName || "").trim();
+    if (filterProfile) {
+      if (!projectParticipantName) {
+        continue;
+      }
+      if (normalizeSearchText(projectParticipantName) !== normalizedFilterParticipantName) {
+        continue;
+      }
+    }
+
     projects.push({
       name: entry.name,
       workspacePath,
@@ -3504,6 +3525,8 @@ function resolveDriveUploadItemPath(itemId) {
 
 async function listDriveUploadedProjects(options = {}) {
   const limit = normalizeProjectListLimit(options.limit, 120, 400);
+  const filterProfile = buildProjectFilterProfile(options);
+  const requestedAreaKey = normalizeAreaForDrive(filterProfile?.area || "");
   const rootPath = path.resolve(DRIVE_REPORTS_ROOT);
   const areaEntries = await fs.readdir(rootPath, { withFileTypes: true }).catch(() => []);
   const uploadedProjects = [];
@@ -3513,11 +3536,23 @@ async function listDriveUploadedProjects(options = {}) {
       continue;
     }
 
+    const areaKey = normalizeAreaForDrive(areaEntry.name);
+    if (filterProfile && requestedAreaKey && areaKey !== requestedAreaKey) {
+      continue;
+    }
+
     const reportsDirPath = path.join(rootPath, areaEntry.name, "Reportes_Semanales");
     const participantEntries = await fs.readdir(reportsDirPath, { withFileTypes: true }).catch(() => []);
     for (const participantEntry of participantEntries) {
       if (!participantEntry.isDirectory()) {
         continue;
+      }
+
+      if (filterProfile) {
+        const folderScore = scoreDriveParticipantFolderMatch(participantEntry.name, filterProfile);
+        if (folderScore < 130) {
+          continue;
+        }
       }
 
       const participantFolderPath = path.join(reportsDirPath, participantEntry.name);
@@ -3722,6 +3757,8 @@ async function handleApi(request, response) {
     try {
       const projects = await listWorkspaceProjects({
         limit: url.searchParams.get("limit"),
+        participantName: url.searchParams.get("participantName"),
+        participantArea: url.searchParams.get("participantArea"),
       });
       json(response, 200, { ok: true, projects });
     } catch (error) {
@@ -3734,6 +3771,8 @@ async function handleApi(request, response) {
     try {
       const uploads = await listDriveUploadedProjects({
         limit: url.searchParams.get("limit"),
+        participantName: url.searchParams.get("participantName"),
+        participantArea: url.searchParams.get("participantArea"),
       });
       json(response, 200, { ok: true, uploads });
     } catch (error) {

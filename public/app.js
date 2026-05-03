@@ -682,8 +682,45 @@ function renderDriveProjects(projects = []) {
   }
 }
 
+function buildParticipantProjectQuery(limit) {
+  const query = new URLSearchParams({ limit: String(limit) });
+  const participantName = String(state.participantProfile?.name || "").trim();
+  const participantArea = String(state.participantProfile?.area || "").trim();
+  if (participantName) {
+    query.set("participantName", participantName);
+  }
+  if (participantArea) {
+    query.set("participantArea", participantArea);
+  }
+  return query;
+}
+
+function getIdentifiedParticipantProjectFilter() {
+  const participantName = String(state.participantProfile?.name || "").trim();
+  const participantArea = String(state.participantProfile?.area || "").trim();
+  if (!participantName) {
+    return null;
+  }
+
+  return {
+    participantName,
+    participantArea,
+  };
+}
+
 async function loadLocalProjects(options = {}) {
   if (!activeApiRoot) {
+    return [];
+  }
+
+  const participantFilter = getIdentifiedParticipantProjectFilter();
+  if (!participantFilter) {
+    state.createdProjects = [];
+    renderLocalProjects([]);
+    setProjectListStatus(
+      localProjectsStatus,
+      "Identifica primero al participante para ver solo sus proyectos creados."
+    );
     return [];
   }
 
@@ -692,7 +729,8 @@ async function loadLocalProjects(options = {}) {
   }
 
   try {
-    const response = await fetch(buildApiUrl("/projects/local?limit=120"), {
+    const query = buildParticipantProjectQuery(120);
+    const response = await fetch(buildApiUrl(`/projects/local?${query.toString()}`), {
       cache: "no-store",
     });
     const data = await response.json();
@@ -705,8 +743,10 @@ async function loadLocalProjects(options = {}) {
     setProjectListStatus(
       localProjectsStatus,
       state.createdProjects.length
-        ? `${state.createdProjects.length} proyecto(s) encontrado(s), con codigo asociado cuando exista.`
-        : "No hay proyectos creados todavia."
+        ? `${state.createdProjects.length} proyecto(s) encontrado(s)${state.participantProfile?.name ? ` para ${state.participantProfile.name}.` : ", con codigo asociado cuando exista."}`
+        : state.participantProfile?.name
+          ? `No hay proyectos creados para ${state.participantProfile.name}.`
+          : "No hay proyectos creados todavia."
     );
     return state.createdProjects;
   } catch (error) {
@@ -722,12 +762,24 @@ async function loadDriveProjects(options = {}) {
     return [];
   }
 
+  const participantFilter = getIdentifiedParticipantProjectFilter();
+  if (!participantFilter) {
+    state.driveProjects = [];
+    renderDriveProjects([]);
+    setProjectListStatus(
+      driveProjectsStatus,
+      "Identifica primero al participante para ver solo sus proyectos del Drive personal."
+    );
+    return [];
+  }
+
   if (!options.silent) {
     setProjectListStatus(driveProjectsStatus, "Cargando proyectos del Drive personal...");
   }
 
   try {
-    const response = await fetch(buildApiUrl("/projects/drive?limit=160"), {
+    const query = buildParticipantProjectQuery(160);
+    const response = await fetch(buildApiUrl(`/projects/drive?${query.toString()}`), {
       cache: "no-store",
     });
     const data = await response.json();
@@ -740,8 +792,10 @@ async function loadDriveProjects(options = {}) {
     setProjectListStatus(
       driveProjectsStatus,
       state.driveProjects.length
-        ? `${state.driveProjects.length} elemento(s) encontrado(s) en el Drive personal.`
-        : "No hay elementos en las carpetas de proyectos del Drive personal."
+        ? `${state.driveProjects.length} elemento(s) encontrado(s)${state.participantProfile?.name ? ` para ${state.participantProfile.name} en el Drive personal.` : " en el Drive personal."}`
+        : state.participantProfile?.name
+          ? `No hay elementos de ${state.participantProfile.name} en el Drive personal.`
+          : "No hay elementos en las carpetas de proyectos del Drive personal."
     );
     return state.driveProjects;
   } catch (error) {
@@ -2376,6 +2430,8 @@ function renderMeta(session) {
   const participantKey = String(state.participantProfile?.name || "").trim().toLowerCase();
   if (participantKey && participantKey !== state.lastRecentProjectsParticipantName) {
     loadRecentProjectsByParticipant(state.participantProfile.name, { silent: true });
+    loadLocalProjects({ silent: true });
+    loadDriveProjects({ silent: true });
   }
 
   syncCollaborationControls();
