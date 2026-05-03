@@ -3411,6 +3411,42 @@ function normalizeProjectListLimit(rawValue, fallback = 50, maximum = 200) {
 async function listWorkspaceProjects(options = {}) {
   const limit = normalizeProjectListLimit(options.limit, 80, 300);
   const workspaceEntries = await fs.readdir(WORKSPACES_ROOT, { withFileTypes: true }).catch(() => []);
+  const sharedEntries = await fs.readdir(SHARED_PROJECTS_ROOT, { withFileTypes: true }).catch(() => []);
+  const sharedProjectBySessionName = new Map();
+
+  for (const entry of sharedEntries) {
+    if (!entry.isDirectory() || entry.name.includes(".tmp-")) {
+      continue;
+    }
+
+    const metadataPath = path.join(SHARED_PROJECTS_ROOT, entry.name, SHARED_PROJECT_METADATA_FILE);
+    if (!(await pathExists(metadataPath))) {
+      continue;
+    }
+
+    try {
+      const metadata = JSON.parse(await fs.readFile(metadataPath, "utf8"));
+      const sessionName = String(metadata.sessionName || "").trim();
+      if (!sessionName) {
+        continue;
+      }
+
+      const candidate = {
+        projectId: String(metadata.projectId || entry.name).trim().toUpperCase(),
+        formatId: String(metadata.formatId || "").trim(),
+        participantName: String(metadata.participantProfile?.name || "").trim(),
+        participantArea: String(metadata.participantProfile?.area || "").trim(),
+        savedAt: metadata.savedAt || "",
+      };
+      const previous = sharedProjectBySessionName.get(sessionName);
+      if (!previous || new Date(candidate.savedAt || 0).getTime() > new Date(previous.savedAt || 0).getTime()) {
+        sharedProjectBySessionName.set(sessionName, candidate);
+      }
+    } catch {
+      // Ignora snapshots incompletos.
+    }
+  }
+
   const projects = [];
 
   for (const entry of workspaceEntries) {
@@ -3424,11 +3460,17 @@ async function listWorkspaceProjects(options = {}) {
       continue;
     }
 
+    const sharedProject = sharedProjectBySessionName.get(entry.name) || null;
     projects.push({
       name: entry.name,
       workspacePath,
       createdAt: stats.birthtime ? new Date(stats.birthtime).toISOString() : null,
       modifiedAt: stats.mtime ? new Date(stats.mtime).toISOString() : null,
+      sharedProjectId: sharedProject?.projectId || "",
+      participantName: sharedProject?.participantName || "",
+      participantArea: sharedProject?.participantArea || "",
+      formatId: sharedProject?.formatId || "",
+      lastSharedSaveAt: sharedProject?.savedAt || "",
     });
   }
 
@@ -3481,7 +3523,10 @@ async function listDriveUploadedProjects(options = {}) {
       const participantFolderPath = path.join(reportsDirPath, participantEntry.name);
       const fileEntries = await fs.readdir(participantFolderPath, { withFileTypes: true }).catch(() => []);
       for (const fileEntry of fileEntries) {
-        if (!fileEntry.isFile() || path.extname(fileEntry.name).toLowerCase() !== ".zip") {
+        if (!fileEntry.isFile() && !fileEntry.isDirectory()) {
+          continue;
+        }
+        if (fileEntry.isFile() && path.extname(fileEntry.name).toLowerCase() !== ".zip") {
           continue;
         }
 
@@ -3496,12 +3541,13 @@ async function listDriveUploadedProjects(options = {}) {
           fileName: fileEntry.name,
           targetPath: filePath,
           relativePath: makeDriveUploadItemId(rootPath, filePath),
-          size: stats.size,
+          size: fileEntry.isFile() ? stats.size : 0,
           modifiedAt: stats.mtime ? new Date(stats.mtime).toISOString() : null,
           createdAt: stats.birthtime ? new Date(stats.birthtime).toISOString() : null,
           participantFolderName: participantEntry.name,
           participantFolderPath,
           areaDirName: areaEntry.name,
+          entryType: fileEntry.isDirectory() ? "carpeta" : "archivo",
         });
       }
     }
@@ -3518,23 +3564,31 @@ async function listDriveUploadedProjects(options = {}) {
 
 async function deleteDriveUploadedProject(itemId) {
   const targetPath = resolveDriveUploadItemPath(itemId);
-  if (path.extname(targetPath).toLowerCase() !== ".zip") {
-    throw new Error("Solo se pueden borrar ZIP subidos a Drive.");
-  }
   const stats = await fs.stat(targetPath).catch(() => null);
-  if (!stats || !stats.isFile()) {
-    throw new Error("El archivo seleccionado ya no existe en Drive.");
+  if (!stats) {
+    throw new Error("El elemento seleccionado ya no existe en Drive.");
+  }
+
+  const rootPath = path.resolve(DRIVE_REPORTS_ROOT);
+  const relativePath = makeDriveUploadItemId(rootPath, targetPath);
+  if (!/^[^/]+\/Reportes_Semanales\/[^/]+\/[^/]+(?:\/[^/]+)*$/i.test(relativePath)) {
+    throw new Error("Solo se pueden borrar elementos dentro de las carpetas de proyectos del Drive personal.");
   }
 
   const deletedItem = {
-    id: makeDriveUploadItemId(path.resolve(DRIVE_REPORTS_ROOT), targetPath),
+    id: relativePath,
     fileName: path.basename(targetPath),
     targetPath,
-    size: stats.size,
+    size: stats.isFile() ? stats.size : 0,
+    entryType: stats.isDirectory() ? "carpeta" : "archivo",
     deletedAt: new Date().toISOString(),
   };
 
-  await fs.unlink(targetPath);
+  if (stats.isDirectory()) {
+    await fs.rm(targetPath, { recursive: true, force: false });
+  } else {
+    await fs.unlink(targetPath);
+  }
   return deletedItem;
 }
 

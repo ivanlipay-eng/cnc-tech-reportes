@@ -599,7 +599,12 @@ function createLocalProjectItem(project) {
   const meta = document.createElement("div");
   meta.className = "project-record-meta";
   meta.innerHTML = [
+    project.sharedProjectId ? `Codigo: ${escapeHtml(project.sharedProjectId)}` : "Codigo: sin asociar todavia",
+    project.participantName
+      ? `Participante: ${escapeHtml(project.participantName)}${project.participantArea ? ` | Area: ${escapeHtml(project.participantArea)}` : ""}`
+      : "",
     `Actualizado: ${escapeHtml(formatProjectTimestamp(project.modifiedAt || project.createdAt))}`,
+    project.lastSharedSaveAt ? `Ultimo guardado compartido: ${escapeHtml(formatProjectTimestamp(project.lastSharedSaveAt))}` : "",
     project.workspacePath ? `Carpeta: ${escapeHtml(formatProjectPath(project.workspacePath))}` : "",
   ].filter(Boolean).join("<br />");
 
@@ -618,13 +623,13 @@ function createDriveProjectItem(project) {
 
   const name = document.createElement("div");
   name.className = "project-record-name";
-  name.textContent = project.fileName || "ZIP sin nombre";
+  name.textContent = project.fileName || "Elemento sin nombre";
 
   const meta = document.createElement("div");
   meta.className = "project-record-meta";
   meta.innerHTML = [
-    `Area: ${escapeHtml(project.areaDirName || "Sin area")} | Participante: ${escapeHtml(project.participantFolderName || "Sin carpeta")}`,
-    `Subido: ${escapeHtml(formatProjectTimestamp(project.modifiedAt || project.createdAt))} | ${escapeHtml(formatBytes(project.size || 0))}`,
+    `Tipo: ${escapeHtml(project.entryType || "archivo")} | Area: ${escapeHtml(project.areaDirName || "Sin area")} | Carpeta: ${escapeHtml(project.participantFolderName || "Sin carpeta")}`,
+    `${project.entryType === "carpeta" ? "Actualizado" : "Subido"}: ${escapeHtml(formatProjectTimestamp(project.modifiedAt || project.createdAt))}${project.entryType === "archivo" ? ` | ${escapeHtml(formatBytes(project.size || 0))}` : ""}`,
     project.relativePath ? `Ruta: ${escapeHtml(project.relativePath)}` : "",
   ].filter(Boolean).join("<br />");
 
@@ -668,7 +673,7 @@ function renderDriveProjects(projects = []) {
 
   driveProjectsList.innerHTML = "";
   if (!projects.length) {
-    driveProjectsList.append(createEmptyProjectItem("Todavia no hay proyectos subidos a Drive."));
+    driveProjectsList.append(createEmptyProjectItem("Todavia no hay elementos en el Drive personal."));
     return;
   }
 
@@ -700,7 +705,7 @@ async function loadLocalProjects(options = {}) {
     setProjectListStatus(
       localProjectsStatus,
       state.createdProjects.length
-        ? `${state.createdProjects.length} proyecto(s) encontrado(s).`
+        ? `${state.createdProjects.length} proyecto(s) encontrado(s), con codigo asociado cuando exista.`
         : "No hay proyectos creados todavia."
     );
     return state.createdProjects;
@@ -718,7 +723,7 @@ async function loadDriveProjects(options = {}) {
   }
 
   if (!options.silent) {
-    setProjectListStatus(driveProjectsStatus, "Cargando subidos a Drive...");
+    setProjectListStatus(driveProjectsStatus, "Cargando proyectos del Drive personal...");
   }
 
   try {
@@ -727,7 +732,7 @@ async function loadDriveProjects(options = {}) {
     });
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data.error || "No se pudo cargar la lista de Drive.");
+      throw new Error(data.error || "No se pudo cargar la lista del Drive personal.");
     }
 
     state.driveProjects = Array.isArray(data.uploads) ? data.uploads : [];
@@ -735,14 +740,14 @@ async function loadDriveProjects(options = {}) {
     setProjectListStatus(
       driveProjectsStatus,
       state.driveProjects.length
-        ? `${state.driveProjects.length} archivo(s) subido(s) encontrados.`
-        : "No hay subidas a Drive todavia."
+        ? `${state.driveProjects.length} elemento(s) encontrado(s) en el Drive personal.`
+        : "No hay elementos en las carpetas de proyectos del Drive personal."
     );
     return state.driveProjects;
   } catch (error) {
     state.driveProjects = [];
     renderDriveProjects([]);
-    setProjectListStatus(driveProjectsStatus, error.message || "No se pudo cargar la lista de Drive.", true);
+    setProjectListStatus(driveProjectsStatus, error.message || "No se pudo cargar la lista del Drive personal.", true);
     return [];
   }
 }
@@ -750,13 +755,13 @@ async function loadDriveProjects(options = {}) {
 async function deleteDriveProject(itemId, triggerButton) {
   const normalizedItemId = String(itemId || "").trim();
   if (!normalizedItemId) {
-    setProjectListStatus(driveProjectsStatus, "No pude identificar el archivo a borrar.", true);
+    setProjectListStatus(driveProjectsStatus, "No pude identificar el elemento a borrar.", true);
     return;
   }
 
   const selected = state.driveProjects.find((item) => item.id === normalizedItemId);
   const confirmed = window.confirm(
-    `Vas a borrar de Drive local el archivo ${selected?.fileName || "seleccionado"}.\n\n¿Deseas continuar?`
+    `Vas a borrar del Drive personal ${selected?.entryType === "carpeta" ? "la carpeta" : "el archivo"} ${selected?.fileName || "seleccionado"}.\n\n¿Deseas continuar?`
   );
   if (!confirmed) {
     return;
@@ -765,7 +770,7 @@ async function deleteDriveProject(itemId, triggerButton) {
   if (triggerButton) {
     triggerButton.disabled = true;
   }
-  setProjectListStatus(driveProjectsStatus, "Borrando archivo de Drive...");
+  setProjectListStatus(driveProjectsStatus, "Borrando elemento del Drive personal...");
 
   try {
     const response = await fetch(buildApiUrl(`/projects/drive?item=${encodeURIComponent(normalizedItemId)}`), {
@@ -773,15 +778,15 @@ async function deleteDriveProject(itemId, triggerButton) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.error || "No se pudo borrar el archivo de Drive.");
+      throw new Error(data.error || "No se pudo borrar el elemento del Drive personal.");
     }
 
     state.driveProjects = state.driveProjects.filter((item) => item.id !== normalizedItemId);
     renderDriveProjects(state.driveProjects);
-    setProjectListStatus(driveProjectsStatus, "Archivo borrado de Drive.");
+    setProjectListStatus(driveProjectsStatus, "Elemento borrado del Drive personal.");
     pulseRibbonTab("proyectos");
   } catch (error) {
-    setProjectListStatus(driveProjectsStatus, error.message || "No se pudo borrar el archivo.", true);
+    setProjectListStatus(driveProjectsStatus, error.message || "No se pudo borrar el elemento.", true);
   } finally {
     if (triggerButton) {
       triggerButton.disabled = false;
