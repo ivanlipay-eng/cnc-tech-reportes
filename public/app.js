@@ -14,6 +14,8 @@ const state = {
   availableFormats: [],
   selectedFormatId: "",
   recentProjects: [],
+  createdProjects: [],
+  driveProjects: [],
   lastRecentProjectsParticipantName: "",
   rubenAnimationShownForSessionId: "",
   forcedProfileTheme: "",
@@ -65,6 +67,12 @@ const requestedImageExistingSelect = document.getElementById("requested-image-ex
 const associateRequestedImageTrigger = document.getElementById("associate-requested-image-trigger");
 const requestedImageStatus = document.getElementById("requested-image-status");
 const uploadedFilesList = document.getElementById("uploaded-files-list");
+const localProjectsList = document.getElementById("local-projects-list");
+const driveProjectsList = document.getElementById("drive-projects-list");
+const localProjectsStatus = document.getElementById("local-projects-status");
+const driveProjectsStatus = document.getElementById("drive-projects-status");
+const refreshLocalProjectsButton = document.getElementById("refresh-local-projects");
+const refreshDriveProjectsButton = document.getElementById("refresh-drive-projects");
 const experimentalActions = document.getElementById("experimental-actions");
 const experimentalStatus = document.getElementById("experimental-status");
 const themeToggle = document.getElementById("theme-toggle");
@@ -545,6 +553,242 @@ async function loadRecentProjectsByParticipant(participantName, options = {}) {
   }
 }
 
+function setProjectListStatus(target, text, isError = false) {
+  if (!target) {
+    return;
+  }
+  target.textContent = text;
+  target.classList.toggle("error", Boolean(isError));
+}
+
+function formatProjectTimestamp(value) {
+  if (!value) {
+    return "fecha no disponible";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "fecha no disponible";
+  }
+
+  return parsed.toLocaleString();
+}
+
+function formatProjectPath(value) {
+  return String(value || "").replaceAll("\\", " / ");
+}
+
+function createEmptyProjectItem(text) {
+  const empty = document.createElement("li");
+  empty.className = "empty";
+  empty.textContent = text;
+  return empty;
+}
+
+function createLocalProjectItem(project) {
+  const item = document.createElement("li");
+  item.className = "project-record-item";
+
+  const main = document.createElement("div");
+  main.className = "project-record-main";
+
+  const name = document.createElement("div");
+  name.className = "project-record-name";
+  name.textContent = project.name || "Proyecto sin nombre";
+
+  const meta = document.createElement("div");
+  meta.className = "project-record-meta";
+  meta.innerHTML = [
+    `Actualizado: ${escapeHtml(formatProjectTimestamp(project.modifiedAt || project.createdAt))}`,
+    project.workspacePath ? `Carpeta: ${escapeHtml(formatProjectPath(project.workspacePath))}` : "",
+  ].filter(Boolean).join("<br />");
+
+  main.append(name, meta);
+  item.append(main);
+  return item;
+}
+
+function createDriveProjectItem(project) {
+  const item = document.createElement("li");
+  item.className = "project-record-item";
+  item.dataset.itemId = project.id || "";
+
+  const main = document.createElement("div");
+  main.className = "project-record-main";
+
+  const name = document.createElement("div");
+  name.className = "project-record-name";
+  name.textContent = project.fileName || "ZIP sin nombre";
+
+  const meta = document.createElement("div");
+  meta.className = "project-record-meta";
+  meta.innerHTML = [
+    `Area: ${escapeHtml(project.areaDirName || "Sin area")} | Participante: ${escapeHtml(project.participantFolderName || "Sin carpeta")}`,
+    `Subido: ${escapeHtml(formatProjectTimestamp(project.modifiedAt || project.createdAt))} | ${escapeHtml(formatBytes(project.size || 0))}`,
+    project.relativePath ? `Ruta: ${escapeHtml(project.relativePath)}` : "",
+  ].filter(Boolean).join("<br />");
+
+  const actions = document.createElement("div");
+  actions.className = "project-record-actions";
+
+  const removeButton = document.createElement("button");
+  removeButton.type = "button";
+  removeButton.className = "project-record-delete";
+  removeButton.textContent = "Borrar";
+  removeButton.dataset.action = "delete-drive-project";
+  removeButton.dataset.itemId = project.id || "";
+  removeButton.setAttribute("aria-label", `Borrar ${project.fileName || "archivo de Drive"}`);
+
+  actions.append(removeButton);
+  main.append(name, meta);
+  item.append(main, actions);
+  return item;
+}
+
+function renderLocalProjects(projects = []) {
+  if (!localProjectsList) {
+    return;
+  }
+
+  localProjectsList.innerHTML = "";
+  if (!projects.length) {
+    localProjectsList.append(createEmptyProjectItem("Todavia no hay proyectos creados."));
+    return;
+  }
+
+  for (const project of projects) {
+    localProjectsList.append(createLocalProjectItem(project));
+  }
+}
+
+function renderDriveProjects(projects = []) {
+  if (!driveProjectsList) {
+    return;
+  }
+
+  driveProjectsList.innerHTML = "";
+  if (!projects.length) {
+    driveProjectsList.append(createEmptyProjectItem("Todavia no hay proyectos subidos a Drive."));
+    return;
+  }
+
+  for (const project of projects) {
+    driveProjectsList.append(createDriveProjectItem(project));
+  }
+}
+
+async function loadLocalProjects(options = {}) {
+  if (!activeApiRoot) {
+    return [];
+  }
+
+  if (!options.silent) {
+    setProjectListStatus(localProjectsStatus, "Cargando proyectos creados...");
+  }
+
+  try {
+    const response = await fetch(buildApiUrl("/projects/local?limit=120"), {
+      cache: "no-store",
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "No se pudo cargar la lista de proyectos creados.");
+    }
+
+    state.createdProjects = Array.isArray(data.projects) ? data.projects : [];
+    renderLocalProjects(state.createdProjects);
+    setProjectListStatus(
+      localProjectsStatus,
+      state.createdProjects.length
+        ? `${state.createdProjects.length} proyecto(s) encontrado(s).`
+        : "No hay proyectos creados todavia."
+    );
+    return state.createdProjects;
+  } catch (error) {
+    state.createdProjects = [];
+    renderLocalProjects([]);
+    setProjectListStatus(localProjectsStatus, error.message || "No se pudo cargar la lista de proyectos.", true);
+    return [];
+  }
+}
+
+async function loadDriveProjects(options = {}) {
+  if (!activeApiRoot) {
+    return [];
+  }
+
+  if (!options.silent) {
+    setProjectListStatus(driveProjectsStatus, "Cargando subidos a Drive...");
+  }
+
+  try {
+    const response = await fetch(buildApiUrl("/projects/drive?limit=160"), {
+      cache: "no-store",
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "No se pudo cargar la lista de Drive.");
+    }
+
+    state.driveProjects = Array.isArray(data.uploads) ? data.uploads : [];
+    renderDriveProjects(state.driveProjects);
+    setProjectListStatus(
+      driveProjectsStatus,
+      state.driveProjects.length
+        ? `${state.driveProjects.length} archivo(s) subido(s) encontrados.`
+        : "No hay subidas a Drive todavia."
+    );
+    return state.driveProjects;
+  } catch (error) {
+    state.driveProjects = [];
+    renderDriveProjects([]);
+    setProjectListStatus(driveProjectsStatus, error.message || "No se pudo cargar la lista de Drive.", true);
+    return [];
+  }
+}
+
+async function deleteDriveProject(itemId, triggerButton) {
+  const normalizedItemId = String(itemId || "").trim();
+  if (!normalizedItemId) {
+    setProjectListStatus(driveProjectsStatus, "No pude identificar el archivo a borrar.", true);
+    return;
+  }
+
+  const selected = state.driveProjects.find((item) => item.id === normalizedItemId);
+  const confirmed = window.confirm(
+    `Vas a borrar de Drive local el archivo ${selected?.fileName || "seleccionado"}.\n\n¿Deseas continuar?`
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  if (triggerButton) {
+    triggerButton.disabled = true;
+  }
+  setProjectListStatus(driveProjectsStatus, "Borrando archivo de Drive...");
+
+  try {
+    const response = await fetch(buildApiUrl(`/projects/drive?item=${encodeURIComponent(normalizedItemId)}`), {
+      method: "DELETE",
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "No se pudo borrar el archivo de Drive.");
+    }
+
+    state.driveProjects = state.driveProjects.filter((item) => item.id !== normalizedItemId);
+    renderDriveProjects(state.driveProjects);
+    setProjectListStatus(driveProjectsStatus, "Archivo borrado de Drive.");
+    pulseRibbonTab("proyectos");
+  } catch (error) {
+    setProjectListStatus(driveProjectsStatus, error.message || "No se pudo borrar el archivo.", true);
+  } finally {
+    if (triggerButton) {
+      triggerButton.disabled = false;
+    }
+  }
+}
+
 function parseProjectOpenCommand(rawText) {
   const text = String(rawText || "").trim();
   if (!text) {
@@ -778,7 +1022,14 @@ function initializeBrandLogo() {
 
 function initializeRibbon() {
   ribbonTabs.forEach((tab) => {
-    tab.addEventListener("click", () => setActiveRibbonPanel(tab.dataset.toolbarTarget || ""));
+    tab.addEventListener("click", () => {
+      const target = tab.dataset.toolbarTarget || "";
+      setActiveRibbonPanel(target);
+      if (target === "proyectos") {
+        loadLocalProjects({ silent: true });
+        loadDriveProjects({ silent: true });
+      }
+    });
   });
 }
 
@@ -965,6 +1216,23 @@ function setActiveRibbonPanel(target) {
   });
 }
 
+refreshLocalProjectsButton?.addEventListener("click", async () => {
+  await loadLocalProjects();
+});
+
+refreshDriveProjectsButton?.addEventListener("click", async () => {
+  await loadDriveProjects();
+});
+
+driveProjectsList?.addEventListener("click", async (event) => {
+  const deleteButton = event.target.closest("[data-action='delete-drive-project']");
+  if (!deleteButton) {
+    return;
+  }
+
+  await deleteDriveProject(deleteButton.dataset.itemId || "", deleteButton);
+});
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   setStatus("Creando proyecto...");
@@ -989,6 +1257,7 @@ form.addEventListener("submit", async (event) => {
       statusText: "Proyecto listo",
       showOpeningQuestion: true,
     });
+    await loadLocalProjects({ silent: true });
   } catch (error) {
     setStatus("No se pudo crear el proyecto.", true);
     setThinking(false);
@@ -1620,6 +1889,8 @@ uploadDriveButton?.addEventListener("click", async () => {
       ? `Proyecto subido a Drive en: ${result.targetPath}`
       : "Proyecto subido a Drive.";
     setStatus("Proyecto subido a Drive");
+    await loadDriveProjects({ silent: true });
+    pulseRibbonTab("proyectos");
   } catch (error) {
     pdfStatus.textContent = error.message || "No se pudo subir el proyecto a Drive.";
     setExperimentalStatus(error.message || "No se pudo subir el proyecto a Drive.", true);
@@ -3868,6 +4139,8 @@ async function loadAppVersion() {
         appVersionBadge.textContent = frontendVersion || `Version ${data.version}`;
         appVersionBadge.title = `Frontend ${frontendVersion || "desconocido"} | Backend ${data.version}`;
       }
+      await loadLocalProjects({ silent: true });
+      await loadDriveProjects({ silent: true });
       return;
     } catch {
       // Prueba con el siguiente candidato.

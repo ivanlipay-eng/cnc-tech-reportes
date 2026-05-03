@@ -3400,6 +3400,144 @@ async function uploadWorkspaceZipToDrive(session) {
   }
 }
 
+function normalizeProjectListLimit(rawValue, fallback = 50, maximum = 200) {
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return Math.min(Math.trunc(parsed), maximum);
+}
+
+async function listWorkspaceProjects(options = {}) {
+  const limit = normalizeProjectListLimit(options.limit, 80, 300);
+  const workspaceEntries = await fs.readdir(WORKSPACES_ROOT, { withFileTypes: true }).catch(() => []);
+  const projects = [];
+
+  for (const entry of workspaceEntries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    const workspacePath = path.join(WORKSPACES_ROOT, entry.name);
+    const stats = await fs.stat(workspacePath).catch(() => null);
+    if (!stats) {
+      continue;
+    }
+
+    projects.push({
+      name: entry.name,
+      workspacePath,
+      createdAt: stats.birthtime ? new Date(stats.birthtime).toISOString() : null,
+      modifiedAt: stats.mtime ? new Date(stats.mtime).toISOString() : null,
+    });
+  }
+
+  return projects
+    .sort((left, right) => {
+      const leftTime = new Date(left.modifiedAt || left.createdAt || 0).getTime();
+      const rightTime = new Date(right.modifiedAt || right.createdAt || 0).getTime();
+      return rightTime - leftTime;
+    })
+    .slice(0, limit);
+}
+
+function makeDriveUploadItemId(rootPath, targetPath) {
+  return path.relative(rootPath, targetPath).split(path.sep).join("/");
+}
+
+function resolveDriveUploadItemPath(itemId) {
+  const normalizedId = String(itemId || "").trim().replaceAll("\\", "/");
+  if (!normalizedId) {
+    throw new Error("Falta indicar el archivo subido.");
+  }
+
+  const rootPath = path.resolve(DRIVE_REPORTS_ROOT);
+  const targetPath = path.resolve(rootPath, normalizedId);
+  if (targetPath !== rootPath && !targetPath.startsWith(`${rootPath}${path.sep}`)) {
+    throw new Error("La ruta solicitada no es valida.");
+  }
+
+  return targetPath;
+}
+
+async function listDriveUploadedProjects(options = {}) {
+  const limit = normalizeProjectListLimit(options.limit, 120, 400);
+  const rootPath = path.resolve(DRIVE_REPORTS_ROOT);
+  const areaEntries = await fs.readdir(rootPath, { withFileTypes: true }).catch(() => []);
+  const uploadedProjects = [];
+
+  for (const areaEntry of areaEntries) {
+    if (!areaEntry.isDirectory()) {
+      continue;
+    }
+
+    const reportsDirPath = path.join(rootPath, areaEntry.name, "Reportes_Semanales");
+    const participantEntries = await fs.readdir(reportsDirPath, { withFileTypes: true }).catch(() => []);
+    for (const participantEntry of participantEntries) {
+      if (!participantEntry.isDirectory()) {
+        continue;
+      }
+
+      const participantFolderPath = path.join(reportsDirPath, participantEntry.name);
+      const fileEntries = await fs.readdir(participantFolderPath, { withFileTypes: true }).catch(() => []);
+      for (const fileEntry of fileEntries) {
+        if (!fileEntry.isFile() || path.extname(fileEntry.name).toLowerCase() !== ".zip") {
+          continue;
+        }
+
+        const filePath = path.join(participantFolderPath, fileEntry.name);
+        const stats = await fs.stat(filePath).catch(() => null);
+        if (!stats) {
+          continue;
+        }
+
+        uploadedProjects.push({
+          id: makeDriveUploadItemId(rootPath, filePath),
+          fileName: fileEntry.name,
+          targetPath: filePath,
+          relativePath: makeDriveUploadItemId(rootPath, filePath),
+          size: stats.size,
+          modifiedAt: stats.mtime ? new Date(stats.mtime).toISOString() : null,
+          createdAt: stats.birthtime ? new Date(stats.birthtime).toISOString() : null,
+          participantFolderName: participantEntry.name,
+          participantFolderPath,
+          areaDirName: areaEntry.name,
+        });
+      }
+    }
+  }
+
+  return uploadedProjects
+    .sort((left, right) => {
+      const leftTime = new Date(left.modifiedAt || left.createdAt || 0).getTime();
+      const rightTime = new Date(right.modifiedAt || right.createdAt || 0).getTime();
+      return rightTime - leftTime;
+    })
+    .slice(0, limit);
+}
+
+async function deleteDriveUploadedProject(itemId) {
+  const targetPath = resolveDriveUploadItemPath(itemId);
+  if (path.extname(targetPath).toLowerCase() !== ".zip") {
+    throw new Error("Solo se pueden borrar ZIP subidos a Drive.");
+  }
+  const stats = await fs.stat(targetPath).catch(() => null);
+  if (!stats || !stats.isFile()) {
+    throw new Error("El archivo seleccionado ya no existe en Drive.");
+  }
+
+  const deletedItem = {
+    id: makeDriveUploadItemId(path.resolve(DRIVE_REPORTS_ROOT), targetPath),
+    fileName: path.basename(targetPath),
+    targetPath,
+    size: stats.size,
+    deletedAt: new Date().toISOString(),
+  };
+
+  await fs.unlink(targetPath);
+  return deletedItem;
+}
+
 function applyCorsHeaders(request, response) {
   const origin = String(request.headers.origin || "").trim();
   if (!origin) {
@@ -3522,6 +3660,40 @@ async function handleApi(request, response) {
       });
     } catch (error) {
       json(response, 400, { error: error.message || "No se pudo listar proyectos recientes." });
+    }
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/projects/local") {
+    try {
+      const projects = await listWorkspaceProjects({
+        limit: url.searchParams.get("limit"),
+      });
+      json(response, 200, { ok: true, projects });
+    } catch (error) {
+      json(response, 400, { error: error.message || "No se pudo listar los proyectos creados." });
+    }
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/projects/drive") {
+    try {
+      const uploads = await listDriveUploadedProjects({
+        limit: url.searchParams.get("limit"),
+      });
+      json(response, 200, { ok: true, uploads });
+    } catch (error) {
+      json(response, 400, { error: error.message || "No se pudo listar lo subido a Drive." });
+    }
+    return;
+  }
+
+  if (request.method === "DELETE" && url.pathname === "/api/projects/drive") {
+    try {
+      const deleted = await deleteDriveUploadedProject(url.searchParams.get("item") || "");
+      json(response, 200, { ok: true, deleted });
+    } catch (error) {
+      json(response, 400, { error: error.message || "No se pudo borrar el archivo de Drive." });
     }
     return;
   }

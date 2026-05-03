@@ -539,6 +539,83 @@ body.theme-dark .report-progress-bar {
   font-size: 0.84rem;
 }
 
+.projects-toolbar-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  width: 100%;
+}
+
+.projects-toolbar-column {
+  min-width: 0;
+}
+
+.projects-toolbar-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.projects-list {
+  max-height: 248px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.project-record-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(16, 34, 53, 0.08);
+}
+
+.project-record-item:last-child {
+  border-bottom: 0;
+}
+
+.project-record-main {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.project-record-name {
+  font-size: 0.84rem;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.project-record-meta {
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.project-record-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.project-record-delete {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  line-height: 1;
+  background: rgba(255, 219, 212, 0.95);
+  color: #8e2616;
+}
+
+.project-record-delete:disabled {
+  opacity: 0.65;
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--panel-border);
@@ -2080,5 +2157,9 @@ button:disabled {
 
   .status {
     justify-content: center;
+  }
+
+  .projects-toolbar-grid {
+    grid-template-columns: 1fr;
   }
 }
