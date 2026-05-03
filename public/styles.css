@@ -146,29 +146,29 @@ body.theme-rose .uploaded-file-delete {
 
 body.theme-dark {
   color-scheme: dark;
-  --bg: #08131d;
-  --panel: rgba(10, 21, 33, 0.9);
-  --panel-border: rgba(121, 166, 198, 0.16);
-  --ink: #eef6ff;
-  --muted: #9ab1c7;
-  --accent: #54c8ff;
-  --accent-strong: #dff4ff;
-  --assistant: rgba(14, 30, 44, 0.96);
-  --user: #0f5b84;
+  --bg: #0b1218;
+  --panel: rgba(14, 22, 30, 0.94);
+  --panel-border: rgba(82, 108, 130, 0.24);
+  --ink: #edf3f8;
+  --muted: #9cafc0;
+  --accent: #5aa6c8;
+  --accent-strong: #edf3f8;
+  --assistant: rgba(18, 29, 38, 0.96);
+  --user: #244962;
   --user-text: #f4fbff;
-  --system: rgba(24, 42, 58, 0.96);
-  --shadow: 0 28px 80px rgba(0, 0, 0, 0.34);
+  --system: rgba(24, 36, 46, 0.96);
+  --shadow: 0 28px 80px rgba(0, 0, 0, 0.3);
   background:
-    radial-gradient(circle at top left, rgba(84, 200, 255, 0.16), transparent 24%),
-    radial-gradient(circle at top right, rgba(33, 91, 128, 0.2), transparent 28%),
-    linear-gradient(180deg, #09131c 0%, #0d1c2b 52%, #09121c 100%);
+    radial-gradient(circle at top left, rgba(90, 166, 200, 0.08), transparent 24%),
+    radial-gradient(circle at top right, rgba(46, 78, 103, 0.12), transparent 28%),
+    linear-gradient(180deg, #0b1218 0%, #0d151d 52%, #0a1117 100%);
 }
 
 body.theme-dark .ribbon-shell {
-  border-top-color: #54c8ff;
-  border-bottom-color: rgba(121, 166, 198, 0.16);
-  background: linear-gradient(180deg, rgba(10, 21, 33, 0.98) 0%, rgba(13, 28, 42, 0.96) 100%);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+  border-top-color: #4b96bb;
+  border-bottom-color: rgba(82, 108, 130, 0.2);
+  background: linear-gradient(180deg, rgba(13, 21, 29, 0.99) 0%, rgba(14, 23, 32, 0.97) 100%);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
 }
 
 body.theme-dark .ribbon-panel,
@@ -176,28 +176,28 @@ body.theme-dark .panel,
 body.theme-dark .meta,
 body.theme-dark .report-frame,
 body.theme-dark .download-card {
-  border-color: rgba(121, 166, 198, 0.16);
-  background: rgba(10, 21, 33, 0.9);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+  border-color: rgba(82, 108, 130, 0.22);
+  background: rgba(14, 22, 30, 0.94);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.2);
 }
 
 body.theme-dark .app-version-badge {
-  border-color: rgba(121, 166, 198, 0.18);
-  background: rgba(11, 24, 36, 0.92);
+  border-color: rgba(82, 108, 130, 0.22);
+  background: rgba(15, 24, 33, 0.95);
   color: #dff4ff;
-  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.22);
 }
 
 body.theme-dark .ribbon-tab {
-  background: linear-gradient(135deg, rgba(18, 43, 63, 0.96) 0%, rgba(13, 34, 52, 0.96) 100%);
-  border-color: rgba(121, 166, 198, 0.16);
-  color: #dff4ff;
+  background: linear-gradient(135deg, rgba(18, 30, 40, 0.98) 0%, rgba(15, 26, 35, 0.98) 100%);
+  border-color: rgba(82, 108, 130, 0.22);
+  color: #d4e0ea;
 }
 
 body.theme-dark .ribbon-tab.is-active {
-  background: linear-gradient(135deg, rgba(23, 57, 82, 0.98) 0%, rgba(18, 44, 64, 0.98) 100%);
-  border-color: rgba(84, 200, 255, 0.26);
-  border-bottom-color: rgba(23, 57, 82, 0.98);
+  background: linear-gradient(135deg, rgba(29, 49, 64, 0.98) 0%, rgba(24, 40, 53, 0.98) 100%);
+  border-color: rgba(90, 166, 200, 0.26);
+  border-bottom-color: rgba(29, 49, 64, 0.98);
   color: #ffffff;
 }
 
@@ -209,57 +209,57 @@ body.theme-dark .ribbon-tab-experimental.is-active {
 body.theme-dark input,
 body.theme-dark select,
 body.theme-dark textarea {
-  border-color: rgba(121, 166, 198, 0.18);
-  background: rgba(9, 18, 29, 0.94);
+  border-color: rgba(82, 108, 130, 0.24);
+  background: rgba(10, 17, 24, 0.96);
   color: #eef6ff;
 }
 
 body.theme-dark ::placeholder {
-  color: #88a3bb;
+  color: #7f96a9;
 }
 
 body.theme-dark button {
-  background: linear-gradient(135deg, #1997d0 0%, #0f628f 100%);
-  color: #f6fcff;
+  background: linear-gradient(135deg, #2f6c8f 0%, #234f69 100%);
+  color: #f3f8fc;
 }
 
 body.theme-dark .secondary-button,
 body.theme-dark .experimental-button,
 body.theme-dark .quick-reply-button,
 body.theme-dark .ribbon-theme-button {
-  background: rgba(13, 29, 43, 0.96);
-  border-color: rgba(121, 166, 198, 0.18);
-  color: #dff4ff;
+  background: rgba(16, 27, 36, 0.98);
+  border-color: rgba(82, 108, 130, 0.24);
+  color: #dce6ee;
 }
 
 body.theme-dark .ribbon-theme-button.is-active {
-  background: linear-gradient(135deg, #49c0f4 0%, #1d8bc1 100%);
-  color: #06131e;
-  border-color: rgba(84, 200, 255, 0.28);
+  background: linear-gradient(135deg, #5aa6c8 0%, #417896 100%);
+  color: #08131d;
+  border-color: rgba(90, 166, 200, 0.28);
 }
 
 body.theme-dark .message.assistant {
-  background: rgba(14, 30, 44, 0.96);
-  border: 1px solid rgba(121, 166, 198, 0.16);
+  background: rgba(17, 28, 37, 0.98);
+  border: 1px solid rgba(82, 108, 130, 0.2);
 }
 
 body.theme-dark .message.system {
-  background: rgba(18, 36, 52, 0.96);
-  border: 1px solid rgba(121, 166, 198, 0.14);
+  background: rgba(21, 33, 43, 0.98);
+  border: 1px solid rgba(82, 108, 130, 0.18);
 }
 
 body.theme-dark .message.user {
-  background: linear-gradient(180deg, rgba(23, 114, 162, 0.98) 0%, rgba(12, 85, 128, 0.98) 100%);
+  background: linear-gradient(180deg, rgba(42, 84, 109, 0.98) 0%, rgba(31, 62, 82, 0.98) 100%);
   color: #f4fbff;
 }
 
 body.theme-dark .report-progress-card {
-  background: rgba(12, 25, 38, 0.94);
-  border-color: rgba(121, 166, 198, 0.16);
+  background: rgba(16, 26, 35, 0.96);
+  border-color: rgba(82, 108, 130, 0.22);
 }
 
 body.theme-dark .report-progress-bullet {
-  box-shadow: inset 0 0 0 1px rgba(121, 166, 198, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(82, 108, 130, 0.24);
 }
 
 body.theme-dark .report-progress-note.is-warning,
@@ -282,8 +282,8 @@ body.theme-dark .brand-title {
 }
 
 body.theme-dark .status {
-  background: rgba(14, 33, 47, 0.98);
-  color: #dff4ff;
+  background: rgba(17, 29, 39, 0.98);
+  color: #dce6ee;
 }
 
 body.theme-dark .status.error {
@@ -292,25 +292,37 @@ body.theme-dark .status.error {
 }
 
 body.theme-dark .chat-drop-hint {
-  background: rgba(9, 18, 29, 0.94);
-  border-color: rgba(84, 200, 255, 0.2);
-  color: #c8dfef;
+  background: rgba(12, 19, 27, 0.96);
+  border-color: rgba(90, 166, 200, 0.18);
+  color: #c2d2df;
 }
 
 body.theme-dark .chat-drop-hint.drag-active,
 body.theme-dark .chat-panel.drag-active {
-  background: rgba(12, 28, 40, 0.96);
-  border-color: rgba(84, 200, 255, 0.3);
+  background: rgba(16, 26, 35, 0.98);
+  border-color: rgba(90, 166, 200, 0.26);
 }
 
 body.theme-dark .download-progress-track,
 body.theme-dark .report-progress-shell {
-  background: rgba(84, 200, 255, 0.16);
+  background: rgba(90, 166, 200, 0.14);
 }
 
 body.theme-dark .download-progress-bar,
 body.theme-dark .report-progress-bar {
-  background: linear-gradient(90deg, #54c8ff 0%, #9ae6ff 100%);
+  background: linear-gradient(90deg, #5aa6c8 0%, #88bfd6 100%);
+}
+
+body.theme-dark .toolbar-collaboration-toggle,
+body.theme-dark .quick-drawer-toggle {
+  background: linear-gradient(135deg, #2d6787 0%, #234d66 100%);
+  color: #f4f9fc;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.22);
+}
+
+body.theme-dark .toolbar-collaboration-toggle-hint,
+body.theme-dark .quick-drawer-toggle-label {
+  color: rgba(232, 240, 246, 0.82);
 }
 
 .participant-animation-overlay {
