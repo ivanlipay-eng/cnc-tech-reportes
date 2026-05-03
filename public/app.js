@@ -4124,9 +4124,13 @@ async function loadAppVersion() {
   }
 
   const frontendVersion = String(appVersionBadge.textContent || "").trim();
+  const localApiCandidates = [
+    "http://127.0.0.1:3221",
+    "http://localhost:3221",
+  ];
 
   const latestRepoApiBaseUrl = await fetchLatestRepoApiBaseUrl();
-  const candidates = [configuredApiBaseUrl, latestRepoApiBaseUrl, ""]
+  const candidates = [configuredApiBaseUrl, latestRepoApiBaseUrl, ...localApiCandidates, ""]
     .map((item) => normalizeBaseUrl(item || ""))
     .filter((item, index, all) => all.indexOf(item) === index);
 
