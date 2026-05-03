@@ -2761,6 +2761,37 @@ function normalizeSharedProjectId(value) {
   return projectId;
 }
 
+function normalizeWorkspaceProjectName(value) {
+  const workspaceName = String(value || "").trim();
+  if (!workspaceName) {
+    throw new Error("Falta indicar el proyecto a borrar.");
+  }
+  if (workspaceName.includes("/") || workspaceName.includes("\\") || workspaceName.includes("..")) {
+    throw new Error("Nombre de proyecto invalido.");
+  }
+  return workspaceName;
+}
+
+async function resolveWorkspaceProjectDeletionPath(workspaceName) {
+  const normalizedWorkspaceName = normalizeWorkspaceProjectName(workspaceName);
+  const targetPath = path.resolve(WORKSPACES_ROOT, normalizedWorkspaceName);
+  const rootPath = path.resolve(WORKSPACES_ROOT);
+  if (targetPath !== rootPath && !targetPath.startsWith(`${rootPath}${path.sep}`)) {
+    throw new Error("La ruta del proyecto no es valida.");
+  }
+  return targetPath;
+}
+
+function stopSessionForWorkspacePath(workspacePath) {
+  for (const [sessionId, session] of sessions.entries()) {
+    if (path.resolve(session.workspacePath || "") === path.resolve(workspacePath || "")) {
+      session.close();
+      sessions.delete(sessionId);
+      break;
+    }
+  }
+}
+
 function sanitizeSharedHistoryForCodex(history = []) {
   const lines = [];
 
@@ -3504,6 +3535,16 @@ async function listWorkspaceProjects(options = {}) {
     .slice(0, limit);
 }
 
+async function deleteWorkspaceProject(workspaceName) {
+  const projectPath = await resolveWorkspaceProjectDeletionPath(workspaceName);
+  stopSessionForWorkspacePath(projectPath);
+  await fs.rm(projectPath, { recursive: true, force: true });
+  return {
+    workspaceName: normalizeWorkspaceProjectName(workspaceName),
+    deletedPath: projectPath,
+  };
+}
+
 function makeDriveUploadItemId(rootPath, targetPath) {
   return path.relative(rootPath, targetPath).split(path.sep).join("/");
 }
@@ -3763,6 +3804,16 @@ async function handleApi(request, response) {
       json(response, 200, { ok: true, projects });
     } catch (error) {
       json(response, 400, { error: error.message || "No se pudo listar los proyectos creados." });
+    }
+    return;
+  }
+
+  if (request.method === "DELETE" && url.pathname === "/api/projects/local") {
+    try {
+      const deleted = await deleteWorkspaceProject(url.searchParams.get("workspace") || "");
+      json(response, 200, { ok: true, deleted });
+    } catch (error) {
+      json(response, 400, { error: error.message || "No se pudo borrar el proyecto creado." });
     }
     return;
   }

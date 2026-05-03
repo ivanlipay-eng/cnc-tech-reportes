@@ -585,6 +585,7 @@ function createLocalProjectItem(project) {
   const item = document.createElement("li");
   item.className = "project-record-item";
   item.dataset.projectId = project.sharedProjectId || "";
+  item.dataset.workspaceName = project.name || "";
 
   const main = document.createElement("div");
   main.className = "project-record-main";
@@ -618,7 +619,16 @@ function createLocalProjectItem(project) {
   loadButton.setAttribute("aria-disabled", !project.sharedProjectId ? "true" : "false");
   loadButton.setAttribute("aria-label", `Cargar ${project.name || "proyecto"}`);
 
-  actions.append(loadButton);
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.className = "project-record-delete";
+  deleteButton.textContent = "Borrar";
+  deleteButton.dataset.action = "delete-local-project";
+  deleteButton.dataset.workspaceName = project.name || "";
+  deleteButton.disabled = !project.name;
+  deleteButton.setAttribute("aria-label", `Borrar ${project.name || "proyecto"}`);
+
+  actions.append(loadButton, deleteButton);
   main.append(name, meta);
   item.append(main, actions);
   return item;
@@ -1305,26 +1315,64 @@ driveProjectsList?.addEventListener("click", async (event) => {
 
 localProjectsList?.addEventListener("click", async (event) => {
   const loadButton = event.target.closest("[data-action='load-local-project']");
-  if (!loadButton || loadButton.disabled) {
+  const deleteButton = event.target.closest("[data-action='delete-local-project']");
+
+  if (loadButton && !loadButton.disabled) {
+    const projectId = String(loadButton.dataset.projectId || "").trim();
+    if (!projectId) {
+      setProjectListStatus(localProjectsStatus, "Ese proyecto todavia no tiene un codigo para poder cargarse.", true);
+      return;
+    }
+
+    loadButton.disabled = true;
+    setProjectListStatus(localProjectsStatus, `Cargando ${projectId}...`);
+    try {
+      await loadSharedProjectById(projectId);
+      setActiveRibbonPanel("session");
+      setProjectListStatus(localProjectsStatus, `Proyecto ${projectId} cargado.`);
+    } catch {
+      setProjectListStatus(localProjectsStatus, `No se pudo cargar ${projectId}.`, true);
+    } finally {
+      loadButton.disabled = false;
+    }
     return;
   }
 
-  const projectId = String(loadButton.dataset.projectId || "").trim();
-  if (!projectId) {
-    setProjectListStatus(localProjectsStatus, "Ese proyecto todavia no tiene un codigo para poder cargarse.", true);
+  if (!deleteButton || deleteButton.disabled) {
     return;
   }
 
-  loadButton.disabled = true;
-  setProjectListStatus(localProjectsStatus, `Cargando ${projectId}...`);
+  const workspaceName = String(deleteButton.dataset.workspaceName || "").trim();
+  if (!workspaceName) {
+    setProjectListStatus(localProjectsStatus, "No se pudo identificar el proyecto a borrar.", true);
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Vas a borrar el proyecto "${workspaceName}". Esta accion eliminara su carpeta local. ¿Quieres continuar?`
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  deleteButton.disabled = true;
+  setProjectListStatus(localProjectsStatus, `Borrando ${workspaceName}...`);
   try {
-    await loadSharedProjectById(projectId);
-    setActiveRibbonPanel("session");
-    setProjectListStatus(localProjectsStatus, `Proyecto ${projectId} cargado.`);
-  } catch {
-    setProjectListStatus(localProjectsStatus, `No se pudo cargar ${projectId}.`, true);
+    const response = await fetch(buildApiUrl(`/projects/local?workspace=${encodeURIComponent(workspaceName)}`), {
+      method: "DELETE",
+      cache: "no-store",
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "No se pudo borrar el proyecto.");
+    }
+
+    await loadLocalProjects({ silent: true });
+    setProjectListStatus(localProjectsStatus, `Proyecto ${workspaceName} borrado.`);
+  } catch (error) {
+    setProjectListStatus(localProjectsStatus, error.message || `No se pudo borrar ${workspaceName}.`, true);
   } finally {
-    loadButton.disabled = false;
+    deleteButton.disabled = false;
   }
 });
 
