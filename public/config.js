@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://median-wal-abu-yea.trycloudflare.com",
+  apiBaseUrl: "https://joseph-towns-folding-aircraft.trycloudflare.com",
   brandLogoUrl: "",
 };

@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0",
+  "project_name": "caht con codex virtual",
+  "folder_path": "C:\\Users\\Ivan\\Desktop\\caht con codex virtual",
+  "codex_chat_link": "",
+  "codex_thread_id": "",
+  "context_summary": "Proyecto Node.js que publica un frontend estatico en GitHub Pages y ejecuta un backend local con SSE, sesiones, uploads y runtime gestionado. GitHub Pages sirve solo el frontend; el backend real vive en esta PC y se expone por localhost, tunel trycloudflare o tunel permanente.",
+  "key_files": [
+    {
+      "path": "C:\\Users\\Ivan\\Desktop\\caht con codex virtual\\server.js",
+      "purpose": "Servidor HTTP principal, API /api, SSE, sesiones, compilacion, uploads y coordinacion con Codex."
+    },
+    {
+      "path": "C:\\Users\\Ivan\\Desktop\\caht con codex virtual\\public\\index.html",
+      "purpose": "Frontend principal publicado en GitHub Pages."
+    },
+    {
+      "path": "C:\\Users\\Ivan\\Desktop\\caht con codex virtual\\public\\app.js",
+      "purpose": "Logica del frontend: sesiones, EventSource, chat, uploads, PDF, panel rapido y sincronizacion de estado."
+    },
+    {
+      "path": "C:\\Users\\Ivan\\Desktop\\caht con codex virtual\\public\\config.js",
+      "purpose": "Config del frontend publicado. Define apiBaseUrl del backend remoto activo."
+    },
+    {
+      "path": "C:\\Users\\Ivan\\Desktop\\caht con codex virtual\\package.json",
+      "purpose": "Scripts de arranque del backend y runtime gestionado."
+    },
+    {
+      "path": "C:\\Users\\Ivan\\Desktop\\caht con codex virtual\\GITHUB_PAGES.md",
+      "purpose": "Guia operativa de GitHub Pages, backend local, tuneles Cloudflare y modos de despliegue."
+    },
+    {
+      "path": "C:\\Users\\Ivan\\Desktop\\caht con codex virtual\\tmp\\managed-runtime.json",
+      "purpose": "Estado actual del runtime gestionado: backend PID, tunel PID, URL publica y logs."
+    }
+  ],
+  "tags": [
+    "nodejs",
+    "github-pages",
+    "cloudflare-tunnel",
+    "sse",
+    "codex-web-bridge",
+    "latex",
+    "runtime-gestionado"
+  ],
+  "startup_instructions": {
+    "backend_local_pages_mode": [
+      "Abrir terminal en C:\\Users\\Ivan\\Desktop\\caht con codex virtual",
+      "Ejecutar: npm.cmd run start:pages-backend",
+      "Esto levanta el backend en http://127.0.0.1:3221 con CORS para GitHub Pages.",
+      "Usar este modo cuando la pagina de GitHub Pages debe responder dentro de esta misma PC."
+    ],
+    "backend_public_mode": [
+      "Abrir terminal en C:\\Users\\Ivan\\Desktop\\caht con codex virtual",
+      "Ejecutar: npm.cmd run start:public-backend",
+      "Esto levanta el backend en http://127.0.0.1:3221 y abre un tunel publico trycloudflare.",
+      "La URL activa queda registrada en tmp\\managed-runtime.json y tambien se consulta con: npm.cmd run status:managed-runtime",
+      "Este es el modo que se debe usar cuando la pagina de GitHub va a abrirse desde otras PCs.",
+      "Si la URL publica cambia, actualizar public\\config.js en apiBaseUrl con la nueva URL, regenerar GitHub Pages y volver a publicar a main."
+    ],
+    "frontend_github_pages": [
+      "La URL publicada es: https://ivanlipay-eng.github.io/cnc-tech-reportes/public/",
+      "Regla obligatoria: cada cambio visible en frontend o backend que afecte la pagina debe subir la version del frontend.",
+      "La version se actualiza en public\\index.html: badge visible 'Version x.y.z' y query strings ?v=x.y.z de favicon, styles.css, config.js y app.js.",
+      "Despues de cada cambio hay que publicar siempre a main para que GitHub Pages quede en la misma version local.",
+      "Si cambia el tunel publico del backend, actualizar public\\config.js en la clave apiBaseUrl con la nueva URL.",
+      "Publicacion minima: git add public/config.js public/index.html public/app.js public/styles.css server.js && git commit -m \"Describe el cambio\" && git push origin main",
+      "Esperar el build y validar la version publicada en: https://ivanlipay-eng.github.io/cnc-tech-reportes/public/ y tambien validar config.js si se cambio backend"
+    ],
+    "health_checks": [
+      "Backend local: http://127.0.0.1:3221/api/health",
+      "Backend publico: <tunnelUrl>/api/health",
+      "Estado runtime: npm.cmd run status:managed-runtime",
+      "Estado GitHub Pages: gh api repos/ivanlipay-eng/cnc-tech-reportes/pages/builds/latest"
+    ]
+  },
+  "current_public_backend": "https://median-wal-abu-yea.trycloudflare.com",
+  "current_github_pages_url": "https://ivanlipay-eng.github.io/cnc-tech-reportes/public/",
+  "last_updated": "2026-05-03T00:00:00-05:00",
+  "notes": "Forma operativa preferida para abrir el backend: npm.cmd run start:public-backend, esperar la URL trycloudflare activa, actualizar public/config.js con esa URL, regenerar GitHub Pages con npm.cmd run build:pages si hace falta y publicar en main. Regla permanente: no dejar cambios locales con version mas nueva que la pagina publica; cada cambio debe terminar con version incrementada, push a main y verificacion visual de GitHub Pages. codex-context.json es documentacion operativa local y no es necesario para el despliegue."
+}
