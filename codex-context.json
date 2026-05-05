@@ -78,7 +78,7 @@
       "Estado GitHub Pages: gh api repos/ivanlipay-eng/cnc-tech-reportes/pages/builds/latest"
     ]
   },
-  "current_public_backend": "https://prompt-ventures-boulevard-blue.trycloudflare.com",
+  "current_public_backend": "https://avi-briefs-continued-und.trycloudflare.com",
   "current_github_pages_url": "https://ivanlipay-eng.github.io/cnc-tech-reportes/public/",
   "last_updated": "2026-05-03T00:00:00-05:00",
   "notes": "Forma operativa preferida para abrir el backend: npm.cmd run start:public-backend, esperar la URL trycloudflare activa, actualizar public/config.js con esa URL, regenerar GitHub Pages con npm.cmd run build:pages si hace falta y publicar en main. Regla permanente: no dejar cambios locales con version mas nueva que la pagina publica; cada cambio debe terminar con version incrementada, push a main y verificacion visual de GitHub Pages. Para usar otro agente CLI, define AGENT_CLI_PATH en el entorno o configura CODEX_PATH como respaldo; si quieres cambiar el nombre del agente, define AGENT_NAME. codex-context.json documenta la operativa y no es necesario para el despliegue." 
