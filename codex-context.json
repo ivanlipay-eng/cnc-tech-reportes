@@ -1,7 +1,10 @@
-{
+﻿{
   "schema_version": "1.0",
   "project_name": "caht con codex virtual",
   "folder_path": "C:\\Users\\Ivan\\Desktop\\caht con codex virtual",
+  "agent_name": "Contexto",
+  "agent_cli_path": "",
+  "agent_config_instructions": "Para usar otro agente CLI, define AGENT_CLI_PATH en el entorno o usa CODEX_PATH como respaldo; el backend puede iniciar cualquier ejecutable compatible con app-server.",
   "codex_chat_link": "",
   "codex_thread_id": "",
   "context_summary": "Proyecto Node.js que publica un frontend estatico en GitHub Pages y ejecuta un backend local con SSE, sesiones, uploads y runtime gestionado. GitHub Pages sirve solo el frontend; el backend real vive en esta PC y se expone por localhost, tunel trycloudflare o tunel permanente.",
@@ -75,8 +78,8 @@
       "Estado GitHub Pages: gh api repos/ivanlipay-eng/cnc-tech-reportes/pages/builds/latest"
     ]
   },
-  "current_public_backend": "https://median-wal-abu-yea.trycloudflare.com",
+  "current_public_backend": "https://prompt-ventures-boulevard-blue.trycloudflare.com",
   "current_github_pages_url": "https://ivanlipay-eng.github.io/cnc-tech-reportes/public/",
   "last_updated": "2026-05-03T00:00:00-05:00",
-  "notes": "Forma operativa preferida para abrir el backend: npm.cmd run start:public-backend, esperar la URL trycloudflare activa, actualizar public/config.js con esa URL, regenerar GitHub Pages con npm.cmd run build:pages si hace falta y publicar en main. Regla permanente: no dejar cambios locales con version mas nueva que la pagina publica; cada cambio debe terminar con version incrementada, push a main y verificacion visual de GitHub Pages. codex-context.json es documentacion operativa local y no es necesario para el despliegue."
+  "notes": "Forma operativa preferida para abrir el backend: npm.cmd run start:public-backend, esperar la URL trycloudflare activa, actualizar public/config.js con esa URL, regenerar GitHub Pages con npm.cmd run build:pages si hace falta y publicar en main. Regla permanente: no dejar cambios locales con version mas nueva que la pagina publica; cada cambio debe terminar con version incrementada, push a main y verificacion visual de GitHub Pages. Para usar otro agente CLI, define AGENT_CLI_PATH en el entorno o configura CODEX_PATH como respaldo; si quieres cambiar el nombre del agente, define AGENT_NAME. codex-context.json documenta la operativa y no es necesario para el despliegue." 
 }

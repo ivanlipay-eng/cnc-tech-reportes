@@ -29,7 +29,8 @@ const CORS_ALLOWED_ORIGINS = String(process.env.CORS_ALLOWED_ORIGINS || "*")
   .map((item) => item.trim())
   .filter(Boolean);
 const GRAPHVIZ_DOT_COMMAND = resolveGraphvizDotCommand();
-const CODEX_COMMAND = resolveCodexCommand();
+const AGENT_NAME = process.env.AGENT_NAME || "Contexto";
+const AGENT_CLI_COMMAND = resolveAgentCommand();
 const RIPGREP_COMMAND = resolveRipgrepCommand();
 
 const sessions = new Map();
@@ -64,7 +65,7 @@ function sanitizeFileInfoForClient(fileInfo) {
   };
 }
 
-class CodexSession extends EventEmitter {
+class AgentSession extends EventEmitter {
   constructor({ id, name, workspacePath, formatDefinition }) {
     super();
     this.id = id;
@@ -73,7 +74,7 @@ class CodexSession extends EventEmitter {
     this.formatDefinition = formatDefinition || null;
     this.reportFormat = formatDefinition ? formatPublicSummary(formatDefinition) : null;
     this.threadId = null;
-    this.codexProcess = null;
+    this.agentProcess = null;
     this.buffer = "";
     this.pending = new Map();
     this.requestId = 1;
@@ -102,24 +103,24 @@ class CodexSession extends EventEmitter {
     const serviceName = String(options.serviceName || this.serviceName || "Contexto").trim();
 
     this.openingQuestion = openingQuestion || "Quien eres?";
-    this.serviceName = serviceName || "Contexto";
-    this.codexProcess = await spawnCodexProcess(this.workspacePath);
+    this.serviceName = serviceName || AGENT_NAME;
+    this.agentProcess = await spawnAgentProcess(this.workspacePath);
 
-    this.codexProcess.stdout.setEncoding("utf8");
-    this.codexProcess.stdout.on("data", (chunk) => this.#handleStdout(chunk));
-    this.codexProcess.stderr.setEncoding("utf8");
-    this.codexProcess.stderr.on("data", (chunk) => this.#handleStderr(chunk));
-    this.codexProcess.on("exit", (code, signal) => {
+    this.agentProcess.stdout.setEncoding("utf8");
+    this.agentProcess.stdout.on("data", (chunk) => this.#handleStdout(chunk));
+    this.agentProcess.stderr.setEncoding("utf8");
+    this.agentProcess.stderr.on("data", (chunk) => this.#handleStderr(chunk));
+    this.agentProcess.on("exit", (code, signal) => {
       this.closed = true;
       this.busy = false;
       this.status = "closed";
       this.#emitEvent("session-exit", {
         code,
         signal,
-        message: "La sesion de Contexto se cerro.",
+        message: `La sesion de ${AGENT_NAME} se cerro.`,
       });
       for (const { reject } of this.pending.values()) {
-        reject(new Error("Contexto se cerro antes de responder."));
+        reject(new Error(`${AGENT_NAME} se cerro antes de responder.`));
       }
       this.pending.clear();
     });
@@ -257,8 +258,8 @@ class CodexSession extends EventEmitter {
   }
 
   close() {
-    if (this.codexProcess && !this.codexProcess.killed) {
-      this.codexProcess.kill();
+    if (this.agentProcess && !this.agentProcess.killed) {
+      this.agentProcess.kill();
     }
   }
 
@@ -319,7 +320,7 @@ class CodexSession extends EventEmitter {
 
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
-      this.codexProcess.stdin.write(payload, (error) => {
+      this.agentProcess.stdin.write(payload, (error) => {
         if (error) {
           this.pending.delete(id);
           reject(error);
@@ -889,7 +890,7 @@ async function loadReportFormats() {
   }
 }
 
-function resolveCodexCommand() {
+function resolveAgentCommand() {
   const extensionRoot = path.join(os.homedir(), ".vscode", "extensions");
   const extensionCandidates = fsSync.existsSync(extensionRoot)
     ? fsSync.readdirSync(extensionRoot, { withFileTypes: true })
@@ -900,6 +901,7 @@ function resolveCodexCommand() {
     : [];
 
   const candidatePaths = [
+    process.env.AGENT_CLI_PATH,
     process.env.CODEX_PATH,
     ...extensionCandidates,
     path.join(
@@ -945,12 +947,12 @@ function resolveRipgrepCommand() {
   return foundPath || "rg";
 }
 
-function buildCodexSpawnEnv() {
+function buildAgentSpawnEnv() {
   const env = { ...process.env };
   const pathKey = Object.hasOwn(env, "Path") ? "Path" : "PATH";
   const separator = process.platform === "win32" ? ";" : ":";
   const toolDirs = [
-    path.dirname(CODEX_COMMAND),
+    path.dirname(AGENT_CLI_COMMAND),
     RIPGREP_COMMAND === "rg" ? "" : path.dirname(RIPGREP_COMMAND),
     GRAPHVIZ_DOT_COMMAND ? path.dirname(GRAPHVIZ_DOT_COMMAND) : "",
   ].filter(Boolean);
@@ -979,11 +981,11 @@ function buildCodexSpawnEnv() {
   return env;
 }
 
-async function spawnCodexProcess(workspacePath) {
+async function spawnAgentProcess(workspacePath) {
   return new Promise((resolve, reject) => {
-    const child = spawn(CODEX_COMMAND, ["app-server"], {
+    const child = spawn(AGENT_CLI_COMMAND, ["app-server"], {
       cwd: workspacePath,
-      env: buildCodexSpawnEnv(),
+      env: buildAgentSpawnEnv(),
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });
@@ -1003,7 +1005,7 @@ async function spawnCodexProcess(workspacePath) {
         return;
       }
       settled = true;
-      reject(new Error(`No se pudo iniciar Contexto: ${error.message}`));
+      reject(new Error(`No se pudo iniciar ${AGENT_NAME}: ${error.message}`));
     };
 
     child.once("error", onError);
@@ -3128,7 +3130,7 @@ async function createSessionFromWorkspace(options) {
     openWorkspaceInVsCode(workspacePath);
   }
 
-  const session = new CodexSession({
+  const session = new AgentSession({
     id: sessionId,
     name: sessionName,
     workspacePath,
@@ -4388,7 +4390,7 @@ async function bootstrap() {
   await fs.mkdir(TEMP_ZIP_DIR, { recursive: true });
   await loadReportFormats();
   server.listen(PORT, HOST, () => {
-    console.log(`Contexto listo en http://${HOST}:${PORT}`);
+    console.log(`${AGENT_NAME} listo en http://${HOST}:${PORT}`);
   });
 }
 
