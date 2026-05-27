@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://raised-tire-individually-powder.trycloudflare.com",
+  apiBaseUrl: "https://teens-followed-advertising-route.trycloudflare.com",
   brandLogoUrl: "",
 };

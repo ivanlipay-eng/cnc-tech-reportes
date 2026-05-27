@@ -176,8 +176,8 @@
       "contexto_formato_reporte/contexto_reporte_cnc_tech.tex",
       "reporte_cnc_tech_formativo.tex"
     ],
-    "participantProfilesDir": "C:\\Users\\Ivan\\Desktop\\contexto\\10_perfiles_participantes",
-    "scheduleDir": "C:\\Users\\Ivan\\Desktop\\contexto\\horarios",
+    "participantProfilesDir": "C:\\Users\\Ivan\\Desktop\\03 CNC\\Contexto cnc\\10_perfiles_participantes",
+    "scheduleDir": "C:\\Users\\Ivan\\Desktop\\03 CNC\\Contexto cnc\\horarios",
     "participantIndexTex": "indice_participantes_cnc.tex",
     "participantIndexPdf": "indice_participantes_cnc.pdf",
     "scheduleRegistryMd": "registro_horarios_participantes.md",
