@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://teens-followed-advertising-route.trycloudflare.com",
+  apiBaseUrl: "https://magnificent-deeply-affiliated-contributor.trycloudflare.com",
   brandLogoUrl: "",
 };
