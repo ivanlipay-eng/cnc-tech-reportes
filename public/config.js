@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://buffer-upgrading-neighbor-responses.trycloudflare.com",
+  apiBaseUrl: "https://financing-goto-forward-frequently.trycloudflare.com",
   brandLogoUrl: "",
 };

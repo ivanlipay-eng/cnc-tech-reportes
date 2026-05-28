@@ -66,10 +66,12 @@ function sanitizeFileInfoForClient(fileInfo) {
 }
 
 class AgentSession extends EventEmitter {
-  constructor({ id, name, workspacePath, formatDefinition }) {
+  constructor({ id, name, workspacePath, formatDefinition, baseReportTitle = "", initialLastName = "" }) {
     super();
     this.id = id;
     this.name = name;
+    this.baseReportTitle = String(baseReportTitle || name || "").trim();
+    this.initialLastName = String(initialLastName || "").trim();
     this.workspacePath = workspacePath;
     this.formatDefinition = formatDefinition || null;
     this.reportFormat = formatDefinition ? formatPublicSummary(formatDefinition) : null;
@@ -301,6 +303,7 @@ class AgentSession extends EventEmitter {
 
   setParticipantProfile(profile) {
     this.participantProfile = profile;
+    refreshSessionReportName(this);
     this.#emitEvent("session-updated", this.snapshot(false));
   }
 
@@ -310,6 +313,7 @@ class AgentSession extends EventEmitter {
       ...this.quickFields,
       ...sanitizeQuickFields(partialFields, this.formatDefinition),
     };
+    refreshSessionReportName(this);
     this.#emitEvent("session-updated", this.snapshot(false));
     return this.quickFields;
   }
@@ -2447,7 +2451,9 @@ async function requestExperimentalAction(session, actionId) {
 async function compileReportPdf(session) {
   const reportDir = session.reportProjectPath || path.dirname(session.reportTexPath || session.workspacePath);
   const reportTexPath = session.reportTexPath || path.join(reportDir, "reporte.tex");
-  const reportPdfPath = session.reportPdfPath || path.join(reportDir, "reporte.pdf");
+  const defaultPdfPath = path.join(reportDir, session.formatDefinition?.workspace?.reportPdfName || "reporte.pdf");
+  const desiredPdfName = `${buildSessionReportBaseName(session)}.pdf`;
+  const desiredPdfPath = path.join(reportDir, desiredPdfName);
   const latexmkEngine = session.formatDefinition?.compile?.latexmkEngine || "pdf";
   const latexmkEngineArg = getLatexmkEngineArg(latexmkEngine);
 
@@ -2501,12 +2507,17 @@ async function compileReportPdf(session) {
     });
   });
 
-  if (!(await pathExists(reportPdfPath))) {
+  if (!(await pathExists(defaultPdfPath))) {
     throw new Error("La compilacion termino sin generar el PDF del reporte.");
   }
 
+  if (path.resolve(defaultPdfPath) !== path.resolve(desiredPdfPath)) {
+    await fs.copyFile(defaultPdfPath, desiredPdfPath);
+  }
+  session.reportPdfPath = desiredPdfPath;
+
   return {
-    reportPdfPath,
+    reportPdfPath: desiredPdfPath,
     compiledAt: new Date().toISOString(),
   };
 }
@@ -2649,6 +2660,109 @@ function safeName(input) {
   return cleaned || "proyecto-contexto";
 }
 
+function safeReportNamePart(input, fallback = "reporte") {
+  const cleaned = String(input || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .replace(/[-\s]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase();
+  return cleaned || fallback;
+}
+
+function formatReportDateForName(value = "") {
+  const raw = String(value || "").trim();
+  const dmyMatch = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+  if (dmyMatch) {
+    const year = dmyMatch[3].length === 2 ? `20${dmyMatch[3]}` : dmyMatch[3];
+    return `${year}_${dmyMatch[2].padStart(2, "0")}_${dmyMatch[1].padStart(2, "0")}`;
+  }
+
+  const ymdMatch = raw.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+  if (ymdMatch) {
+    return `${ymdMatch[1]}_${ymdMatch[2].padStart(2, "0")}_${ymdMatch[3].padStart(2, "0")}`;
+  }
+
+  const now = new Date();
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("_");
+}
+
+function getParticipantLastName(profile) {
+  const name = String(profile?.name || "").trim();
+  if (!name) {
+    return "";
+  }
+  const tokens = name.split(/\s+/).filter(Boolean);
+  return tokens.length ? tokens[tokens.length - 1] : "";
+}
+
+function getReportTitleForName(sessionOrTitle, fallback = "reporte") {
+  if (typeof sessionOrTitle === "string") {
+    return safeReportNamePart(sessionOrTitle, fallback);
+  }
+
+  const session = sessionOrTitle || {};
+  const quickFields = session.quickFields || {};
+  const title = quickFields.reportTopic
+    || quickFields.topic
+    || quickFields.reportTitle
+    || session.baseReportTitle
+    || session.name
+    || fallback;
+  return safeReportNamePart(title, fallback);
+}
+
+function buildReportBaseName(options = {}) {
+  const title = safeReportNamePart(options.title || "reporte", "reporte");
+  const lastName = safeReportNamePart(options.lastName || "sin_apellido", "sin_apellido");
+  const date = formatReportDateForName(options.date || "");
+  return `reporte_${title}_${lastName}_${date}`;
+}
+
+function buildSessionReportBaseName(session) {
+  const quickFields = session?.quickFields || {};
+  return buildReportBaseName({
+    title: getReportTitleForName(session, "reporte"),
+    lastName: getParticipantLastName(session?.participantProfile) || session?.initialLastName || "sin_apellido",
+    date: quickFields.reportDate || "",
+  });
+}
+
+function refreshSessionReportName(session) {
+  if (!session) {
+    return "";
+  }
+
+  const nextName = buildSessionReportBaseName(session);
+  session.name = nextName;
+  if (session.reportProjectPath && session.formatDefinition?.workspace?.reportPdfName) {
+    session.reportPdfPath = path.join(session.reportProjectPath, `${nextName}.pdf`);
+  }
+  return nextName;
+}
+
+async function ensureUniqueDirectoryPath(rootPath, requestedName) {
+  const baseName = safeReportNamePart(requestedName, "proyecto_contexto");
+  let candidateName = baseName;
+  let attempt = 1;
+
+  while (await pathExists(path.join(rootPath, candidateName))) {
+    attempt += 1;
+    candidateName = `${baseName}_${attempt}`;
+  }
+
+  return {
+    directoryName: candidateName,
+    directoryPath: path.join(rootPath, candidateName),
+  };
+}
+
 function safeUploadName(input) {
   const baseName = path.basename(String(input || "").trim());
   const cleaned = baseName.replace(/[<>:"/\\|?*\x00-\x1f]/g, "_");
@@ -2755,9 +2869,16 @@ async function revertTexImageReference(session, finalName, requestedName) {
   return true;
 }
 
-async function createWorkspaceFolder(requestedName, formatDefinition) {
-  const folderName = `${safeName(requestedName)}-${Date.now()}`;
-  const workspacePath = path.join(WORKSPACES_ROOT, folderName);
+async function createWorkspaceFolder(requestedName, formatDefinition, options = {}) {
+  const folderBaseName = buildReportBaseName({
+    title: requestedName || formatDefinition?.label || "reporte",
+    lastName: options.lastName || "sin_apellido",
+    date: options.reportDate || "",
+  });
+  const {
+    directoryName: folderName,
+    directoryPath: workspacePath,
+  } = await ensureUniqueDirectoryPath(WORKSPACES_ROOT, folderBaseName);
   await fs.mkdir(workspacePath, { recursive: true });
   const projectLayout = await seedWorkspaceReportProject(workspacePath, formatDefinition);
   return { folderName, workspacePath, ...projectLayout };
@@ -2919,6 +3040,8 @@ function serializeSessionForSharedProject(session) {
     projectId: session.sharedProjectId,
     formatId: session.formatDefinition?.id || "",
     sessionName: session.name,
+    baseReportTitle: session.baseReportTitle || "",
+    initialLastName: session.initialLastName || "",
     openingQuestion: session.openingQuestion,
     serviceName: session.serviceName,
     participantProfile: session.participantProfile || null,
@@ -2935,6 +3058,8 @@ function serializeSessionForSharedProject(session) {
 
 function restoreSessionFromSharedProject(session, metadata = {}) {
   session.sharedProjectId = String(metadata.projectId || session.sharedProjectId || "").trim().toUpperCase();
+  session.baseReportTitle = String(metadata.baseReportTitle || session.baseReportTitle || metadata.sessionName || "").trim();
+  session.initialLastName = String(metadata.initialLastName || session.initialLastName || "").trim();
   session.openingQuestion = String(metadata.openingQuestion || session.openingQuestion || "Quien eres?").trim() || "Quien eres?";
   session.serviceName = String(metadata.serviceName || session.serviceName || "Contexto").trim() || "Contexto";
   session.participantProfile = metadata.participantProfile && typeof metadata.participantProfile === "object"
@@ -2956,6 +3081,7 @@ function restoreSessionFromSharedProject(session, metadata = {}) {
     ? metadata.uploadedFiles.map((fileInfo) => deserializeSharedUpload(session, fileInfo)).slice(0, 12)
     : [];
   session.history = Array.isArray(metadata.history) ? metadata.history : [];
+  refreshSessionReportName(session);
 }
 
 async function persistSharedProject(session) {
@@ -3135,6 +3261,8 @@ async function createSessionFromWorkspace(options) {
     name: sessionName,
     workspacePath,
     formatDefinition,
+    baseReportTitle: options.baseReportTitle || sessionName,
+    initialLastName: options.initialLastName || "",
   });
   session.reportProjectPath = projectLayout.reportProjectPath;
   session.reportTexPath = projectLayout.reportTexPath;
@@ -3146,6 +3274,8 @@ async function createSessionFromWorkspace(options) {
 
   if (restoredState) {
     restoreSessionFromSharedProject(session, restoredState);
+  } else {
+    refreshSessionReportName(session);
   }
 
   sessions.set(session.id, session);
@@ -3185,6 +3315,8 @@ async function loadSessionFromSharedProject(projectId, options = {}) {
     openInVsCode: options.openInVsCode !== false,
     sharedProjectId: normalizedProjectId,
     restoredState: metadata,
+    baseReportTitle: metadata.baseReportTitle || metadata.sessionName || normalizedProjectId,
+    initialLastName: metadata.initialLastName || "",
   });
 
   await persistSharedProjectSafely(session);
@@ -3766,12 +3898,17 @@ async function handleApi(request, response) {
     const {
       folderName,
       workspacePath,
-    } = await createWorkspaceFolder(body.name, formatDefinition);
+    } = await createWorkspaceFolder(body.name, formatDefinition, {
+      lastName: body.lastName,
+      reportDate: body.reportDate,
+    });
     const session = await createSessionFromWorkspace({
       sessionName: folderName,
       workspacePath,
       formatDefinition,
       openInVsCode: body.openInVsCode,
+      baseReportTitle: body.name || folderName,
+      initialLastName: body.lastName || "",
     });
     await persistSharedProjectSafely(session);
     json(response, 201, session.snapshot());
