@@ -66,12 +66,11 @@ function sanitizeFileInfoForClient(fileInfo) {
 }
 
 class AgentSession extends EventEmitter {
-  constructor({ id, name, workspacePath, formatDefinition, baseReportTitle = "", initialLastName = "" }) {
+  constructor({ id, name, workspacePath, formatDefinition, baseReportTitle = "" }) {
     super();
     this.id = id;
     this.name = name;
     this.baseReportTitle = String(baseReportTitle || name || "").trim();
-    this.initialLastName = String(initialLastName || "").trim();
     this.workspacePath = workspacePath;
     this.formatDefinition = formatDefinition || null;
     this.reportFormat = formatDefinition ? formatPublicSummary(formatDefinition) : null;
@@ -104,6 +103,9 @@ class AgentSession extends EventEmitter {
     const openingQuestion = String(options.openingQuestion || this.openingQuestion || "Quien eres?").trim();
     const serviceName = String(options.serviceName || this.serviceName || "Contexto").trim();
 
+    this.closed = false;
+    this.status = "starting";
+    this.busy = false;
     this.openingQuestion = openingQuestion || "Quien eres?";
     this.serviceName = serviceName || AGENT_NAME;
     this.agentProcess = await spawnAgentProcess(this.workspacePath);
@@ -1637,6 +1639,7 @@ async function maybeResolveDriveParticipant(session, inputText) {
       folderPath: driveMatch.folderPath,
     };
     session.setParticipantProfile(profile);
+    await renameWorkspaceForSession(session);
     session.pendingParticipantFullNameAnnouncement = profile.name || "";
     return { profile, newlyIdentified: true };
   }
@@ -1666,6 +1669,7 @@ async function maybeResolveParticipantProfile(session, inputText) {
 
   const profile = await buildParticipantProfile(participant);
   session.setParticipantProfile(profile);
+  await renameWorkspaceForSession(session);
   session.pendingParticipantFullNameAnnouncement = profile.name || "";
   return {
     profile,
@@ -2729,7 +2733,7 @@ function buildSessionReportBaseName(session) {
   const quickFields = session?.quickFields || {};
   return buildReportBaseName({
     title: getReportTitleForName(session, "reporte"),
-    lastName: getParticipantLastName(session?.participantProfile) || session?.initialLastName || "sin_apellido",
+    lastName: getParticipantLastName(session?.participantProfile) || "sin_apellido",
     date: quickFields.reportDate || "",
   });
 }
@@ -2745,6 +2749,113 @@ function refreshSessionReportName(session) {
     session.reportPdfPath = path.join(session.reportProjectPath, `${nextName}.pdf`);
   }
   return nextName;
+}
+
+function updateSessionWorkspacePaths(session, workspacePath) {
+  const projectLayout = getWorkspaceProjectLayout(workspacePath, session.formatDefinition);
+  session.workspacePath = workspacePath;
+  session.reportProjectPath = projectLayout.reportProjectPath;
+  session.reportTexPath = projectLayout.reportTexPath;
+  session.imagesDir = projectLayout.imagesDir;
+  session.filesDir = projectLayout.filesDir;
+  session.exportDir = projectLayout.exportDir;
+  refreshSessionReportName(session);
+}
+
+async function renameWorkspaceForSession(session) {
+  if (!session?.workspacePath || !session.participantProfile?.name) {
+    return false;
+  }
+
+  const rootPath = path.resolve(WORKSPACES_ROOT);
+  const currentPath = path.resolve(session.workspacePath);
+  if (currentPath !== rootPath && !currentPath.startsWith(`${rootPath}${path.sep}`)) {
+    return false;
+  }
+
+  const desiredBaseName = buildSessionReportBaseName(session);
+  if (path.basename(currentPath) === desiredBaseName) {
+    return false;
+  }
+
+  let targetPath = path.join(WORKSPACES_ROOT, desiredBaseName);
+  let attempt = 1;
+  while (await pathExists(targetPath) && path.resolve(targetPath) !== currentPath) {
+    attempt += 1;
+    targetPath = path.join(WORKSPACES_ROOT, `${desiredBaseName}_${attempt}`);
+  }
+
+  if (path.resolve(targetPath) === currentPath) {
+    return false;
+  }
+
+  const renameToTarget = async () => {
+    await fs.rename(currentPath, targetPath);
+    updateSessionWorkspacePaths(session, targetPath);
+    return true;
+  };
+
+  try {
+    return await renameToTarget();
+  } catch (error) {
+    if (!["EBUSY", "EPERM"].includes(error.code) || session.busy) {
+      console.warn(`[workspace:${session.id}] No se pudo renombrar el workspace: ${error.message}`);
+      return false;
+    }
+  }
+
+  const stopped = await stopSessionAgentForWorkspaceMove(session);
+  try {
+    return await renameToTarget();
+  } catch (error) {
+    console.warn(`[workspace:${session.id}] No se pudo renombrar el workspace: ${error.message}`);
+    return false;
+  } finally {
+    if (stopped) {
+      await restartSessionAgentAfterWorkspaceMove(session);
+    }
+  }
+}
+
+async function stopSessionAgentForWorkspaceMove(session) {
+  const child = session?.agentProcess;
+  if (!child || child.killed) {
+    return false;
+  }
+
+  await new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (!settled) {
+        settled = true;
+        resolve();
+      }
+    };
+    child.once("exit", finish);
+    child.kill();
+    setTimeout(finish, 6000);
+  });
+
+  session.agentProcess = null;
+  session.threadId = null;
+  session.closed = false;
+  session.status = "starting";
+  session.busy = false;
+  return true;
+}
+
+async function restartSessionAgentAfterWorkspaceMove(session) {
+  const projectLayout = getWorkspaceProjectLayout(session.workspacePath, session.formatDefinition);
+  const developerInstructions = await buildReportBotInstructions(
+    session.workspacePath,
+    projectLayout,
+    session.formatDefinition
+  );
+  await session.start({
+    developerInstructions,
+    openingQuestion: session.openingQuestion,
+    serviceName: session.serviceName,
+  });
 }
 
 async function ensureUniqueDirectoryPath(rootPath, requestedName) {
@@ -2872,7 +2983,7 @@ async function revertTexImageReference(session, finalName, requestedName) {
 async function createWorkspaceFolder(requestedName, formatDefinition, options = {}) {
   const folderBaseName = buildReportBaseName({
     title: requestedName || formatDefinition?.label || "reporte",
-    lastName: options.lastName || "sin_apellido",
+    lastName: "sin_apellido",
     date: options.reportDate || "",
   });
   const {
@@ -3041,7 +3152,6 @@ function serializeSessionForSharedProject(session) {
     formatId: session.formatDefinition?.id || "",
     sessionName: session.name,
     baseReportTitle: session.baseReportTitle || "",
-    initialLastName: session.initialLastName || "",
     openingQuestion: session.openingQuestion,
     serviceName: session.serviceName,
     participantProfile: session.participantProfile || null,
@@ -3059,7 +3169,6 @@ function serializeSessionForSharedProject(session) {
 function restoreSessionFromSharedProject(session, metadata = {}) {
   session.sharedProjectId = String(metadata.projectId || session.sharedProjectId || "").trim().toUpperCase();
   session.baseReportTitle = String(metadata.baseReportTitle || session.baseReportTitle || metadata.sessionName || "").trim();
-  session.initialLastName = String(metadata.initialLastName || session.initialLastName || "").trim();
   session.openingQuestion = String(metadata.openingQuestion || session.openingQuestion || "Quien eres?").trim() || "Quien eres?";
   session.serviceName = String(metadata.serviceName || session.serviceName || "Contexto").trim() || "Contexto";
   session.participantProfile = metadata.participantProfile && typeof metadata.participantProfile === "object"
@@ -3262,7 +3371,6 @@ async function createSessionFromWorkspace(options) {
     workspacePath,
     formatDefinition,
     baseReportTitle: options.baseReportTitle || sessionName,
-    initialLastName: options.initialLastName || "",
   });
   session.reportProjectPath = projectLayout.reportProjectPath;
   session.reportTexPath = projectLayout.reportTexPath;
@@ -3316,7 +3424,6 @@ async function loadSessionFromSharedProject(projectId, options = {}) {
     sharedProjectId: normalizedProjectId,
     restoredState: metadata,
     baseReportTitle: metadata.baseReportTitle || metadata.sessionName || normalizedProjectId,
-    initialLastName: metadata.initialLastName || "",
   });
 
   await persistSharedProjectSafely(session);
@@ -3899,7 +4006,6 @@ async function handleApi(request, response) {
       folderName,
       workspacePath,
     } = await createWorkspaceFolder(body.name, formatDefinition, {
-      lastName: body.lastName,
       reportDate: body.reportDate,
     });
     const session = await createSessionFromWorkspace({
@@ -3908,7 +4014,6 @@ async function handleApi(request, response) {
       formatDefinition,
       openInVsCode: body.openInVsCode,
       baseReportTitle: body.name || folderName,
-      initialLastName: body.lastName || "",
     });
     await persistSharedProjectSafely(session);
     json(response, 201, session.snapshot());

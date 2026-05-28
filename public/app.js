@@ -29,7 +29,6 @@ let activeApiRoot = activeApiBaseUrl ? `${activeApiBaseUrl}/api` : "/api";
 
 const form = document.getElementById("session-form");
 const folderInput = document.getElementById("folder-name");
-const participantLastNameInput = document.getElementById("participant-last-name");
 const reportFormatSelect = document.getElementById("report-format");
 const collaborationShell = document.getElementById("collaboration-shell");
 const collaborationToggle = document.getElementById("collaboration-toggle");
@@ -1389,7 +1388,6 @@ form.addEventListener("submit", async (event) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: folderInput.value,
-        lastName: participantLastNameInput?.value || "",
         formatId: reportFormatSelect?.value || state.selectedFormatId || "",
         openInVsCode: true,
       }),
