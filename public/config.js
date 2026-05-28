@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://magnificent-deeply-affiliated-contributor.trycloudflare.com",
+  apiBaseUrl: "https://buffer-upgrading-neighbor-responses.trycloudflare.com",
   brandLogoUrl: "",
 };
