@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://prefix-participant-viewed-likelihood.trycloudflare.com",
+  apiBaseUrl: "https://exploration-protective-oct-environments.trycloudflare.com",
   brandLogoUrl: "",
 };
