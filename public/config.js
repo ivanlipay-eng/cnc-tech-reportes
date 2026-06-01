@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://exploration-protective-oct-environments.trycloudflare.com",
+  apiBaseUrl: "https://bristol-tracking-highways-hop.trycloudflare.com",
   brandLogoUrl: "",
 };
