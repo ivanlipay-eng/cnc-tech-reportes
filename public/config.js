@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://bristol-tracking-highways-hop.trycloudflare.com",
+  apiBaseUrl: "https://wagner-payment-nation-vault.trycloudflare.com",
   brandLogoUrl: "",
 };
