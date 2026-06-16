@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://wagner-payment-nation-vault.trycloudflare.com",
+  apiBaseUrl: "https://libs-circulation-clothing-brakes.trycloudflare.com",
   brandLogoUrl: "",
 };
