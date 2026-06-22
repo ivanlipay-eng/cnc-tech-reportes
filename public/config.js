@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://libs-circulation-clothing-brakes.trycloudflare.com",
+  apiBaseUrl: "https://cloth-bracket-synopsis-purposes.trycloudflare.com",
   brandLogoUrl: "",
 };
