@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="title desc">
+  <title id="title">CNC Tech</title>
+  <desc id="desc">Marca visual de CNC Tech Reportes</desc>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b2e4a"/>
+      <stop offset="100%" stop-color="#1fb6ff"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="10" width="140" height="140" rx="28" fill="url(#g)"/>
+  <path d="M48 52h44v12H60v20h26v12H60v20h32v12H48z" fill="#f5fbff"/>
+  <path d="M106 52h12l18 56h-13l-3-11h-18l-3 11H86zm-1 34h12l-6-21z" fill="#f5fbff"/>
+  <path d="M48 122h88v8H48z" fill="#9ee4ff" opacity="0.95"/>
+</svg>

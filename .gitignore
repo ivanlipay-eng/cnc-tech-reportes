@@ -8,7 +8,6 @@ shared-projects/
 *.out.log
 *.err.log
 
-docs/
 plantilla_reporte_fdm_tech/
 
 reporte_cnc_tech_formativo/**/*.aux

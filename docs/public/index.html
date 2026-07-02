@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>Asistente de Reportes CNC Tech</title>
+    <link rel="icon" type="image/png" href="./favicon-circle.png?v=1.2.51" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="./styles.css?v=1.2.51" />
+  </head>
+  <body>
+    <div id="app-version-badge" class="app-version-badge">Version 1.2.51</div>
+    <div id="upload-overlay" class="download-overlay upload-overlay" hidden>
+      <div id="upload-card" class="download-card upload-card">
+        <div class="download-eyebrow">Subiendo archivo</div>
+        <div class="upload-title-row">
+          <strong id="upload-title" class="download-title">Preparando carga</strong>
+          <span id="upload-complete-icon" class="upload-complete-icon" hidden aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="M9.55 16.6 5.7 12.75l-1.4 1.4 5.25 5.25L20 8.95l-1.4-1.4z"></path>
+            </svg>
+          </span>
+        </div>
+        <div class="download-progress-track upload-progress-track">
+          <div id="upload-progress-bar" class="download-progress-bar upload-progress-bar"></div>
+        </div>
+        <div class="download-progress-meta">
+          <span id="upload-progress-percent">0%</span>
+          <span id="upload-progress-detail">Esperando datos...</span>
+        </div>
+      </div>
+    </div>
+    <div id="download-overlay" class="download-overlay" hidden>
+      <div class="download-card">
+        <div class="download-eyebrow">Descargando ZIP</div>
+        <strong id="download-title" class="download-title">Preparando proyecto</strong>
+        <div class="download-progress-track">
+          <div id="download-progress-bar" class="download-progress-bar"></div>
+        </div>
+        <div class="download-progress-meta">
+          <span id="download-progress-percent">0%</span>
+          <span id="download-progress-detail">Esperando datos...</span>
+        </div>
+      </div>
+    </div>
+    <div id="participant-animation-overlay" class="participant-animation-overlay" hidden aria-hidden="true">
+      <video
+        id="participant-animation-video"
+        class="participant-animation-video"
+        autoplay
+        muted
+        playsinline
+        preload="auto"
+      >
+        <source id="participant-animation-source-mp4" src="./ruben-pinas.mp4?v=1.3.7" type="video/mp4" />
+        <source id="participant-animation-source-webm" src="./ruben-pinas-transparent.webm?v=1.3.7" type="video/webm" />
+      </video>
+    </div>
+    <header class="ribbon-shell">
+      <div class="ribbon-topline">
+        <div class="topbar-brand">
+          <img class="brand-logo" src="./cnc-tech-logo.png?v=1.3.7" alt="Logo real de CNC Tech" />
+          <div class="brand-copy">
+            <span class="brand-kicker">CNC Tech</span>
+            <strong class="brand-title">Centro de reportes</strong>
+          </div>
+        </div>
+
+        <nav class="ribbon-tab-row" aria-label="Herramientas">
+          <button type="button" class="ribbon-tab is-active" data-toolbar-target="session">Sesión</button>
+          <button id="theme-toggle" type="button" class="ribbon-theme-button" aria-pressed="false">
+            Tema oscuro
+          </button>
+          <button type="button" class="ribbon-tab" data-toolbar-target="acciones">Acciones</button>
+          <button type="button" class="ribbon-tab ribbon-tab-stacked" data-toolbar-target="evidencia">
+            <span>Evidencia</span>
+            <span>solicitada</span>
+          </button>
+          <button type="button" class="ribbon-tab ribbon-tab-stacked" data-toolbar-target="subidos">
+            <span>Archivos</span>
+            <span>subidos</span>
+          </button>
+          <button type="button" class="ribbon-tab" data-toolbar-target="proyectos">Proyectos</button>
+          <button type="button" class="ribbon-tab ribbon-tab-stacked ribbon-tab-experimental" data-toolbar-target="experimental">
+            <span>Funciones</span>
+            <span>experimentales</span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="ribbon-drawer">
+        <section class="ribbon-panel is-active" data-toolbar-panel="session">
+          <div class="session-panel-stack">
+            <form id="session-form" class="toolbar-session-form">
+              <label class="field toolbar-field toolbar-field-wide">
+                <span>Titulo del reporte</span>
+                <input id="folder-name" name="folderName" placeholder="sensor inductivo conteo piezas" />
+              </label>
+
+              <label class="field toolbar-field toolbar-field-wide">
+                <span>Formato</span>
+                <select id="report-format" name="formatId">
+                  <option value="">Cargando formatos...</option>
+                </select>
+              </label>
+
+              <button id="create-session" type="submit">Crear proyecto</button>
+            </form>
+
+            <div id="collaboration-shell" class="toolbar-collaboration-shell" hidden>
+              <button
+                id="collaboration-toggle"
+                type="button"
+                class="toolbar-collaboration-toggle"
+                aria-expanded="false"
+                aria-controls="collaboration-panel"
+              >
+                <span class="toolbar-collaboration-toggle-copy">
+                  <strong>Trabajo en grupo</strong>
+                  <span id="collaboration-toggle-hint" class="toolbar-collaboration-toggle-hint">
+                    Mostrar opciones de colaboracion
+                  </span>
+                </span>
+                <span class="toolbar-collaboration-toggle-icon" aria-hidden="true"></span>
+              </button>
+
+              <div id="collaboration-panel" class="toolbar-collaboration" hidden>
+                <div class="collaboration-card">
+                  <div class="collaboration-copy">
+                    <strong>Trabajo en grupo</strong>
+                    <div class="panel-note collaboration-note">
+                      Comparte el ID del proyecto o carga uno existente. Ambas PCs deben apuntar a este mismo backend.
+                    </div>
+                  </div>
+
+                  <div class="collaboration-row">
+                    <label class="field toolbar-field toolbar-field-wide collaboration-field">
+                      <span>ID del proyecto</span>
+                      <input id="shared-project-id" readonly placeholder="Se genera al crear el proyecto" />
+                    </label>
+                    <button id="copy-shared-project-id" type="button" class="secondary-button" disabled>
+                      Copiar ID
+                    </button>
+                  </div>
+
+                  <div class="collaboration-row">
+                    <label class="field toolbar-field toolbar-field-wide collaboration-field">
+                      <span>Cargar proyecto por ID</span>
+                      <input id="load-shared-project-id" placeholder="Ejemplo: UNI-AB12CD34" />
+                    </label>
+                    <button id="load-shared-project" type="button" class="secondary-button">
+                      Cargar proyecto
+                    </button>
+                  </div>
+
+                  <div id="collaboration-status" class="upload-status">
+                    Disponible en cualquier modo de trabajo.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="session-meta" class="meta top-meta empty toolbar-session-meta">
+              Todavía no hay una sesión activa.
+            </div>
+          </div>
+        </section>
+
+        <section class="ribbon-panel" data-toolbar-panel="acciones">
+          <div class="toolbar-button-row">
+            <a id="download-zip" class="secondary-button disabled" href="#" aria-disabled="true">
+              Descargar ZIP
+            </a>
+            <button id="upload-files-trigger" type="button" class="secondary-button upload-button disabled" aria-disabled="true" disabled>
+              Subir archivos
+            </button>
+            <button id="upload-word-source-trigger" type="button" class="secondary-button upload-button disabled" aria-disabled="true" disabled>
+              Usar Word como fuente
+            </button>
+            <button id="sync-images" type="button" class="secondary-button" disabled>
+              Actualizar imagenes
+            </button>
+            <button id="compile-report" type="button" class="secondary-button" disabled>
+              Compilar PDF
+            </button>
+            <button id="upload-drive" type="button" class="secondary-button disabled" aria-disabled="true" disabled>
+              Subir proyecto a Drive
+            </button>
+            <input id="upload-files" type="file" multiple hidden disabled />
+            <input id="upload-word-source" type="file" accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden disabled />
+          </div>
+          <div id="upload-status" class="upload-status">Sin sesión activa</div>
+        </section>
+
+        <section class="ribbon-panel" data-toolbar-panel="evidencia">
+          <div class="toolbar-evidence-stack">
+            <div class="toolbar-evidence-row">
+              <label class="field compact-field evidence-field toolbar-field toolbar-field-wide">
+                <span>Imagen solicitada</span>
+                <select id="requested-image-select" disabled>
+                  <option value="">Todavia no hay imagenes pendientes</option>
+                </select>
+              </label>
+              <button id="upload-requested-image-trigger" type="button" class="secondary-button upload-button disabled" aria-disabled="true" disabled>
+                Subir imagen solicitada
+              </button>
+              <input id="upload-requested-image" type="file" accept="image/*" hidden disabled />
+            </div>
+            <div class="toolbar-evidence-row toolbar-evidence-row-secondary">
+              <label class="field compact-field evidence-field toolbar-field toolbar-field-wide">
+                <span>Usar imagen ya subida</span>
+                <select id="requested-image-existing-select" disabled>
+                  <option value="">No hay imagenes subidas disponibles</option>
+                </select>
+              </label>
+              <button id="associate-requested-image-trigger" type="button" class="secondary-button disabled" aria-disabled="true" disabled>
+                Asociar imagen ya subida
+              </button>
+            </div>
+          </div>
+          <div id="requested-image-status" class="upload-status">Sin imagen solicitada</div>
+        </section>
+
+        <section class="ribbon-panel" data-toolbar-panel="subidos">
+          <ul id="uploaded-files-list" class="uploaded-files-list uploaded-files-inline">
+            <li class="empty">Nada todavia</li>
+          </ul>
+        </section>
+
+        <section class="ribbon-panel" data-toolbar-panel="proyectos">
+          <div class="projects-toolbar-grid">
+            <section class="projects-toolbar-column">
+              <div class="projects-toolbar-header">
+                <div>
+                  <strong>Proyectos creados</strong>
+                  <div class="panel-note">Historial de carpetas creadas en este equipo, asociado a su codigo cuando exista.</div>
+                </div>
+                <button id="refresh-local-projects" type="button" class="secondary-button">Actualizar</button>
+              </div>
+              <div id="local-projects-status" class="upload-status">Cargando proyectos creados...</div>
+              <ul id="local-projects-list" class="uploaded-files-list projects-list">
+                <li class="empty">Cargando...</li>
+              </ul>
+            </section>
+
+            <section class="projects-toolbar-column">
+              <div class="projects-toolbar-header">
+                <div>
+                  <strong>Drive personal</strong>
+                  <div class="panel-note">Elementos reales dentro de las carpetas de proyectos del Drive personal.</div>
+                </div>
+                <button id="refresh-drive-projects" type="button" class="secondary-button">Actualizar</button>
+              </div>
+              <div id="drive-projects-status" class="upload-status">Cargando proyectos del Drive personal...</div>
+              <ul id="drive-projects-list" class="uploaded-files-list projects-list">
+                <li class="empty">Cargando...</li>
+              </ul>
+            </section>
+          </div>
+        </section>
+
+        <section class="ribbon-panel ribbon-panel-experimental" data-toolbar-panel="experimental">
+          <div class="experimental-panel-shell">
+            <div class="experimental-panel-copy">
+              <strong>Funciones experimentales</strong>
+              <div class="panel-note experimental-panel-note">
+                Estas acciones lanzan prompts internos para empujar mejoras que Contexto no haria por defecto.
+              </div>
+            </div>
+            <div id="experimental-actions" class="experimental-actions-grid">
+              <button type="button" class="secondary-button experimental-button" data-experimental-action="graphviz-opportunities" disabled>
+                Añadir graficos
+              </button>
+              <button type="button" class="secondary-button experimental-button" data-experimental-action="improve-syntax" disabled>
+                Mejorar sintaxis
+              </button>
+              <button type="button" class="secondary-button experimental-button" data-experimental-action="technical-enrichment" disabled>
+                Enriquecer tecnica
+              </button>
+              <button type="button" class="secondary-button experimental-button" data-experimental-action="strengthen-conclusions" disabled>
+                Reforzar conclusiones
+              </button>
+              <button type="button" class="secondary-button experimental-button" data-experimental-action="find-missing-references" disabled>
+                Buscar referencias faltantes
+              </button>
+              <button type="button" class="secondary-button experimental-button" data-experimental-action="convert-lists-to-tables" disabled>
+                Convertir listas en cuadros
+              </button>
+              <button type="button" class="secondary-button experimental-button" data-experimental-action="detect-repetitions" disabled>
+                Detectar repeticiones
+              </button>
+              <button type="button" class="secondary-button experimental-button" data-experimental-action="review-chronology" disabled>
+                Revisar coherencia cronologica
+              </button>
+              <button type="button" class="secondary-button experimental-button" data-experimental-action="normalize-consistency" disabled>
+                Unificar estilo
+              </button>
+              <button type="button" class="secondary-button experimental-button" data-experimental-action="detect-gaps" disabled>
+                Detectar huecos
+              </button>
+              <button type="button" class="secondary-button experimental-button" data-experimental-action="compress-report" disabled>
+                Compactar reporte
+              </button>
+            </div>
+            <div id="experimental-status" class="upload-status">Sin sesión activa</div>
+          </div>
+        </section>
+      </div>
+    </header>
+
+    <main class="layout">
+
+      <section class="workspace-main">
+        <aside id="quick-drawer" class="panel quick-drawer">
+          <button id="quick-drawer-toggle" type="button" class="quick-drawer-toggle" aria-expanded="false" aria-controls="quick-drawer-body" title="Abrir panel rapido">
+            <span class="quick-drawer-toggle-inner">
+              <span class="quick-drawer-toggle-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M4 7.25C4 6.56 4.56 6 5.25 6h4.5C10.44 6 11 6.56 11 7.25s-.56 1.25-1.25 1.25h-4.5C4.56 8.5 4 7.94 4 7.25zm9 0C13 6.56 13.56 6 14.25 6h4.5C19.44 6 20 6.56 20 7.25s-.56 1.25-1.25 1.25h-4.5C13.56 8.5 13 7.94 13 7.25zM4 12c0-.69.56-1.25 1.25-1.25h8.5c.69 0 1.25.56 1.25 1.25s-.56 1.25-1.25 1.25h-8.5C4.56 13.25 4 12.69 4 12zm13 0c0-.69.56-1.25 1.25-1.25h.5c.69 0 1.25.56 1.25 1.25s-.56 1.25-1.25 1.25h-.5c-.69 0-1.25-.56-1.25-1.25zM4 16.75c0-.69.56-1.25 1.25-1.25h1.5c.69 0 1.25.56 1.25 1.25S7.44 18 6.75 18h-1.5C4.56 18 4 17.44 4 16.75zm5 0c0-.69.56-1.25 1.25-1.25h8.5c.69 0 1.25.56 1.25 1.25S19.44 18 18.75 18h-8.5C9.56 18 9 17.44 9 16.75z"></path>
+                </svg>
+              </span>
+              <span id="quick-drawer-toggle-label" class="quick-drawer-toggle-label">Abrir panel</span>
+            </span>
+          </button>
+          <div id="quick-drawer-body" class="quick-drawer-body" hidden>
+            <div class="quick-panel-shell">
+              <div class="quick-panel-heading">
+                <strong id="quick-panel-title">Panel rapido</strong>
+                <span id="quick-panel-description" class="quick-panel-description">Campos segun el formato activo</span>
+              </div>
+              <div id="quick-panel-fields" class="quick-panel-grid quick-panel-grid-compact"></div>
+              <div class="quick-panel-actions-row quick-panel-actions-row-wide">
+                <button id="apply-quick-fields" type="button" disabled>Aplicar</button>
+              </div>
+              <div id="quick-panel-status" class="upload-status">Sin sesión activa</div>
+            </div>
+          </div>
+        </aside>
+
+        <section class="panel chat-panel">
+          <div class="panel-head panel-head-stacked">
+            <div>
+              <strong>Chat de reporte</strong>
+              <div id="chat-drop-hint" class="chat-drop-hint">
+                Puedes pegar imagenes con Ctrl+V o arrastrarlas aquí para subirlas a la sesión.
+              </div>
+            </div>
+            <span id="status-pill" class="status">Sin sesión</span>
+          </div>
+
+          <div id="messages" class="messages"></div>
+          <div id="bot-thinking" class="thinking-indicator" hidden aria-live="polite" aria-label="Procesando respuesta">
+            <div class="thinking-bubble" aria-hidden="true">
+              <span class="thinking-dot"></span>
+              <span class="thinking-dot"></span>
+              <span class="thinking-dot"></span>
+            </div>
+            <div id="thinking-fact-bar" class="thinking-fact-bar" hidden>
+              <span id="thinking-fact-text" class="thinking-fact-text"></span>
+            </div>
+          </div>
+
+          <form id="chat-form" class="chat-form">
+            <textarea
+              id="chat-input"
+              rows="4"
+              placeholder="Empieza respondiendo: Quien eres?"
+              disabled
+            ></textarea>
+            <div class="chat-actions">
+              <div class="chat-actions-note">Chat y evidencias en una misma vista.</div>
+              <button id="send-message" type="submit" disabled>Enviar</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel report-panel">
+          <div class="panel-head">
+            <strong>PDF del reporte</strong>
+            <div class="panel-actions">
+              <button id="view-pdf" type="button" class="secondary-button" disabled>
+                Compilar PDF
+              </button>
+              <span id="pdf-status" class="panel-note">Al crear el proyecto se intentara abrir el PDF automaticamente</span>
+            </div>
+          </div>
+          <iframe id="report-pdf-frame" class="report-frame" title="PDF del reporte"></iframe>
+        </section>
+
+        <aside class="panel report-progress-sidebar" aria-live="polite">
+          <div class="report-progress-reference-note">
+            Nota: El porcentaje mostrado es referencial; la validacion final depende de su criterio y de su revision final.
+          </div>
+          <div class="report-progress-shell" aria-hidden="true">
+            <div id="report-progress-bar" class="report-progress-bar"></div>
+          </div>
+          <div class="report-progress-card">
+            <div class="report-progress-heading-note">Seguimiento referencial del avance por etapas</div>
+            <div class="report-progress-meta">
+              <strong id="report-progress-label">Etapa 0 · Arranque</strong>
+              <span id="report-progress-percent" class="report-progress-percent">0%</span>
+            </div>
+            <div id="report-progress-note" class="report-progress-note">Sin avance registrado todavia.</div>
+            <ul id="report-progress-checklist" class="report-progress-checklist"></ul>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <footer class="site-footer" aria-label="Informacion legal del sitio">
+      <div class="site-footer-inner">
+        <p>
+          © 2026 CNC Tech. Todo el contenido, la estructura del sistema, los recursos visuales y los materiales publicados en esta pagina pertenecen a CNC Tech. Todos los derechos reservados.
+        </p>
+        <p>
+          Al usar la pagina usted esta aceptando los
+          <a href="https://www.youtube.com/watch?v=9J62hGda9BQ" target="_blank" rel="noreferrer noopener">Terminos y condiciones</a>.
+        </p>
+        <p>
+          La informacion mostrada en este sitio puede actualizarse sin aviso previo. CNC Tech puede modificar funciones, textos, formatos, disponibilidad del servicio y contenido de apoyo cuando lo considere necesario para fines operativos, tecnicos o formativos.
+        </p>
+        <p>
+          Este portal esta destinado a gestion, seguimiento y construccion de reportes. El acceso o uso indebido de la plataforma, asi como la reproduccion no autorizada de su contenido, puede dar lugar a restricciones de acceso o acciones internas correspondientes.
+        </p>
+      </div>
+    </footer>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script src="./config.js?v=1.2.51"></script>
+    <script src="./app.js?v=1.2.51"></script>
+  </body>
+</html>
