@@ -1,4 +1,4 @@
 window.CNC_TECH_CONFIG = {
-  apiBaseUrl: "https://cloth-bracket-synopsis-purposes.trycloudflare.com",
+  apiBaseUrl: "https://titans-pda-tagged-gonna.trycloudflare.com",
   brandLogoUrl: "",
 };
